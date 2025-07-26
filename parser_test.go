@@ -35,6 +35,12 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 			description: "User message with tool result",
 		},
 		{
+			name:        "user_message_with_tool_result_array_content",
+			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":[{"type":"text","text":"File has diagnostics:\n- Error on line 10"}]}]}}`,
+			wantOutput:  "\n[15:30:45] USER:\n  Tool Result: toolu_456",
+			description: "User message with tool result containing array content",
+		},
+		{
 			name:        "user_message_mixed_content",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"text","text":"Running tool..."},{"type":"tool_result","tool_use_id":"toolu_456","content":"Done"}]}}`,
 			wantOutput:  "\n[15:30:45] USER:\n  Text: Running tool...\n  Tool Result: toolu_456",
@@ -65,6 +71,18 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hi"}],"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
 			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Hi",
 			description: "Assistant message without token display (all zeros)",
+		},
+		{
+			name:        "assistant_message_stop_reason_tool_use",
+			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"stop_reason":"tool_use","usage":{"input_tokens":5,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
+			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Tool Use: Search (id: toolu_999)\n    Input: {\n      \"q\": \"test\"\n    }\n  Tokens: input=5, output=10, cache_read=0, cache_creation=0",
+			description: "Assistant message with stop_reason tool_use",
+		},
+		{
+			name:        "assistant_message_stop_reason_end_turn",
+			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Finished."}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
+			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Finished.\n  Tokens: input=1, output=1, cache_read=0, cache_creation=0",
+			description: "Assistant message with stop_reason end_turn",
 		},
 
 		// System Message Tests
@@ -167,6 +185,21 @@ func TestEventParser_EdgeCases(t *testing.T) {
 		{
 			name:       "very_long_content",
 			input:      `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"` + strings.Repeat("a", 1000) + `"}}`,
+			shouldPass: true,
+		},
+		{
+			name:       "tool_result_with_is_error_true",
+			input:      `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_error","content":"API Error: Rate limit exceeded","is_error":true}]}}`,
+			shouldPass: true,
+		},
+		{
+			name:       "unicode_in_content",
+			input:      `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello 世界 🌍"}}`,
+			shouldPass: true,
+		},
+		{
+			name:       "very_long_tool_use_id",
+			input:      `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_` + strings.Repeat("x", 100) + `","content":"Done"}]}}`,
 			shouldPass: true,
 		},
 	}

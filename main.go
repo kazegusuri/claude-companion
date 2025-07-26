@@ -85,6 +85,11 @@ func readFullFile(filePath string) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	// Increase buffer size to handle very long JSON lines (default is 64KB)
+	const maxScanTokenSize = 1024 * 1024 // 1MB
+	buf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(buf, maxScanTokenSize)
+
 	lineNum := 0
 
 	for scanner.Scan() {
