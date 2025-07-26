@@ -12,7 +12,9 @@ var defaultNarratorRulesJSON string
 
 // NarratorConfig represents the configuration for narrative rules
 type NarratorConfig struct {
-	Rules map[string]ToolRules `json:"rules"`
+	Rules         map[string]ToolRules `json:"rules"`
+	Messages      MessageTemplates     `json:"messages"`
+	CodeBlockInfo CodeBlockRules       `json:"codeBlocks"`
 }
 
 // ToolRules represents rules for a specific tool
@@ -40,6 +42,41 @@ type PrefixRule struct {
 type PatternRule struct {
 	Contains string `json:"contains"`
 	Message  string `json:"message"`
+}
+
+// MessageTemplates contains general message templates
+type MessageTemplates struct {
+	GenericToolExecution    string            `json:"genericToolExecution"`    // For unmatched tools
+	GenericCommandExecution string            `json:"genericCommandExecution"` // For unmatched commands
+	ComplexTask             string            `json:"complexTask"`             // For complex tasks
+	CurrentDirectory        string            `json:"currentDirectory"`        // For current directory
+	DirectoryContents       string            `json:"directoryContents"`       // For directory listing
+	TodoListUpdate          string            `json:"todoListUpdate"`          // For todo list updates
+	FileOperations          map[string]string `json:"fileOperations"`          // File operation messages
+}
+
+// CodeBlockRules contains rules for code block narration
+type CodeBlockRules struct {
+	Languages map[string]LanguageRules `json:"languages"`
+	Default   CodeBlockDefault         `json:"default"`
+}
+
+// LanguageRules contains patterns and messages for a specific language
+type LanguageRules struct {
+	Patterns []CodePattern `json:"patterns"`
+	Default  string        `json:"default"`
+}
+
+// CodePattern represents a pattern for code block content
+type CodePattern struct {
+	Contains string `json:"contains"`
+	Message  string `json:"message"`
+}
+
+// CodeBlockDefault contains default messages for code blocks
+type CodeBlockDefault struct {
+	SingleLine    string `json:"singleLine"`
+	MultipleLines string `json:"multipleLines"`
 }
 
 // LoadNarratorConfig loads narrator configuration from a file

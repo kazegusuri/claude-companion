@@ -1,0 +1,278 @@
+{
+  "messages": {
+    "genericToolExecution": "Running tool '{tool}'",
+    "genericCommandExecution": "Executing command '{command}'",
+    "complexTask": "Processing complex task",
+    "currentDirectory": "Checking current directory contents",
+    "directoryContents": "Checking directory contents",
+    "todoListUpdate": "Updating TODO list",
+    "fileOperations": {
+      "Read": "Read '{filename}'",
+      "Write": "Created '{filename}'",
+      "Edit": "Edited '{filename}'",
+      "Delete": "Deleted '{filename}'",
+      "default": "Performed {operation} on '{filename}'"
+    }
+  },
+  "codeBlocks": {
+    "languages": {
+      "go": {
+        "patterns": [
+          {"contains": "func main()", "message": "Defining main function"},
+          {"contains": "func Test", "message": "Defining test function"},
+          {"contains": "type", "message": "Defining struct"},
+          {"contains": "interface", "message": "Defining interface"}
+        ],
+        "default": "Writing Go code ({lines} lines)"
+      },
+      "python": {
+        "patterns": [
+          {"contains": "def ", "message": "Defining Python function"},
+          {"contains": "class ", "message": "Defining Python class"}
+        ],
+        "default": "Writing Python code ({lines} lines)"
+      },
+      "javascript": {
+        "patterns": [
+          {"contains": "function", "message": "Defining JavaScript function"},
+          {"contains": "const", "message": "Defining JavaScript function"},
+          {"contains": "class ", "message": "Defining JavaScript class"},
+          {"contains": "import", "message": "Setting up module"},
+          {"contains": "export", "message": "Setting up module"}
+        ],
+        "default": "Writing JavaScript code ({lines} lines)"
+      },
+      "typescript": {
+        "patterns": [
+          {"contains": "function", "message": "Defining TypeScript function"},
+          {"contains": "const", "message": "Defining TypeScript function"},
+          {"contains": "class ", "message": "Defining TypeScript class"},
+          {"contains": "interface", "message": "Defining TypeScript interface"},
+          {"contains": "import", "message": "Setting up module"},
+          {"contains": "export", "message": "Setting up module"}
+        ],
+        "default": "Writing TypeScript code ({lines} lines)"
+      },
+      "bash": {
+        "patterns": [],
+        "default": "Writing shell script"
+      },
+      "json": {
+        "patterns": [],
+        "default": "Writing JSON configuration"
+      },
+      "yaml": {
+        "patterns": [],
+        "default": "Writing YAML configuration"
+      },
+      "markdown": {
+        "patterns": [],
+        "default": "Writing documentation"
+      },
+      "sql": {
+        "patterns": [
+          {"contains": "CREATE TABLE", "message": "Defining table"},
+          {"contains": "SELECT", "message": "Searching data"}
+        ],
+        "default": "Writing SQL query"
+      }
+    },
+    "default": {
+      "singleLine": "Writing 1 line of code",
+      "multipleLines": "Writing {lines} lines of code"
+    }
+  },
+  "rules": {
+    "Bash": {
+      "prefixes": [
+        {"prefix": "git commit", "message": "Committing changes to Git"},
+        {"prefix": "git push", "message": "Pushing changes to remote repository"},
+        {"prefix": "git add", "message": "Adding files to Git staging area"},
+        {"prefix": "git status", "message": "Checking Git repository status"},
+        {"prefix": "git diff", "message": "Checking differences"},
+        {"prefix": "git log", "message": "Checking commit history"},
+        {"prefix": "git pull", "message": "Pulling changes from remote repository"},
+        {"prefix": "git checkout", "message": "Switching branches"},
+        {"prefix": "git branch", "message": "Managing branches"},
+        {"prefix": "git merge", "message": "Merging branches"},
+        {"prefix": "git rebase", "message": "Rebasing commits"},
+        {"prefix": "git stash", "message": "Stashing changes"},
+        {"prefix": "git clone", "message": "Cloning repository"},
+        
+        {"prefix": "make test", "message": "Running tests"},
+        {"prefix": "make build", "message": "Building project"},
+        {"prefix": "make fmt", "message": "Formatting code"},
+        {"prefix": "make clean", "message": "Cleaning build artifacts"},
+        {"prefix": "make install", "message": "Installing project"},
+        {"prefix": "make run", "message": "Running project"},
+        
+        {"prefix": "go test", "message": "Running Go tests"},
+        {"prefix": "go build", "message": "Building Go program"},
+        {"prefix": "go run", "message": "Running Go program"},
+        {"prefix": "go fmt", "message": "Formatting Go code"},
+        {"prefix": "gofmt", "message": "Formatting Go code"},
+        {"prefix": "go mod", "message": "Managing Go modules"},
+        {"prefix": "go get", "message": "Getting Go dependencies"},
+        
+        {"prefix": "npm install", "message": "Installing packages"},
+        {"prefix": "npm run", "message": "Running script"},
+        {"prefix": "npm test", "message": "Running tests"},
+        {"prefix": "npm build", "message": "Building project"},
+        {"prefix": "npm start", "message": "Starting application"},
+        {"prefix": "yarn install", "message": "Installing packages"},
+        {"prefix": "yarn run", "message": "Running script"},
+        {"prefix": "yarn test", "message": "Running tests"},
+        {"prefix": "yarn build", "message": "Building project"},
+        {"prefix": "yarn start", "message": "Starting application"},
+        
+        {"prefix": "mkdir", "message": "Creating directory"},
+        {"prefix": "rm", "message": "Removing files or directories"},
+        {"prefix": "cp", "message": "Copying files"},
+        {"prefix": "mv", "message": "Moving files"},
+        {"prefix": "ls", "message": "Listing directory contents"},
+        {"prefix": "cat", "message": "Displaying file contents"},
+        {"prefix": "grep", "message": "Searching in files"},
+        {"prefix": "rg", "message": "Searching in files"},
+        {"prefix": "find", "message": "Finding files"},
+        {"prefix": "chmod", "message": "Changing file permissions"},
+        {"prefix": "chown", "message": "Changing file ownership"},
+        {"prefix": "touch", "message": "Creating or updating file"},
+        {"prefix": "echo", "message": "Outputting text"},
+        {"prefix": "sed", "message": "Replacing text"},
+        {"prefix": "awk", "message": "Processing text"},
+        
+        {"prefix": "python", "message": "Running Python script"},
+        {"prefix": "pip install", "message": "Installing Python packages"},
+        {"prefix": "pip freeze", "message": "Checking installed packages"},
+        {"prefix": "pytest", "message": "Running Python tests"},
+        
+        {"prefix": "docker build", "message": "Building Docker image"},
+        {"prefix": "docker run", "message": "Running Docker container"},
+        {"prefix": "docker ps", "message": "Checking running containers"},
+        {"prefix": "docker stop", "message": "Stopping container"},
+        {"prefix": "docker-compose up", "message": "Starting services with Docker Compose"},
+        {"prefix": "docker-compose down", "message": "Stopping services with Docker Compose"},
+        
+        {"prefix": "curl", "message": "Sending HTTP request"},
+        {"prefix": "wget", "message": "Downloading file"},
+        {"prefix": "ssh", "message": "Connecting to remote server"},
+        {"prefix": "scp", "message": "Copying files to remote"},
+        {"prefix": "tar", "message": "Working with archives"},
+        {"prefix": "zip", "message": "Compressing files"},
+        {"prefix": "unzip", "message": "Extracting files"}
+      ],
+      "default": "Running command '{command}'"
+    },
+    
+    "Read": {
+      "extensions": {
+        ".go": "Reading Go file '{filename}'",
+        ".js": "Reading JavaScript file '{filename}'",
+        ".ts": "Reading TypeScript file '{filename}'",
+        ".jsx": "Reading React file '{filename}'",
+        ".tsx": "Reading React file '{filename}'",
+        ".py": "Reading Python file '{filename}'",
+        ".md": "Reading document '{filename}'",
+        ".json": "Reading JSON config '{filename}'",
+        ".yaml": "Reading YAML config '{filename}'",
+        ".yml": "Reading YAML config '{filename}'",
+        ".txt": "Reading text file '{filename}'",
+        ".log": "Reading log file '{filename}'",
+        ".sh": "Reading shell script '{filename}'",
+        ".bash": "Reading shell script '{filename}'",
+        ".sql": "Reading SQL file '{filename}'",
+        ".html": "Reading HTML file '{filename}'",
+        ".css": "Reading CSS file '{filename}'",
+        ".xml": "Reading XML file '{filename}'",
+        ".toml": "Reading TOML config '{filename}'",
+        ".ini": "Reading config file '{filename}'",
+        ".env": "Reading environment file '{filename}'"
+      },
+      "default": "Reading file '{filename}'"
+    },
+    
+    "Write": {
+      "patterns": [
+        {"contains": "test", "message": "Creating test file '{filename}'"}
+      ],
+      "default": "Creating file '{filename}'"
+    },
+    
+    "Edit": {
+      "patterns": [
+        {"contains": "func", "message": "Editing function in {filename}"},
+        {"contains": "import", "message": "Updating imports in {filename}"},
+        {"contains": "TODO", "message": "Updating TODO comment in {filename}"}
+      ],
+      "default": "Editing file '{filename}'"
+    },
+    
+    "MultiEdit": {
+      "default": "Making {count} changes to file '{filename}'"
+    },
+    
+    "Grep": {
+      "patterns": [
+        {"contains": "func", "message": "Searching for function definitions in {path}"},
+        {"contains": "class", "message": "Searching for class definitions in {path}"},
+        {"contains": "TODO", "message": "Searching for TODO comments in {path}"},
+        {"contains": "error", "message": "Searching for error handling in {path}"},
+        {"contains": "Error", "message": "Searching for error handling in {path}"}
+      ],
+      "default": "Searching for '{pattern}' in {path}"
+    },
+    
+    "Glob": {
+      "patterns": [
+        {"contains": "*test*", "message": "Looking for test files"},
+        {"contains": "*.go", "message": "Looking for Go files"},
+        {"contains": "*.js", "message": "Looking for JavaScript files"},
+        {"contains": "*.ts", "message": "Looking for TypeScript files"},
+        {"contains": "*.py", "message": "Looking for Python files"},
+        {"contains": "*.md", "message": "Looking for documentation files"}
+      ],
+      "default": "Looking for files matching '{pattern}'"
+    },
+    
+    "LS": {
+      "default": "Checking contents of directory '{dirname}'"
+    },
+    
+    "WebFetch": {
+      "patterns": [
+        {"contains": "github.com", "message": "Fetching information from GitHub"},
+        {"contains": "docs", "message": "Reading documentation"},
+        {"contains": "api", "message": "Fetching from API"}
+      ],
+      "default": "Fetching information from '{domain}'"
+    },
+    
+    "WebSearch": {
+      "default": "Searching the web for '{query}'"
+    },
+    
+    "Task": {
+      "default": "Running task '{description}'"
+    },
+    
+    "TodoWrite": {
+      "default": "Updating TODO list (completed: {completed}, in progress: {in_progress})"
+    },
+    
+    "NotebookRead": {
+      "default": "Reading Jupyter notebook '{filename}'"
+    },
+    
+    "NotebookEdit": {
+      "patterns": [
+        {"contains": "insert", "message": "Adding new cell to notebook '{filename}'"},
+        {"contains": "delete", "message": "Deleting cell from notebook '{filename}'"}
+      ],
+      "default": "Editing notebook '{filename}'"
+    },
+    
+    "ExitPlanMode": {
+      "default": "Finishing implementation plan and starting coding"
+    }
+  }
+}

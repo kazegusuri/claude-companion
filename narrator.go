@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,13 +16,14 @@ type Narrator interface {
 
 // HybridNarrator uses rules first, then falls back to AI
 type HybridNarrator struct {
-	rules     map[string]func(map[string]interface{}) string
-	ai        *OpenAINarrator
-	useAI     bool
-	cache     map[string]string
-	cacheMu   sync.RWMutex
-	cacheTime map[string]time.Time
-	cacheTTL  time.Duration
+	rules          map[string]func(map[string]interface{}) string
+	ai             *OpenAINarrator
+	useAI          bool
+	cache          map[string]string
+	cacheMu        sync.RWMutex
+	cacheTime      map[string]time.Time
+	cacheTTL       time.Duration
+	configNarrator *ConfigBasedNarrator
 }
 
 // NewHybridNarrator creates a new hybrid narrator
@@ -54,6 +54,7 @@ func NewHybridNarratorWithConfig(apiKey string, useAI bool, configPath *string) 
 
 	// Create config-based narrator
 	configNarrator := NewConfigBasedNarrator(config)
+	hn.configNarrator = configNarrator
 
 	// Convert config-based narrator to rule functions
 	// Create a wrapper function for each tool that delegates to configNarrator
@@ -112,97 +113,19 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 	}
 
 	// Generic fallback
-	return fmt.Sprintf("ツール「%s」を実行します", toolName)
+	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
 }
 
 // NarrateCodeBlock describes a code block
 func (hn *HybridNarrator) NarrateCodeBlock(language, content string) string {
-	lines := strings.Split(strings.TrimSpace(content), "\n")
-	lineCount := len(lines)
-
-	switch language {
-	case "go":
-		// Analyze Go code
-		if strings.Contains(content, "func main()") {
-			return "メイン関数を定義します"
-		}
-		if strings.Contains(content, "func Test") {
-			return "テスト関数を定義します"
-		}
-		if strings.Contains(content, "type") && strings.Contains(content, "struct") {
-			return "構造体を定義します"
-		}
-		if strings.Contains(content, "type") && strings.Contains(content, "interface") {
-			return "インターフェースを定義します"
-		}
-		return fmt.Sprintf("Goコード（%d行）を記述します", lineCount)
-
-	case "python", "py":
-		if strings.Contains(content, "def ") {
-			return "Python関数を定義します"
-		}
-		if strings.Contains(content, "class ") {
-			return "Pythonクラスを定義します"
-		}
-		return fmt.Sprintf("Pythonコード（%d行）を記述します", lineCount)
-
-	case "javascript", "js", "typescript", "ts":
-		if strings.Contains(content, "function") || strings.Contains(content, "const") && strings.Contains(content, "=>") {
-			return "JavaScript関数を定義します"
-		}
-		if strings.Contains(content, "class ") {
-			return "JavaScriptクラスを定義します"
-		}
-		if strings.Contains(content, "import") || strings.Contains(content, "export") {
-			return "モジュールの設定を行います"
-		}
-		return fmt.Sprintf("JavaScriptコード（%d行）を記述します", lineCount)
-
-	case "bash", "sh", "shell":
-		return "シェルスクリプトを記述します"
-
-	case "json":
-		return "JSON設定を記述します"
-
-	case "yaml", "yml":
-		return "YAML設定を記述します"
-
-	case "markdown", "md":
-		return "ドキュメントを記述します"
-
-	case "sql":
-		if strings.Contains(strings.ToUpper(content), "CREATE TABLE") {
-			return "テーブルを定義します"
-		}
-		if strings.Contains(strings.ToUpper(content), "SELECT") {
-			return "データを検索します"
-		}
-		return "SQLクエリを記述します"
-
-	default:
-		if lineCount == 1 {
-			return "1行のコードを記述します"
-		}
-		return fmt.Sprintf("%d行のコードを記述します", lineCount)
-	}
+	// Delegate to config-based narrator
+	return hn.configNarrator.NarrateCodeBlock(language, content)
 }
 
 // NarrateFileOperation describes file operations
 func (hn *HybridNarrator) NarrateFileOperation(operation, filePath string) string {
-	fileName := filepath.Base(filePath)
-
-	switch operation {
-	case "Read":
-		return fmt.Sprintf("「%s」を読み込みました", fileName)
-	case "Write":
-		return fmt.Sprintf("「%s」を作成しました", fileName)
-	case "Edit":
-		return fmt.Sprintf("「%s」を編集しました", fileName)
-	case "Delete":
-		return fmt.Sprintf("「%s」を削除しました", fileName)
-	default:
-		return fmt.Sprintf("「%s」に対して%s操作を行いました", fileName, operation)
-	}
+	// Delegate to config-based narrator
+	return hn.configNarrator.NarrateFileOperation(operation, filePath)
 }
 
 // Helper function to extract domain from URL

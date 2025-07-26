@@ -1,4 +1,87 @@
 {
+  "messages": {
+    "genericToolExecution": "ツール「{tool}」を実行します",
+    "genericCommandExecution": "コマンド「{command}」を実行します",
+    "complexTask": "複雑なタスクを処理します",
+    "currentDirectory": "現在のディレクトリの内容を確認します",
+    "directoryContents": "ディレクトリの内容を確認します",
+    "todoListUpdate": "TODOリストを更新します",
+    "fileOperations": {
+      "Read": "「{filename}」を読み込みました",
+      "Write": "「{filename}」を作成しました",
+      "Edit": "「{filename}」を編集しました",
+      "Delete": "「{filename}」を削除しました",
+      "default": "「{filename}」に対して{operation}操作を行いました"
+    }
+  },
+  "codeBlocks": {
+    "languages": {
+      "go": {
+        "patterns": [
+          {"contains": "func main()", "message": "メイン関数を定義します"},
+          {"contains": "func Test", "message": "テスト関数を定義します"},
+          {"contains": "type", "message": "構造体を定義します"},
+          {"contains": "interface", "message": "インターフェースを定義します"}
+        ],
+        "default": "Goコード（{lines}行）を記述します"
+      },
+      "python": {
+        "patterns": [
+          {"contains": "def ", "message": "Python関数を定義します"},
+          {"contains": "class ", "message": "Pythonクラスを定義します"}
+        ],
+        "default": "Pythonコード（{lines}行）を記述します"
+      },
+      "javascript": {
+        "patterns": [
+          {"contains": "function", "message": "JavaScript関数を定義します"},
+          {"contains": "const", "message": "JavaScript関数を定義します"},
+          {"contains": "class ", "message": "JavaScriptクラスを定義します"},
+          {"contains": "import", "message": "モジュールの設定を行います"},
+          {"contains": "export", "message": "モジュールの設定を行います"}
+        ],
+        "default": "JavaScriptコード（{lines}行）を記述します"
+      },
+      "typescript": {
+        "patterns": [
+          {"contains": "function", "message": "TypeScript関数を定義します"},
+          {"contains": "const", "message": "TypeScript関数を定義します"},
+          {"contains": "class ", "message": "TypeScriptクラスを定義します"},
+          {"contains": "interface", "message": "TypeScriptインターフェースを定義します"},
+          {"contains": "import", "message": "モジュールの設定を行います"},
+          {"contains": "export", "message": "モジュールの設定を行います"}
+        ],
+        "default": "TypeScriptコード（{lines}行）を記述します"
+      },
+      "bash": {
+        "patterns": [],
+        "default": "シェルスクリプトを記述します"
+      },
+      "json": {
+        "patterns": [],
+        "default": "JSON設定を記述します"
+      },
+      "yaml": {
+        "patterns": [],
+        "default": "YAML設定を記述します"
+      },
+      "markdown": {
+        "patterns": [],
+        "default": "ドキュメントを記述します"
+      },
+      "sql": {
+        "patterns": [
+          {"contains": "CREATE TABLE", "message": "テーブルを定義します"},
+          {"contains": "SELECT", "message": "データを検索します"}
+        ],
+        "default": "SQLクエリを記述します"
+      }
+    },
+    "default": {
+      "singleLine": "1行のコードを記述します",
+      "multipleLines": "{lines}行のコードを記述します"
+    }
+  },
   "rules": {
     "Bash": {
       "prefixes": [

@@ -8,22 +8,41 @@ import (
 
 // ConfigBasedNarrator uses configuration file for narrative rules
 type ConfigBasedNarrator struct {
-	config *NarratorConfig
+	config        *NarratorConfig
+	defaultConfig *NarratorConfig
 }
 
 // NewConfigBasedNarrator creates a new config-based narrator
 func NewConfigBasedNarrator(config *NarratorConfig) *ConfigBasedNarrator {
 	return &ConfigBasedNarrator{
-		config: config,
+		config:        config,
+		defaultConfig: GetDefaultNarratorConfig(),
 	}
+}
+
+// getStringOrDefault returns the value from config if not empty, otherwise from defaultConfig
+func (cn *ConfigBasedNarrator) getStringOrDefault(configValue, defaultValue string) string {
+	if configValue != "" {
+		return configValue
+	}
+	return defaultValue
 }
 
 // NarrateToolUse converts tool usage to natural Japanese using config rules
 func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
 	rules, ok := cn.config.Rules[toolName]
 	if !ok {
-		// No rules for this tool
-		return fmt.Sprintf("ツール「%s」を実行します", toolName)
+		// Try default config
+		if defaultRules, ok := cn.defaultConfig.Rules[toolName]; ok {
+			rules = defaultRules
+		} else {
+			// No rules for this tool in both configs
+			template := cn.getStringOrDefault(cn.config.Messages.GenericToolExecution, cn.defaultConfig.Messages.GenericToolExecution)
+			if template != "" {
+				return strings.ReplaceAll(template, "{tool}", toolName)
+			}
+			panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
+		}
 	}
 
 	// Special handling for Bash commands
@@ -165,11 +184,19 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		if path, ok := input["path"].(string); ok {
 			dirName := filepath.Base(path)
 			if dirName == "." || dirName == "/" {
-				return "現在のディレクトリの内容を確認します"
+				msg := cn.getStringOrDefault(cn.config.Messages.CurrentDirectory, cn.defaultConfig.Messages.CurrentDirectory)
+				if msg != "" {
+					return msg
+				}
+				panic("No currentDirectory message in config")
 			}
 			return strings.ReplaceAll(rules.Default, "{dirname}", dirName)
 		}
-		return "ディレクトリの内容を確認します"
+		msg := cn.getStringOrDefault(cn.config.Messages.DirectoryContents, cn.defaultConfig.Messages.DirectoryContents)
+		if msg != "" {
+			return msg
+		}
+		panic("No directoryContents message in config")
 	}
 
 	// Handle WebFetch
@@ -204,10 +231,18 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			if strings.HasPrefix(prompt, "/") {
 				// Slash command
 				cmd := strings.Fields(prompt)[0]
-				return fmt.Sprintf("コマンド「%s」を実行します", cmd)
+				template := cn.getStringOrDefault(cn.config.Messages.GenericCommandExecution, cn.defaultConfig.Messages.GenericCommandExecution)
+				if template != "" {
+					return strings.ReplaceAll(template, "{command}", cmd)
+				}
+				panic(fmt.Sprintf("No genericCommandExecution message in config for command: %s", cmd))
 			}
 		}
-		return "複雑なタスクを処理します"
+		msg := cn.getStringOrDefault(cn.config.Messages.ComplexTask, cn.defaultConfig.Messages.ComplexTask)
+		if msg != "" {
+			return msg
+		}
+		panic("No complexTask message in config")
 	}
 
 	// Handle TodoWrite
@@ -231,7 +266,11 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			msg = strings.ReplaceAll(msg, "{in_progress}", fmt.Sprintf("%d", inProgress))
 			return msg
 		}
-		return "TODOリストを更新します"
+		msg := cn.getStringOrDefault(cn.config.Messages.TodoListUpdate, cn.defaultConfig.Messages.TodoListUpdate)
+		if msg != "" {
+			return msg
+		}
+		panic("No todoListUpdate message in config")
 	}
 
 	// Handle tools with simple default messages
@@ -240,95 +279,135 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 	}
 
 	// Generic fallback
-	return fmt.Sprintf("ツール「%s」を実行します", toolName)
+	template := cn.getStringOrDefault(cn.config.Messages.GenericToolExecution, cn.defaultConfig.Messages.GenericToolExecution)
+	if template != "" {
+		return strings.ReplaceAll(template, "{tool}", toolName)
+	}
+	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
 }
 
 // NarrateCodeBlock describes a code block
 func (cn *ConfigBasedNarrator) NarrateCodeBlock(language, content string) string {
-	// This is not configurable, so use the same logic as before
 	lines := strings.Split(strings.TrimSpace(content), "\n")
 	lineCount := len(lines)
 
-	switch language {
-	case "go":
-		if strings.Contains(content, "func main()") {
-			return "メイン関数を定義します"
-		}
-		if strings.Contains(content, "func Test") {
-			return "テスト関数を定義します"
-		}
-		if strings.Contains(content, "type") && strings.Contains(content, "struct") {
-			return "構造体を定義します"
-		}
-		if strings.Contains(content, "type") && strings.Contains(content, "interface") {
-			return "インターフェースを定義します"
-		}
-		return fmt.Sprintf("Goコード（%d行）を記述します", lineCount)
+	// Check if we have language-specific rules in custom config
+	langRules, hasCustom := cn.config.CodeBlockInfo.Languages[language]
+	defaultLangRules, hasDefault := cn.defaultConfig.CodeBlockInfo.Languages[language]
 
-	case "python", "py":
-		if strings.Contains(content, "def ") {
-			return "Python関数を定義します"
+	if hasCustom || hasDefault {
+		// Check patterns from custom config first
+		if hasCustom {
+			for _, pattern := range langRules.Patterns {
+				if strings.Contains(content, pattern.Contains) {
+					return pattern.Message
+				}
+			}
 		}
-		if strings.Contains(content, "class ") {
-			return "Pythonクラスを定義します"
-		}
-		return fmt.Sprintf("Pythonコード（%d行）を記述します", lineCount)
 
-	case "javascript", "js", "typescript", "ts":
-		if strings.Contains(content, "function") || strings.Contains(content, "const") && strings.Contains(content, "=>") {
-			return "JavaScript関数を定義します"
+		// Check patterns from default config
+		if hasDefault {
+			for _, pattern := range defaultLangRules.Patterns {
+				if strings.Contains(content, pattern.Contains) {
+					return pattern.Message
+				}
+			}
 		}
-		if strings.Contains(content, "class ") {
-			return "JavaScriptクラスを定義します"
+
+		// Use language default
+		var langDefault string
+		if hasCustom && langRules.Default != "" {
+			langDefault = langRules.Default
+		} else if hasDefault && defaultLangRules.Default != "" {
+			langDefault = defaultLangRules.Default
 		}
-		if strings.Contains(content, "import") || strings.Contains(content, "export") {
-			return "モジュールの設定を行います"
+
+		if langDefault != "" {
+			return strings.ReplaceAll(langDefault, "{lines}", fmt.Sprintf("%d", lineCount))
 		}
-		return fmt.Sprintf("JavaScriptコード（%d行）を記述します", lineCount)
-
-	case "bash", "sh", "shell":
-		return "シェルスクリプトを記述します"
-
-	case "json":
-		return "JSON設定を記述します"
-
-	case "yaml", "yml":
-		return "YAML設定を記述します"
-
-	case "markdown", "md":
-		return "ドキュメントを記述します"
-
-	case "sql":
-		if strings.Contains(strings.ToUpper(content), "CREATE TABLE") {
-			return "テーブルを定義します"
-		}
-		if strings.Contains(strings.ToUpper(content), "SELECT") {
-			return "データを検索します"
-		}
-		return "SQLクエリを記述します"
-
-	default:
-		if lineCount == 1 {
-			return "1行のコードを記述します"
-		}
-		return fmt.Sprintf("%d行のコードを記述します", lineCount)
 	}
+
+	// Also check alternative language names
+	alternatives := map[string]string{
+		"py":  "python",
+		"js":  "javascript",
+		"ts":  "typescript",
+		"sh":  "bash",
+		"yml": "yaml",
+		"md":  "markdown",
+	}
+
+	if alt, ok := alternatives[language]; ok {
+		if langRules, ok := cn.config.CodeBlockInfo.Languages[alt]; ok {
+			// Check patterns
+			for _, pattern := range langRules.Patterns {
+				if strings.Contains(content, pattern.Contains) {
+					return pattern.Message
+				}
+			}
+			// Use language default
+			if langRules.Default != "" {
+				return strings.ReplaceAll(langRules.Default, "{lines}", fmt.Sprintf("%d", lineCount))
+			}
+		}
+	}
+
+	// Use default
+	if lineCount == 1 {
+		defaultMsg := cn.getStringOrDefault(cn.config.CodeBlockInfo.Default.SingleLine, cn.defaultConfig.CodeBlockInfo.Default.SingleLine)
+		if defaultMsg != "" {
+			return defaultMsg
+		}
+		panic("No singleLine code block message in config")
+	}
+
+	defaultMsg := cn.getStringOrDefault(cn.config.CodeBlockInfo.Default.MultipleLines, cn.defaultConfig.CodeBlockInfo.Default.MultipleLines)
+	if defaultMsg != "" {
+		return strings.ReplaceAll(defaultMsg, "{lines}", fmt.Sprintf("%d", lineCount))
+	}
+	panic(fmt.Sprintf("No multipleLines code block message in config for %d lines", lineCount))
 }
 
 // NarrateFileOperation describes file operations
 func (cn *ConfigBasedNarrator) NarrateFileOperation(operation, filePath string) string {
 	fileName := filepath.Base(filePath)
 
+	// Normalize operation to use "default" for unknown operations
+	lookupKey := operation
 	switch operation {
-	case "Read":
-		return fmt.Sprintf("「%s」を読み込みました", fileName)
-	case "Write":
-		return fmt.Sprintf("「%s」を作成しました", fileName)
-	case "Edit":
-		return fmt.Sprintf("「%s」を編集しました", fileName)
-	case "Delete":
-		return fmt.Sprintf("「%s」を削除しました", fileName)
+	case "Read", "Write", "Edit", "Delete":
+		// Keep as-is for known operations
 	default:
-		return fmt.Sprintf("「%s」に対して%s操作を行いました", fileName, operation)
+		// Use "default" for unknown operations
+		lookupKey = "default"
+	}
+
+	// Check if Messages and FileOperations are configured
+	if cn.config.Messages.FileOperations != nil {
+		if template, ok := cn.config.Messages.FileOperations[lookupKey]; ok {
+			msg := strings.ReplaceAll(template, "{filename}", fileName)
+			if lookupKey == "default" {
+				msg = strings.ReplaceAll(msg, "{operation}", operation)
+			}
+			return msg
+		}
+	}
+
+	// Check default config
+	if cn.defaultConfig.Messages.FileOperations != nil {
+		if template, ok := cn.defaultConfig.Messages.FileOperations[lookupKey]; ok {
+			msg := strings.ReplaceAll(template, "{filename}", fileName)
+			if lookupKey == "default" {
+				msg = strings.ReplaceAll(msg, "{operation}", operation)
+			}
+			return msg
+		}
+	}
+
+	// Panic if no message found
+	if lookupKey == "default" {
+		panic(fmt.Sprintf("No default file operation message in config for operation: %s on file: %s", operation, fileName))
+	} else {
+		panic(fmt.Sprintf("No %s file operation message in config for file: %s", operation, fileName))
 	}
 }
