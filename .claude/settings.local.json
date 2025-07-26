@@ -4,7 +4,8 @@
       "Bash(git add:*)",
       "Bash(make:*)",
       "Bash(git commit:*)",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Bash(go test:*)"
     ],
     "deny": []
   }

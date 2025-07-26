@@ -8,6 +8,8 @@ A real-time parser and viewer for Claude's JSONL log files. This tool helps you 
 - **Full file reading**: Process entire session files from beginning to end
 - **Structured parsing**: Parse and format different event types with type-safe Go structs
 - **Human-readable output**: Display events with timestamps and formatted content
+- **Companion mode**: Enhanced formatting with emojis, code block extraction, and file operation tracking
+- **Large file support**: Handle JSONL lines up to 1MB in size
 
 ## Installation
 
@@ -30,6 +32,9 @@ make build
 
 # Read entire file from beginning to end
 ./claude-companion -project PROJECT_NAME -session SESSION_ID -full
+
+# Disable companion mode for simpler output
+./claude-companion -project PROJECT_NAME -session SESSION_ID -companion=false
 ```
 
 ### Using Make
@@ -47,8 +52,9 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 - `-project`: Project name (required)
 - `-session`: Session ID without .jsonl extension (required)
 - `-full`: Read entire file instead of tailing (optional)
+- `-companion`: Enable companion mode with enhanced formatting (default: true)
 
-## Modes
+## Operating Modes
 
 ### Tail Mode (Default)
 
@@ -70,6 +76,18 @@ In full read mode (`-full` flag), the tool:
 
 This mode is useful for analyzing completed sessions or generating reports.
 
+### Companion Mode
+
+Companion mode (enabled by default) provides enhanced formatting for better readability:
+
+- **Emoji indicators**: Visual cues for different event types (🤖 for assistant, 👤 for user, etc.)
+- **Code block extraction**: Automatically detects and formats code blocks from assistant responses
+- **Tool visualization**: Shows tool executions with descriptive icons (📄 for file reads, ✏️ for writes, etc.)
+- **Smart truncation**: Long messages are intelligently truncated to maintain readability
+- **File operation tracking**: Summarizes all file operations at the end of each assistant message
+
+To disable companion mode and use simple formatting, use `-companion=false`.
+
 ## Event Types
 
 The tool recognizes and formats the following event types:
@@ -78,22 +96,30 @@ The tool recognizes and formats the following event types:
 
 User input messages, displayed with timestamp and content.
 
+**Standard mode:**
 ```
 [15:04:05] USER: Hello, Claude!
 ```
 
-For complex inputs (tool results), displays structured content:
-
+**Companion mode:**
 ```
-[15:04:05] USER:
-  Text: Here is my question...
-  Tool Result: toolu_123456
+[15:04:05] 👤 USER:
+  Hello, Claude!
+```
+
+For complex inputs (tool results), companion mode provides clearer indicators:
+```
+[15:04:05] 👤 USER:
+  🎯 Command execution
+[15:04:06] 👤 USER:
+  ✅ Tool Result: toolu_123456
 ```
 
 ### 2. Assistant Events (`assistant`)
 
 Claude's responses, showing model name, content, and token usage.
 
+**Standard mode:**
 ```
 [15:04:06] ASSISTANT (claude-opus-4-20250514):
   Text: Hello! How can I help you today?
@@ -104,21 +130,54 @@ Claude's responses, showing model name, content, and token usage.
   Tokens: input=10, output=20, cache_read=100, cache_creation=50
 ```
 
+**Companion mode:**
+```
+[15:04:06] 🤖 ASSISTANT (claude-opus-4-20250514):
+  Hello! How can I help you today?
+  
+  📝 Code Block 1 (python):
+    def hello_world():
+        print("Hello, World!")
+    ... (10 more lines)
+  
+  🌐 Fetching: https://example.com
+  📄 Reading file: /path/to/file.txt
+  💰 Tokens: in=10, out=20, cache=100
+  
+📁 File Operations Summary:
+  - Read: /path/to/file.txt
+  - Write: /path/to/output.txt
+```
+
 ### 3. System Events (`system`)
 
 System messages with optional severity levels.
 
+**Standard mode:**
 ```
 [15:04:07] SYSTEM [info]: Tool execution completed successfully
 [15:04:08] SYSTEM [warning]: Rate limit approaching
+```
+
+**Companion mode:**
+```
+[15:04:07] ℹ️ SYSTEM [info]: Tool execution completed successfully
+[15:04:08] ⚠️ SYSTEM [warning]: Rate limit approaching
+[15:04:09] ❌ SYSTEM [error]: Connection failed
 ```
 
 ### 4. Summary Events (`summary`)
 
 Session summaries that provide high-level descriptions.
 
+**Standard mode:**
 ```
 [SUMMARY] Code Review: Python Web Application Security Analysis
+```
+
+**Companion mode:**
+```
+📋 [SUMMARY] Code Review: Python Web Application Security Analysis
 ```
 
 ### 5. Other Events
@@ -169,11 +228,14 @@ make clean
 
 ```
 .
-├── main.go         # Main application logic and CLI
-├── types.go        # Event type definitions
-├── Makefile        # Build automation
-├── CLAUDE.md       # Instructions for Claude
-└── README.md       # This file
+├── main.go                # Main application logic and CLI
+├── types.go              # Event type definitions
+├── parser.go             # Event parsing and formatting logic
+├── parser_test.go        # Unit tests for parser
+├── companion_formatter.go # Companion mode formatting utilities
+├── Makefile              # Build automation
+├── CLAUDE.md             # Instructions for Claude
+└── README.md             # This file
 ```
 
 ## Contributing

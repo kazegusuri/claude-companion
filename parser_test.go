@@ -7,6 +7,7 @@ import (
 
 func TestEventParser_ParseAndFormat(t *testing.T) {
 	parser := NewEventParser()
+	parser.SetCompanionMode(false) // Disable companion mode for standard tests
 
 	tests := []struct {
 		name        string
@@ -216,6 +217,7 @@ func TestEventParser_EdgeCases(t *testing.T) {
 
 func TestEventParser_ComplexToolInput(t *testing.T) {
 	parser := NewEventParser()
+	parser.SetCompanionMode(false) // Disable companion mode for standard tests
 
 	// Test complex nested tool input
 	input := `{
@@ -257,5 +259,70 @@ func TestEventParser_ComplexToolInput(t *testing.T) {
 	}
 	if !strings.Contains(output, `"nested"`) {
 		t.Error("Output should contain nested structure")
+	}
+}
+
+func TestEventParser_CompanionMode(t *testing.T) {
+	parser := NewEventParser()
+	// parser.companionMode is true by default
+
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		description  string
+	}{
+		{
+			name:         "user_message_with_emoji",
+			input:        `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello Claude"}}`,
+			wantContains: []string{"👤 USER:", "Hello Claude"},
+			description:  "User message should have emoji in companion mode",
+		},
+		{
+			name:         "assistant_message_with_emoji_and_tokens",
+			input:        `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hello! How can I help?"}],"usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}`,
+			wantContains: []string{"🤖 ASSISTANT", "💰 Tokens:", "Hello! How can I help?"},
+			description:  "Assistant message should have emoji and formatted tokens",
+		},
+		{
+			name:         "assistant_with_code_block",
+			input:        `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Here's a function:\n\n` + "```" + `python\ndef hello():\n    print('Hello')\n` + "```" + `\n\nThis prints hello."}],"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":4}}}`,
+			wantContains: []string{"📝 Code Block 1 (python):", "def hello():", "[CODE BLOCK 1: python]"},
+			description:  "Should extract and format code blocks",
+		},
+		{
+			name:         "assistant_with_tool_use",
+			input:        `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_789","name":"Read","input":{"file_path":"/test/file.txt"}}],"usage":{"input_tokens":5,"output_tokens":15,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
+			wantContains: []string{"📄 Reading file: /test/file.txt"},
+			description:  "Should show file read with emoji",
+		},
+		{
+			name:         "system_message_error",
+			input:        `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","level":"error","content":"Connection failed"}`,
+			wantContains: []string{"❌ SYSTEM [error]:", "Connection failed"},
+			description:  "Error system message should have error emoji",
+		},
+		{
+			name:         "summary_with_emoji",
+			input:        `{"type":"summary","summary":"Test Summary"}`,
+			wantContains: []string{"📋 [SUMMARY]", "Test Summary"},
+			description:  "Summary should have clipboard emoji",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := parser.ParseAndFormat(tt.input)
+			if err != nil {
+				t.Fatalf("ParseAndFormat() error: %v", err)
+			}
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(output, want) {
+					t.Errorf("ParseAndFormat() output missing expected content\nDescription: %s\nWant substring: %q\nGot: %q",
+						tt.description, want, output)
+				}
+			}
+		})
 	}
 }
