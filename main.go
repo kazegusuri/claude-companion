@@ -12,30 +12,38 @@ import (
 )
 
 func main() {
-	var project, session string
+	var project, session, file string
 	var fullRead, companionMode bool
 	var narratorMode string
 	var openaiAPIKey string
 
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
+	flag.StringVar(&file, "file", "", "Direct path to session file")
 	flag.BoolVar(&fullRead, "full", false, "Read entire file from beginning to end instead of tailing")
 	flag.BoolVar(&companionMode, "companion", true, "Enable companion mode with enhanced formatting")
 	flag.StringVar(&narratorMode, "narrator", "rule", "Narrator mode: rule, ai, or off")
 	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
 	flag.Parse()
 
-	if project == "" || session == "" {
-		flag.Usage()
-		log.Fatal("Both -project and -session flags are required")
-	}
+	var filePath string
+	if file != "" {
+		// Use direct file path
+		filePath = file
+	} else {
+		// Use project/session path
+		if project == "" || session == "" {
+			flag.Usage()
+			log.Fatal("Either -file or both -project and -session flags are required")
+		}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Failed to get home directory: %v", err)
-	}
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to get home directory: %v", err)
+		}
 
-	filePath := filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
+		filePath = filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
+	}
 
 	// Create narrator based on mode
 	var narrator Narrator

@@ -33,6 +33,9 @@ make build
 # Read entire file from beginning to end
 ./claude-companion -project PROJECT_NAME -session SESSION_ID -full
 
+# Use a specific file path directly
+./claude-companion -file /path/to/session.jsonl
+
 # Disable companion mode for simpler output
 ./claude-companion -project PROJECT_NAME -session SESSION_ID -companion=false
 ```
@@ -49,8 +52,9 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 
 ### Command Line Options
 
-- `-project`: Project name (required)
-- `-session`: Session ID without .jsonl extension (required)
+- `-project`: Project name (required when not using -file)
+- `-session`: Session ID without .jsonl extension (required when not using -file)
+- `-file`: Direct path to a session file (alternative to -project/-session)
 - `-full`: Read entire file instead of tailing (optional)
 - `-companion`: Enable companion mode with enhanced formatting (default: true)
 - `-narrator`: Narrator mode for tool actions: rule, ai, or off (default: rule)
