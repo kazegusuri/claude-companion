@@ -12,6 +12,7 @@ type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) string
 	NarrateCodeBlock(language, content string) string
 	NarrateFileOperation(operation, filePath string) string
+	NarrateText(text string) string
 }
 
 // HybridNarrator uses rules first, then falls back to AI
@@ -128,6 +129,11 @@ func (hn *HybridNarrator) NarrateFileOperation(operation, filePath string) strin
 	return hn.configNarrator.NarrateFileOperation(operation, filePath)
 }
 
+// NarrateText returns the text as-is
+func (hn *HybridNarrator) NarrateText(text string) string {
+	return text
+}
+
 // Helper function to extract domain from URL
 func extractDomain(url string) string {
 	// Simple domain extraction
@@ -182,4 +188,9 @@ func (ai *OpenAINarrator) NarrateCodeBlock(language, content string) string {
 func (ai *OpenAINarrator) NarrateFileOperation(operation, filePath string) string {
 	// For now, just return empty to use rule-based fallback
 	return ""
+}
+
+// NarrateText returns the text as-is
+func (ai *OpenAINarrator) NarrateText(text string) string {
+	return text
 }

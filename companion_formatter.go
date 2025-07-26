@@ -181,7 +181,16 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 		lines := strings.Split(strings.TrimSpace(text), "\n")
 		for i, line := range lines {
 			if i < 5 {
-				output.WriteString(fmt.Sprintf("\n  %s", line))
+				if i == 0 && f.narrator != nil {
+					// Use narrator to process the first line, then add 💬
+					narrated := f.narrator.NarrateText(line)
+					output.WriteString(fmt.Sprintf("\n  💬 %s", narrated))
+				} else if i == 0 {
+					// Fallback if no narrator
+					output.WriteString(fmt.Sprintf("\n  💬 %s", line))
+				} else {
+					output.WriteString(fmt.Sprintf("\n  %s", line))
+				}
 			} else if i == 5 && len(lines) > 6 {
 				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-5))
 				break
@@ -199,9 +208,9 @@ func (f *CompanionFormatter) GetFileSummary() string {
 	}
 
 	var output strings.Builder
-	output.WriteString("\n\n📁 File Operations Summary:")
+	output.WriteString("\n  📁 File Operations Summary:")
 	for _, op := range f.fileOperations {
-		output.WriteString(fmt.Sprintf("\n  - %s", op))
+		output.WriteString(fmt.Sprintf("\n    - %s", op))
 	}
 
 	return output.String()

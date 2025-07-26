@@ -411,3 +411,8 @@ func (cn *ConfigBasedNarrator) NarrateFileOperation(operation, filePath string) 
 		panic(fmt.Sprintf("No %s file operation message in config for file: %s", operation, fileName))
 	}
 }
+
+// NarrateText returns the text as-is
+func (cn *ConfigBasedNarrator) NarrateText(text string) string {
+	return text
+}

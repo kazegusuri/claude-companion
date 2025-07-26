@@ -100,7 +100,11 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 		lines := strings.Split(strings.TrimSpace(content), "\n")
 		for i, line := range lines {
 			if i < 3 {
-				output.WriteString(fmt.Sprintf("\n  %s", line))
+				if i == 0 {
+					output.WriteString(fmt.Sprintf("\n  💬 %s", line))
+				} else {
+					output.WriteString(fmt.Sprintf("\n  %s", line))
+				}
 			} else if i == 3 && len(lines) > 4 {
 				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-3))
 				break
@@ -124,7 +128,11 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 								lines := strings.Split(strings.TrimSpace(text), "\n")
 								for i, line := range lines {
 									if i < 3 {
-										output.WriteString(fmt.Sprintf("\n  %s", line))
+										if i == 0 {
+											output.WriteString(fmt.Sprintf("\n  💬 %s", line))
+										} else {
+											output.WriteString(fmt.Sprintf("\n  %s", line))
+										}
 									} else if i == 3 && len(lines) > 4 {
 										output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-3))
 										break
@@ -215,15 +223,7 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 		}
 	}
 
-	// Add token usage if present
-	if event.Message.Usage.OutputTokens > 0 {
-		output.WriteString(fmt.Sprintf("\n  💰 Tokens: in=%d, out=%d, cache=%d",
-			event.Message.Usage.InputTokens,
-			event.Message.Usage.OutputTokens,
-			event.Message.Usage.CacheReadInputTokens))
-	}
-
-	// Show file operations summary at end of message if we had any content
+	// Show file operations summary first if we had any content
 	if hasContent {
 		summary := p.companion.GetFileSummary()
 		if summary != "" {
@@ -231,6 +231,14 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 		}
 		// Reset for next message
 		p.companion.Reset()
+	}
+
+	// Add token usage at the end if present
+	if event.Message.Usage.OutputTokens > 0 {
+		output.WriteString(fmt.Sprintf("\n  💰 Tokens: in=%d, out=%d, cache=%d",
+			event.Message.Usage.InputTokens,
+			event.Message.Usage.OutputTokens,
+			event.Message.Usage.CacheReadInputTokens))
 	}
 
 	return output.String(), nil
