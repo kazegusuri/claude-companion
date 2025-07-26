@@ -16,6 +16,7 @@ func main() {
 	var fullRead, companionMode bool
 	var narratorMode string
 	var openaiAPIKey string
+	var narratorConfigPath string
 
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
@@ -24,6 +25,7 @@ func main() {
 	flag.BoolVar(&companionMode, "companion", true, "Enable companion mode with enhanced formatting")
 	flag.StringVar(&narratorMode, "narrator", "rule", "Narrator mode: rule, ai, or off")
 	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
+	flag.StringVar(&narratorConfigPath, "narrator-config", "", "Path to narrator configuration file (JSON)")
 	flag.Parse()
 
 	var filePath string
@@ -53,7 +55,11 @@ func main() {
 			log.Printf("Warning: AI narrator mode requires OpenAI API key. Falling back to rule-based mode.")
 			useAI = false
 		}
-		narrator = NewHybridNarrator(openaiAPIKey, useAI)
+		if narratorConfigPath != "" {
+			narrator = NewHybridNarratorWithConfig(openaiAPIKey, useAI, &narratorConfigPath)
+		} else {
+			narrator = NewHybridNarrator(openaiAPIKey, useAI)
+		}
 	}
 
 	if fullRead {

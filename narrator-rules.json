@@ -1,0 +1,195 @@
+{
+  "rules": {
+    "Bash": {
+      "prefixes": [
+        {"prefix": "git commit", "message": "変更をGitにコミットします"},
+        {"prefix": "git push", "message": "変更をリモートリポジトリにプッシュします"},
+        {"prefix": "git add", "message": "ファイルをGitのステージングエリアに追加します"},
+        {"prefix": "git status", "message": "Gitリポジトリの状態を確認します"},
+        {"prefix": "git diff", "message": "変更内容の差分を確認します"},
+        {"prefix": "git log", "message": "コミット履歴を確認します"},
+        {"prefix": "git pull", "message": "リモートリポジトリから変更を取得します"},
+        {"prefix": "git checkout", "message": "ブランチを切り替えます"},
+        {"prefix": "git branch", "message": "ブランチを管理します"},
+        {"prefix": "git merge", "message": "ブランチをマージします"},
+        {"prefix": "git rebase", "message": "コミット履歴を整理します"},
+        {"prefix": "git stash", "message": "変更を一時的に保存します"},
+        {"prefix": "git clone", "message": "リポジトリをクローンします"},
+        
+        {"prefix": "make test", "message": "テストを実行します"},
+        {"prefix": "make build", "message": "プロジェクトをビルドします"},
+        {"prefix": "make fmt", "message": "コードをフォーマットします"},
+        {"prefix": "make clean", "message": "ビルド成果物をクリーンアップします"},
+        {"prefix": "make install", "message": "プロジェクトをインストールします"},
+        {"prefix": "make run", "message": "プロジェクトを実行します"},
+        
+        {"prefix": "go test", "message": "Goのテストを実行します"},
+        {"prefix": "go build", "message": "Goプログラムをビルドします"},
+        {"prefix": "go run", "message": "Goプログラムを実行します"},
+        {"prefix": "go fmt", "message": "Goコードをフォーマットします"},
+        {"prefix": "gofmt", "message": "Goコードをフォーマットします"},
+        {"prefix": "go mod", "message": "Goモジュールを管理します"},
+        {"prefix": "go get", "message": "Go依存関係を取得します"},
+        
+        {"prefix": "npm install", "message": "依存パッケージをインストールします"},
+        {"prefix": "npm run", "message": "スクリプトを実行します"},
+        {"prefix": "npm test", "message": "テストを実行します"},
+        {"prefix": "npm build", "message": "プロジェクトをビルドします"},
+        {"prefix": "npm start", "message": "アプリケーションを起動します"},
+        {"prefix": "yarn install", "message": "依存パッケージをインストールします"},
+        {"prefix": "yarn run", "message": "スクリプトを実行します"},
+        {"prefix": "yarn test", "message": "テストを実行します"},
+        {"prefix": "yarn build", "message": "プロジェクトをビルドします"},
+        {"prefix": "yarn start", "message": "アプリケーションを起動します"},
+        
+        {"prefix": "mkdir", "message": "ディレクトリを作成します"},
+        {"prefix": "rm", "message": "ファイルまたはディレクトリを削除します"},
+        {"prefix": "cp", "message": "ファイルをコピーします"},
+        {"prefix": "mv", "message": "ファイルを移動します"},
+        {"prefix": "ls", "message": "ディレクトリの内容を確認します"},
+        {"prefix": "cat", "message": "ファイルの内容を表示します"},
+        {"prefix": "grep", "message": "ファイル内を検索します"},
+        {"prefix": "rg", "message": "ファイル内を検索します"},
+        {"prefix": "find", "message": "ファイルを検索します"},
+        {"prefix": "chmod", "message": "ファイルの権限を変更します"},
+        {"prefix": "chown", "message": "ファイルの所有者を変更します"},
+        {"prefix": "touch", "message": "ファイルを作成または更新します"},
+        {"prefix": "echo", "message": "テキストを出力します"},
+        {"prefix": "sed", "message": "テキストを置換します"},
+        {"prefix": "awk", "message": "テキストを処理します"},
+        
+        {"prefix": "python", "message": "Pythonスクリプトを実行します"},
+        {"prefix": "pip install", "message": "Pythonパッケージをインストールします"},
+        {"prefix": "pip freeze", "message": "インストール済みパッケージを確認します"},
+        {"prefix": "pytest", "message": "Pythonテストを実行します"},
+        
+        {"prefix": "docker build", "message": "Dockerイメージをビルドします"},
+        {"prefix": "docker run", "message": "Dockerコンテナを実行します"},
+        {"prefix": "docker ps", "message": "実行中のコンテナを確認します"},
+        {"prefix": "docker stop", "message": "コンテナを停止します"},
+        {"prefix": "docker-compose up", "message": "Docker Composeでサービスを起動します"},
+        {"prefix": "docker-compose down", "message": "Docker Composeでサービスを停止します"},
+        
+        {"prefix": "curl", "message": "HTTPリクエストを送信します"},
+        {"prefix": "wget", "message": "ファイルをダウンロードします"},
+        {"prefix": "ssh", "message": "リモートサーバーに接続します"},
+        {"prefix": "scp", "message": "ファイルをリモートにコピーします"},
+        {"prefix": "tar", "message": "アーカイブを操作します"},
+        {"prefix": "zip", "message": "ファイルを圧縮します"},
+        {"prefix": "unzip", "message": "ファイルを解凍します"}
+      ],
+      "default": "コマンド「{command}」を実行します"
+    },
+    
+    "Read": {
+      "extensions": {
+        ".go": "Goファイル「{filename}」を読み込みます",
+        ".js": "JavaScriptファイル「{filename}」を読み込みます",
+        ".ts": "TypeScriptファイル「{filename}」を読み込みます",
+        ".jsx": "Reactファイル「{filename}」を読み込みます",
+        ".tsx": "Reactファイル「{filename}」を読み込みます",
+        ".py": "Pythonファイル「{filename}」を読み込みます",
+        ".md": "ドキュメント「{filename}」を読み込みます",
+        ".json": "JSON設定ファイル「{filename}」を読み込みます",
+        ".yaml": "YAML設定ファイル「{filename}」を読み込みます",
+        ".yml": "YAML設定ファイル「{filename}」を読み込みます",
+        ".txt": "テキストファイル「{filename}」を読み込みます",
+        ".log": "ログファイル「{filename}」を読み込みます",
+        ".sh": "シェルスクリプト「{filename}」を読み込みます",
+        ".bash": "シェルスクリプト「{filename}」を読み込みます",
+        ".sql": "SQLファイル「{filename}」を読み込みます",
+        ".html": "HTMLファイル「{filename}」を読み込みます",
+        ".css": "CSSファイル「{filename}」を読み込みます",
+        ".xml": "XMLファイル「{filename}」を読み込みます",
+        ".toml": "TOML設定ファイル「{filename}」を読み込みます",
+        ".ini": "設定ファイル「{filename}」を読み込みます",
+        ".env": "環境設定ファイル「{filename}」を読み込みます"
+      },
+      "default": "ファイル「{filename}」を読み込みます"
+    },
+    
+    "Write": {
+      "patterns": [
+        {"contains": "test", "message": "テストファイル「{filename}」を作成します"}
+      ],
+      "default": "ファイル「{filename}」を作成します"
+    },
+    
+    "Edit": {
+      "patterns": [
+        {"contains": "func", "message": "関数を{filename}で修正します"},
+        {"contains": "import", "message": "インポート文を{filename}で更新します"},
+        {"contains": "TODO", "message": "TODOコメントを{filename}で更新します"}
+      ],
+      "default": "ファイル「{filename}」を編集します"
+    },
+    
+    "MultiEdit": {
+      "default": "ファイル「{filename}」に{count}箇所の変更を加えます"
+    },
+    
+    "Grep": {
+      "patterns": [
+        {"contains": "func", "message": "{path}から関数定義を検索します"},
+        {"contains": "class", "message": "{path}からクラス定義を検索します"},
+        {"contains": "TODO", "message": "{path}からTODOコメントを検索します"},
+        {"contains": "error", "message": "{path}からエラー処理を検索します"},
+        {"contains": "Error", "message": "{path}からエラー処理を検索します"}
+      ],
+      "default": "{path}から「{pattern}」を検索します"
+    },
+    
+    "Glob": {
+      "patterns": [
+        {"contains": "*test*", "message": "テストファイルを探します"},
+        {"contains": "*.go", "message": "Goファイルを探します"},
+        {"contains": "*.js", "message": "JavaScriptファイルを探します"},
+        {"contains": "*.ts", "message": "TypeScriptファイルを探します"},
+        {"contains": "*.py", "message": "Pythonファイルを探します"},
+        {"contains": "*.md", "message": "ドキュメントファイルを探します"}
+      ],
+      "default": "パターン「{pattern}」に一致するファイルを探します"
+    },
+    
+    "LS": {
+      "default": "ディレクトリ「{dirname}」の内容を確認します"
+    },
+    
+    "WebFetch": {
+      "patterns": [
+        {"contains": "github.com", "message": "GitHubから情報を取得します"},
+        {"contains": "docs", "message": "ドキュメントを参照します"},
+        {"contains": "api", "message": "APIから情報を取得します"}
+      ],
+      "default": "「{domain}」から情報を取得します"
+    },
+    
+    "WebSearch": {
+      "default": "「{query}」についてWeb検索します"
+    },
+    
+    "Task": {
+      "default": "タスク「{description}」を実行します"
+    },
+    
+    "TodoWrite": {
+      "default": "TODOリストを更新します（完了: {completed}, 進行中: {in_progress}）"
+    },
+    
+    "NotebookRead": {
+      "default": "Jupyterノートブック「{filename}」を読み込みます"
+    },
+    
+    "NotebookEdit": {
+      "patterns": [
+        {"contains": "insert", "message": "ノートブック「{filename}」に新しいセルを追加します"},
+        {"contains": "delete", "message": "ノートブック「{filename}」からセルを削除します"}
+      ],
+      "default": "ノートブック「{filename}」を編集します"
+    },
+    
+    "ExitPlanMode": {
+      "default": "実装計画を完了し、コーディングを開始します"
+    }
+  }
+}
