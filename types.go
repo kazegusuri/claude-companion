@@ -20,8 +20,8 @@ type BaseEvent struct {
 type UserMessage struct {
 	BaseEvent
 	Message struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
+		Role    string      `json:"role"`
+		Content interface{} `json:"content"` // Can be string or array
 	} `json:"message"`
 }
 
@@ -56,10 +56,12 @@ type AssistantMessage struct {
 // SystemMessage represents system messages
 type SystemMessage struct {
 	BaseEvent
-	Content   string `json:"content"`
-	IsMeta    bool   `json:"isMeta"`
-	ToolUseID string `json:"toolUseID,omitempty"`
-	Level     string `json:"level,omitempty"`
+	Content           string `json:"content"`
+	IsMeta            bool   `json:"isMeta"`
+	IsApiErrorMessage bool   `json:"isApiErrorMessage,omitempty"`
+	IsCompactSummary  bool   `json:"isCompactSummary,omitempty"`
+	ToolUseID         string `json:"toolUseID,omitempty"`
+	Level             string `json:"level,omitempty"`
 }
 
 // ToolResultMessage represents tool execution results
@@ -77,9 +79,17 @@ type ToolResultMessage struct {
 	ToolUseResult interface{} `json:"toolUseResult,omitempty"`
 }
 
+// SummaryEvent represents a session summary
+type SummaryEvent struct {
+	Type     string `json:"type"`
+	Summary  string `json:"summary"`
+	LeafUUID string `json:"leafUuid"`
+}
+
 // EventType constants
 const (
 	EventTypeUser      = "user"
 	EventTypeAssistant = "assistant"
 	EventTypeSystem    = "system"
+	EventTypeSummary   = "summary"
 )
