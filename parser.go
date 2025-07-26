@@ -20,6 +20,13 @@ func NewEventParser() *EventParser {
 	}
 }
 
+// SetNarrator sets the narrator for the companion formatter
+func (p *EventParser) SetNarrator(n Narrator) {
+	if p.companion != nil {
+		p.companion.SetNarrator(n)
+	}
+}
+
 // SetCompanionMode enables or disables companion mode
 func (p *EventParser) SetCompanionMode(enabled bool) {
 	p.companionMode = enabled

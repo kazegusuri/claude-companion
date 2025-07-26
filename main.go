@@ -14,10 +14,15 @@ import (
 func main() {
 	var project, session string
 	var fullRead, companionMode bool
+	var narratorMode string
+	var openaiAPIKey string
+
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
 	flag.BoolVar(&fullRead, "full", false, "Read entire file from beginning to end instead of tailing")
 	flag.BoolVar(&companionMode, "companion", true, "Enable companion mode with enhanced formatting")
+	flag.StringVar(&narratorMode, "narrator", "rule", "Narrator mode: rule, ai, or off")
+	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
 	flag.Parse()
 
 	if project == "" || session == "" {
@@ -32,20 +37,31 @@ func main() {
 
 	filePath := filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
 
+	// Create narrator based on mode
+	var narrator Narrator
+	if companionMode && narratorMode != "off" {
+		useAI := narratorMode == "ai"
+		if useAI && openaiAPIKey == "" {
+			log.Printf("Warning: AI narrator mode requires OpenAI API key. Falling back to rule-based mode.")
+			useAI = false
+		}
+		narrator = NewHybridNarrator(openaiAPIKey, useAI)
+	}
+
 	if fullRead {
 		log.Printf("Reading file: %s", filePath)
-		if err := readFullFile(filePath, companionMode); err != nil {
+		if err := readFullFile(filePath, companionMode, narrator); err != nil {
 			log.Fatalf("Error reading file: %v", err)
 		}
 	} else {
 		log.Printf("Monitoring file: %s", filePath)
-		if err := tailFile(filePath, companionMode); err != nil {
+		if err := tailFile(filePath, companionMode, narrator); err != nil {
 			log.Fatalf("Error tailing file: %v", err)
 		}
 	}
 }
 
-func tailFile(filePath string, companionMode bool) error {
+func tailFile(filePath string, companionMode bool, narrator Narrator) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -73,12 +89,12 @@ func tailFile(filePath string, companionMode bool) error {
 
 		// Process the line
 		if len(line) > 0 {
-			processJSONLine(line, companionMode)
+			processJSONLine(line, companionMode, narrator)
 		}
 	}
 }
 
-func readFullFile(filePath string, companionMode bool) error {
+func readFullFile(filePath string, companionMode bool, narrator Narrator) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -97,7 +113,7 @@ func readFullFile(filePath string, companionMode bool) error {
 		lineNum++
 		line := scanner.Text()
 		if len(line) > 0 {
-			processJSONLine(line, companionMode)
+			processJSONLine(line, companionMode, narrator)
 		}
 	}
 
@@ -109,9 +125,12 @@ func readFullFile(filePath string, companionMode bool) error {
 	return nil
 }
 
-func processJSONLine(line string, companionMode bool) {
+func processJSONLine(line string, companionMode bool, narrator Narrator) {
 	parser := NewEventParser()
 	parser.SetCompanionMode(companionMode)
+	if narrator != nil {
+		parser.SetNarrator(narrator)
+	}
 	output, err := parser.ParseAndFormat(line)
 	if err != nil {
 		log.Printf("Failed to parse event: %v", err)

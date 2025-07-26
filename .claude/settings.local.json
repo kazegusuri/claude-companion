@@ -5,7 +5,9 @@
       "Bash(make:*)",
       "Bash(git commit:*)",
       "Bash(jq:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(go doc:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

@@ -13,6 +13,8 @@ type CompanionFormatter struct {
 	// Track statistics for the session
 	totalFiles int
 	totalTools int
+	// Narrator for natural language descriptions
+	narrator Narrator
 }
 
 // NewCompanionFormatter creates a new CompanionFormatter instance
@@ -20,6 +22,11 @@ func NewCompanionFormatter() *CompanionFormatter {
 	return &CompanionFormatter{
 		fileOperations: make([]string, 0),
 	}
+}
+
+// SetNarrator sets the narrator for natural language descriptions
+func (f *CompanionFormatter) SetNarrator(n Narrator) {
+	f.narrator = n
 }
 
 // ExtractCodeBlocks extracts code blocks from text content
@@ -50,6 +57,24 @@ func (f *CompanionFormatter) FormatToolUse(toolName, toolID string, input map[st
 
 	var output strings.Builder
 
+	// Use narrator if available
+	if f.narrator != nil {
+		narration := f.narrator.NarrateToolUse(toolName, input)
+		if narration != "" {
+			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+			// Track file operations for summary
+			if toolName == "Read" || toolName == "Write" || toolName == "Edit" || toolName == "MultiEdit" {
+				if path, ok := input["file_path"].(string); ok {
+					f.fileOperations = append(f.fileOperations, fmt.Sprintf("%s: %s", toolName, path))
+					f.totalFiles++
+				}
+			}
+			f.totalTools++
+			return output.String()
+		}
+	}
+
+	// Fallback to emoji-based formatting if narrator is not available
 	// Use emojis and formatting based on tool type
 	switch toolName {
 	case "Read", "mcp__ide__read":

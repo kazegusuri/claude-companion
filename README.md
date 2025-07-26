@@ -53,6 +53,8 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 - `-session`: Session ID without .jsonl extension (required)
 - `-full`: Read entire file instead of tailing (optional)
 - `-companion`: Enable companion mode with enhanced formatting (default: true)
+- `-narrator`: Narrator mode for tool actions: rule, ai, or off (default: rule)
+- `-openai-key`: OpenAI API key for AI narrator mode (optional, can use OPENAI_API_KEY env var)
 
 ## Operating Modes
 
@@ -80,6 +82,7 @@ This mode is useful for analyzing completed sessions or generating reports.
 
 Companion mode (enabled by default) provides enhanced formatting for better readability:
 
+- **Natural language narration**: Describes tool actions in Japanese (💬)
 - **Emoji indicators**: Visual cues for different event types (🤖 for assistant, 👤 for user, etc.)
 - **Code block extraction**: Automatically detects and formats code blocks from assistant responses
 - **Tool visualization**: Shows tool executions with descriptive icons (📄 for file reads, ✏️ for writes, etc.)
@@ -87,6 +90,37 @@ Companion mode (enabled by default) provides enhanced formatting for better read
 - **File operation tracking**: Summarizes all file operations at the end of each assistant message
 
 To disable companion mode and use simple formatting, use `-companion=false`.
+
+#### Narrator Feature
+
+The companion mode includes a narrator that describes tool actions in natural language:
+
+```bash
+# Use rule-based narrator (default)
+./claude-companion -project myproject -session mysession -narrator=rule
+
+# Use AI-powered narrator (requires OpenAI API key)
+export OPENAI_API_KEY=your-api-key
+./claude-companion -project myproject -session mysession -narrator=ai
+
+# Disable narrator
+./claude-companion -project myproject -session mysession -narrator=off
+```
+
+Example output with narrator:
+```
+[15:30:45] 🤖 ASSISTANT (claude-3-opus):
+  💬 ファイル「main.go」を読み込みます
+  💬 テストを実行します
+  💬 変更をGitにコミットします
+```
+
+The narrator supports common development tools and commands:
+- File operations (Read, Write, Edit)
+- Git commands (commit, push, pull, etc.)
+- Build tools (make, go build, npm, etc.)
+- Search operations (grep, find, etc.)
+- Web operations (fetch, search)
 
 ## Event Types
 
@@ -233,6 +267,7 @@ make clean
 ├── parser.go             # Event parsing and formatting logic
 ├── parser_test.go        # Unit tests for parser
 ├── companion_formatter.go # Companion mode formatting utilities
+├── narrator.go           # Natural language narrator for tool actions
 ├── Makefile              # Build automation
 ├── CLAUDE.md             # Instructions for Claude
 └── README.md             # This file
