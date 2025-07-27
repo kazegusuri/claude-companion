@@ -290,6 +290,32 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
 }
 
+// NarrateToolUsePermission narrates a tool permission request using config rules
+func (cn *ConfigBasedNarrator) NarrateToolUsePermission(toolName string) string {
+	// Check if there's a specific permission message for this tool
+	if rules, ok := cn.config.Rules[toolName]; ok {
+		if rules.PermissionMessage != "" {
+			return rules.PermissionMessage
+		}
+	}
+
+	// Check default config
+	if rules, ok := cn.defaultConfig.Rules[toolName]; ok {
+		if rules.PermissionMessage != "" {
+			return rules.PermissionMessage
+		}
+	}
+
+	// Use generic permission message
+	template := cn.getStringOrDefault(cn.config.Messages.GenericToolPermission, cn.defaultConfig.Messages.GenericToolPermission)
+	if template != "" {
+		return strings.ReplaceAll(template, "{tool}", toolName)
+	}
+
+	// Final fallback
+	return fmt.Sprintf("%sの使用許可を求めています", toolName)
+}
+
 // NarrateText returns the text as-is
 func (cn *ConfigBasedNarrator) NarrateText(text string) string {
 	return text

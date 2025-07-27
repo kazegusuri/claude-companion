@@ -22,10 +22,12 @@ func main() {
 	var enableVoice bool
 	var voicevoxURL string
 	var voiceSpeakerID int
+	var notificationLog string
 
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
 	flag.StringVar(&file, "file", "", "Direct path to session file")
+	flag.StringVar(&notificationLog, "notification-log", "", "Path to notification log file to watch")
 	flag.BoolVar(&fullRead, "full", false, "Read entire file from beginning to end instead of tailing")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode with detailed information")
 	flag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
@@ -36,6 +38,35 @@ func main() {
 	flag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
 	flag.Parse()
 
+	// Check if notification log mode is requested
+	if notificationLog != "" {
+		// Create narrator
+		var n narrator.Narrator
+		if narratorConfigPath != "" {
+			n = narrator.NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
+		} else {
+			n = narrator.NewHybridNarrator(openaiAPIKey, useAINarrator)
+		}
+
+		// Wrap with voice narrator if enabled
+		var voiceNarrator *narrator.VoiceNarrator
+		if enableVoice {
+			voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
+			voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
+			n = voiceNarrator
+			defer voiceNarrator.Close()
+		}
+
+		// Start watching notification log
+		watcher := NewNotificationWatcher(notificationLog, n)
+		watcher.SetDebugMode(debugMode)
+		log.Printf("Starting notification log watcher for: %s", notificationLog)
+		if err := watcher.Watch(); err != nil {
+			log.Fatalf("Error watching notification log: %v", err)
+		}
+		return
+	}
+
 	var filePath string
 	if file != "" {
 		// Use direct file path
@@ -44,7 +75,7 @@ func main() {
 		// Use project/session path
 		if project == "" || session == "" {
 			flag.Usage()
-			log.Fatal("Either -file or both -project and -session flags are required")
+			log.Fatal("Either -file, -notification-log, or both -project and -session flags are required")
 		}
 
 		homeDir, err := os.UserHomeDir()

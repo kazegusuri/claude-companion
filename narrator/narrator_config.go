@@ -29,6 +29,9 @@ type ToolRules struct {
 
 	// For pattern-based matching
 	Patterns []PatternRule `json:"patterns,omitempty"`
+
+	// For permission requests
+	PermissionMessage string `json:"permissionMessage,omitempty"`
 }
 
 // PrefixRule represents a prefix-based rule (mainly for Bash commands)
@@ -51,6 +54,7 @@ type MessageTemplates struct {
 	CurrentDirectory        string `json:"currentDirectory"`        // For current directory
 	DirectoryContents       string `json:"directoryContents"`       // For directory listing
 	TodoListUpdate          string `json:"todoListUpdate"`          // For todo list updates
+	GenericToolPermission   string `json:"genericToolPermission"`   // For tool permission requests
 }
 
 // LoadNarratorConfig loads narrator configuration from a file

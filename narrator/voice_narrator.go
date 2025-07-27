@@ -77,6 +77,28 @@ func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interf
 	return text
 }
 
+// NarrateToolUsePermission narrates tool permission request with optional voice
+func (vn *VoiceNarrator) NarrateToolUsePermission(toolName string) string {
+	text := vn.narrator.NarrateToolUsePermission(toolName)
+
+	if vn.enabled && text != "" {
+		// Translate English to Japanese if needed
+		ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
+		translatedText, _ := vn.translator.Translate(ctx, text)
+		cancel()
+
+		// Normalize text for better TTS pronunciation
+		normalizedText := vn.normalizer.Normalize(translatedText)
+		select {
+		case vn.queue <- normalizedText:
+		default:
+			// Queue is full, skip voice output
+		}
+	}
+
+	return text
+}
+
 // NarrateText narrates text with optional voice
 func (vn *VoiceNarrator) NarrateText(text string) string {
 	result := vn.narrator.NarrateText(text)

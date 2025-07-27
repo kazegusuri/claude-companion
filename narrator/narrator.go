@@ -16,6 +16,7 @@ import (
 // Narrator interface for converting tool actions to natural language
 type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) string
+	NarrateToolUsePermission(toolName string) string
 	NarrateText(text string) string
 }
 
@@ -121,6 +122,17 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
 }
 
+// NarrateToolUsePermission narrates a tool permission request
+func (hn *HybridNarrator) NarrateToolUsePermission(toolName string) string {
+	// Check if config narrator has permission rules
+	if hn.configNarrator != nil {
+		return hn.configNarrator.NarrateToolUsePermission(toolName)
+	}
+
+	// Default fallback
+	return fmt.Sprintf("%sの使用許可を求めています", toolName)
+}
+
 // NarrateText returns the text as-is
 func (hn *HybridNarrator) NarrateText(text string) string {
 	return text
@@ -188,6 +200,34 @@ func (ai *OpenAINarrator) NarrateToolUse(toolName string, input map[string]inter
 	if err != nil {
 		// Return empty to fallback to rule-based
 		return ""
+	}
+
+	return response
+}
+
+// NarrateToolUsePermission narrates a tool permission request
+func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) string {
+	// For permission requests, we can use a simpler prompt
+	ctx, cancel := context.WithTimeout(context.Background(), ai.timeout)
+	defer cancel()
+
+	prompt := fmt.Sprintf(`以下のツールの使用許可を求めていることを、簡潔な日本語で説明してください。
+
+ツール: %s
+
+以下の点に注意してください：
+- 10-15文字程度の短い文で説明
+- 「〜の許可を求めています」の形式
+- 自然で分かりやすい日本語を使用
+
+例:
+- ファイル書き込みの許可を求めています
+- コマンド実行の許可を求めています`, toolName)
+
+	response, err := ai.callOpenAI(ctx, prompt)
+	if err != nil {
+		// Fallback to simple format
+		return fmt.Sprintf("%sの使用許可を求めています", toolName)
 	}
 
 	return response
@@ -317,6 +357,11 @@ func NewNoOpNarrator() *NoOpNarrator {
 
 // NarrateToolUse returns empty string
 func (n *NoOpNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
+	return ""
+}
+
+// NarrateToolUsePermission returns empty string
+func (n *NoOpNarrator) NarrateToolUsePermission(toolName string) string {
 	return ""
 }
 

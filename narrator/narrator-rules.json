@@ -5,7 +5,8 @@
     "complexTask": "複雑なタスクを処理します",
     "currentDirectory": "現在のディレクトリの内容を確認します",
     "directoryContents": "ディレクトリの内容を確認します",
-    "todoListUpdate": "TODOリストを更新します"
+    "todoListUpdate": "TODOリストを更新します",
+    "genericToolPermission": "{tool}の使用許可を求めています"
   },
   "rules": {
     "Bash": {
@@ -86,7 +87,8 @@
         {"prefix": "zip", "message": "ファイルを圧縮します"},
         {"prefix": "unzip", "message": "ファイルを解凍します"}
       ],
-      "default": "コマンド「{command}」を実行します"
+      "default": "コマンド「{command}」を実行します",
+      "permissionMessage": "コマンド実行の許可を求めています"
     },
     
     "Read": {
@@ -113,14 +115,16 @@
         ".ini": "設定ファイル「{filename}」を読み込みます",
         ".env": "環境設定ファイル「{filename}」を読み込みます"
       },
-      "default": "ファイル「{filename}」を読み込みます"
+      "default": "ファイル「{filename}」を読み込みます",
+      "permissionMessage": "ファイル読み取りの許可を求めています"
     },
     
     "Write": {
       "patterns": [
         {"contains": "test", "message": "テストファイル「{filename}」を作成します"}
       ],
-      "default": "ファイル「{filename}」を作成します"
+      "default": "ファイル「{filename}」を作成します",
+      "permissionMessage": "ファイル書き込みの許可を求めています"
     },
     
     "Edit": {
@@ -129,7 +133,8 @@
         {"contains": "import", "message": "インポート文を{filename}で更新します"},
         {"contains": "TODO", "message": "TODOコメントを{filename}で更新します"}
       ],
-      "default": "ファイル「{filename}」を編集します"
+      "default": "ファイル「{filename}」を編集します",
+      "permissionMessage": "ファイル編集の許可を求めています"
     },
     
     "MultiEdit": {
@@ -144,7 +149,8 @@
         {"contains": "error", "message": "{path}からエラー処理を検索します"},
         {"contains": "Error", "message": "{path}からエラー処理を検索します"}
       ],
-      "default": "{path}から「{pattern}」を検索します"
+      "default": "{path}から「{pattern}」を検索します",
+      "permissionMessage": "ファイル検索の許可を求めています"
     },
     
     "Glob": {
@@ -156,11 +162,13 @@
         {"contains": "*.py", "message": "Pythonファイルを探します"},
         {"contains": "*.md", "message": "ドキュメントファイルを探します"}
       ],
-      "default": "パターン「{pattern}」に一致するファイルを探します"
+      "default": "パターン「{pattern}」に一致するファイルを探します",
+      "permissionMessage": "ファイル一覧取得の許可を求めています"
     },
     
     "LS": {
-      "default": "ディレクトリ「{dirname}」の内容を確認します"
+      "default": "ディレクトリ「{dirname}」の内容を確認します",
+      "permissionMessage": "ディレクトリ一覧の許可を求めています"
     },
     
     "WebFetch": {
