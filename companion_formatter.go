@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/kazegusuri/claude-companion/narrator"
 )
 
 const (
@@ -23,11 +25,11 @@ type CompanionFormatter struct {
 	totalFiles int
 	totalTools int
 	// Narrator for natural language descriptions
-	narrator Narrator
+	narrator narrator.Narrator
 }
 
 // NewCompanionFormatter creates a new CompanionFormatter instance
-func NewCompanionFormatter(narrator Narrator) *CompanionFormatter {
+func NewCompanionFormatter(narrator narrator.Narrator) *CompanionFormatter {
 	return &CompanionFormatter{
 		fileOperations: make([]string, 0),
 		narrator:       narrator,

@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/narrator"
 )
 
 func main() {
@@ -53,27 +55,27 @@ func main() {
 		useAINarrator = false
 	}
 
-	var narrator Narrator
+	var n narrator.Narrator
 	if narratorConfigPath != "" {
-		narrator = NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
+		n = narrator.NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
 	} else {
-		narrator = NewHybridNarrator(openaiAPIKey, useAINarrator)
+		n = narrator.NewHybridNarrator(openaiAPIKey, useAINarrator)
 	}
 
 	if fullRead {
 		log.Printf("Reading file: %s", filePath)
-		if err := readFullFile(filePath, debugMode, narrator); err != nil {
+		if err := readFullFile(filePath, debugMode, n); err != nil {
 			log.Fatalf("Error reading file: %v", err)
 		}
 	} else {
 		log.Printf("Monitoring file: %s", filePath)
-		if err := tailFile(filePath, debugMode, narrator); err != nil {
+		if err := tailFile(filePath, debugMode, n); err != nil {
 			log.Fatalf("Error tailing file: %v", err)
 		}
 	}
 }
 
-func tailFile(filePath string, debugMode bool, narrator Narrator) error {
+func tailFile(filePath string, debugMode bool, n narrator.Narrator) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -101,12 +103,12 @@ func tailFile(filePath string, debugMode bool, narrator Narrator) error {
 
 		// Process the line
 		if len(line) > 0 {
-			processJSONLine(line, debugMode, narrator)
+			processJSONLine(line, debugMode, n)
 		}
 	}
 }
 
-func readFullFile(filePath string, debugMode bool, narrator Narrator) error {
+func readFullFile(filePath string, debugMode bool, n narrator.Narrator) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -125,7 +127,7 @@ func readFullFile(filePath string, debugMode bool, narrator Narrator) error {
 		lineNum++
 		line := scanner.Text()
 		if len(line) > 0 {
-			processJSONLine(line, debugMode, narrator)
+			processJSONLine(line, debugMode, n)
 		}
 	}
 
@@ -137,8 +139,8 @@ func readFullFile(filePath string, debugMode bool, narrator Narrator) error {
 	return nil
 }
 
-func processJSONLine(line string, debugMode bool, narrator Narrator) {
-	parser := NewEventParser(narrator)
+func processJSONLine(line string, debugMode bool, n narrator.Narrator) {
+	parser := NewEventParser(n)
 	parser.SetDebugMode(debugMode)
 	output, err := parser.ParseAndFormat(line)
 	if err != nil {

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/kazegusuri/claude-companion/narrator"
 )
 
 // EventParser handles parsing and formatting of JSONL events
@@ -13,7 +15,7 @@ type EventParser struct {
 }
 
 // NewEventParser creates a new EventParser instance
-func NewEventParser(narrator Narrator) *EventParser {
+func NewEventParser(narrator narrator.Narrator) *EventParser {
 	return &EventParser{
 		companion: NewCompanionFormatter(narrator),
 		debugMode: false, // Default to normal mode
