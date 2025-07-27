@@ -20,31 +20,31 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 		{
 			name:        "user_message_simple_string",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello Claude"}}`,
-			wantOutput:  "\n[15:30:45] USER: Hello Claude",
+			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Hello Claude",
 			description: "Simple user message with string content",
 		},
 		{
 			name:        "user_message_with_text_array",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"text","text":"Hello world"}]}}`,
-			wantOutput:  "\n[15:30:45] USER:\n  Text: Hello world",
+			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Hello world",
 			description: "User message with text in array format",
 		},
 		{
 			name:        "user_message_with_tool_result",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_123","content":"Success"}]}}`,
-			wantOutput:  "\n[15:30:45] USER:\n  Tool Result: toolu_123",
+			wantOutput:  "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123",
 			description: "User message with tool result",
 		},
 		{
 			name:        "user_message_with_tool_result_array_content",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":[{"type":"text","text":"File has diagnostics:\n- Error on line 10"}]}]}}`,
-			wantOutput:  "\n[15:30:45] USER:\n  Tool Result: toolu_456",
+			wantOutput:  "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456",
 			description: "User message with tool result containing array content",
 		},
 		{
 			name:        "user_message_mixed_content",
 			input:       `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"text","text":"Running tool..."},{"type":"tool_result","tool_use_id":"toolu_456","content":"Done"}]}}`,
-			wantOutput:  "\n[15:30:45] USER:\n  Text: Running tool...\n  Tool Result: toolu_456",
+			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_456",
 			description: "User message with mixed content types",
 		},
 
@@ -52,37 +52,37 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 		{
 			name:        "assistant_message_simple_text",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hello! How can I help?"}],"usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Hello! How can I help?\n  Tokens: input=10, output=20, cache_read=100, cache_creation=50",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50",
 			description: "Assistant message with text and token usage",
 		},
 		{
 			name:        "assistant_message_with_tool_use",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_789","name":"WebSearch","input":{"query":"weather today"}}],"usage":{"input_tokens":5,"output_tokens":15,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Tool Use: WebSearch (id: toolu_789)\n    Input: {\n      \"query\": \"weather today\"\n    }\n  Tokens: input=5, output=15, cache_read=0, cache_creation=0",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0",
 			description: "Assistant message with tool use",
 		},
 		{
 			name:        "assistant_message_mixed_content",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Let me search for that."},{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":4}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Let me search for that.\n  Tool Use: Search (id: toolu_999)\n    Input: {\n      \"q\": \"test\"\n    }\n  Tokens: input=1, output=2, cache_read=3, cache_creation=4",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4",
 			description: "Assistant message with mixed content",
 		},
 		{
 			name:        "assistant_message_no_tokens",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hi"}],"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Hi",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi",
 			description: "Assistant message without token display (all zeros)",
 		},
 		{
 			name:        "assistant_message_stop_reason_tool_use",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"stop_reason":"tool_use","usage":{"input_tokens":5,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Tool Use: Search (id: toolu_999)\n    Input: {\n      \"q\": \"test\"\n    }\n  Tokens: input=5, output=10, cache_read=0, cache_creation=0",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0",
 			description: "Assistant message with stop_reason tool_use",
 		},
 		{
 			name:        "assistant_message_stop_reason_end_turn",
 			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Finished."}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			wantOutput:  "\n[15:30:45] ASSISTANT (claude-3-opus):\n  Text: Finished.\n  Tokens: input=1, output=1, cache_read=0, cache_creation=0",
+			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0",
 			description: "Assistant message with stop_reason end_turn",
 		},
 
@@ -90,13 +90,13 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 		{
 			name:        "system_message_simple",
 			input:       `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution completed","isMeta":false}`,
-			wantOutput:  "\n[15:30:45] SYSTEM: Tool execution completed",
+			wantOutput:  "\n[15:30:45] ℹ️ SYSTEM: Tool execution completed",
 			description: "Simple system message",
 		},
 		{
 			name:        "system_message_with_level",
 			input:       `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Rate limit warning","isMeta":false,"level":"warning"}`,
-			wantOutput:  "\n[15:30:45] SYSTEM [warning]: Rate limit warning",
+			wantOutput:  "\n[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning",
 			description: "System message with warning level",
 		},
 		{
@@ -108,7 +108,7 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 		{
 			name:        "system_message_with_tooluse",
 			input:       `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"PreToolUse:Search completed","isMeta":false,"toolUseID":"toolu_123","level":"info"}`,
-			wantOutput:  "\n[15:30:45] SYSTEM [info]: PreToolUse:Search completed",
+			wantOutput:  "\n[15:30:45] ℹ️ SYSTEM [info]: PreToolUse:Search completed",
 			description: "System message with tool use ID",
 		},
 
@@ -116,7 +116,7 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 		{
 			name:        "summary_event",
 			input:       `{"type":"summary","summary":"Code Review: Security Analysis Complete","leafUuid":"leaf_123"}`,
-			wantOutput:  "\n[SUMMARY] Code Review: Security Analysis Complete",
+			wantOutput:  "\n📋 [SUMMARY] Code Review: Security Analysis Complete",
 			description: "Summary event",
 		},
 
@@ -304,9 +304,7 @@ func TestEventParser_ComplexToolInput(t *testing.T) {
 	if !strings.Contains(output, "ComplexTool") {
 		t.Error("Output should contain tool name")
 	}
-	if !strings.Contains(output, `"nested"`) {
-		t.Error("Output should contain nested structure")
-	}
+	// In enhanced mode, we don't show the raw input JSON anymore
 }
 
 func TestEventParser_CompanionMode(t *testing.T) {
@@ -334,7 +332,7 @@ func TestEventParser_CompanionMode(t *testing.T) {
 		{
 			name:         "assistant_with_code_block",
 			input:        `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Here's a function:\n\n` + "```" + `python\ndef hello():\n    print('Hello')\n` + "```" + `\n\nThis prints hello."}],"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":4}}}`,
-			wantContains: []string{"📝 Code Block 1 (python):", "def hello():", "[CODE BLOCK 1: python]"},
+			wantContains: []string{"📝 Code Block 1 (python):", "def hello():", "```"},
 			description:  "Should extract and format code blocks",
 		},
 		{
