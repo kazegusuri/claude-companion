@@ -1,0 +1,129 @@
+package narrator
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+// VoiceNarrator wraps a narrator and adds voice output
+type VoiceNarrator struct {
+	narrator    Narrator
+	voiceClient *VoiceVoxClient
+	enabled     bool
+	queue       chan string
+	wg          sync.WaitGroup
+	ctx         context.Context
+	cancel      context.CancelFunc
+}
+
+// NewVoiceNarrator creates a new voice narrator
+func NewVoiceNarrator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bool) *VoiceNarrator {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	vn := &VoiceNarrator{
+		narrator:    narrator,
+		voiceClient: voiceClient,
+		enabled:     enabled,
+		queue:       make(chan string, 100),
+		ctx:         ctx,
+		cancel:      cancel,
+	}
+
+	if enabled && voiceClient != nil {
+		// Check if VOICEVOX is available
+		if !voiceClient.IsAvailable() {
+			fmt.Println("⚠️  Warning: VOICEVOX server is not available at", voiceClient.baseURL)
+			vn.enabled = false
+		} else {
+			// Start voice worker
+			vn.wg.Add(1)
+			go vn.voiceWorker()
+		}
+	}
+
+	return vn
+}
+
+// NarrateToolUse narrates tool usage with optional voice
+func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
+	text := vn.narrator.NarrateToolUse(toolName, input)
+
+	if vn.enabled && text != "" {
+		select {
+		case vn.queue <- text:
+		default:
+			// Queue is full, skip voice output
+		}
+	}
+
+	return text
+}
+
+// NarrateText narrates text with optional voice
+func (vn *VoiceNarrator) NarrateText(text string) string {
+	result := vn.narrator.NarrateText(text)
+
+	if vn.enabled && result != "" {
+		select {
+		case vn.queue <- result:
+		default:
+			// Queue is full, skip voice output
+		}
+	}
+
+	return result
+}
+
+// voiceWorker processes voice queue
+func (vn *VoiceNarrator) voiceWorker() {
+	defer vn.wg.Done()
+
+	for {
+		select {
+		case text := <-vn.queue:
+			// Create timeout context for each TTS operation
+			ctx, cancel := context.WithTimeout(vn.ctx, 10*time.Second)
+
+			// Try to synthesize and play
+			if err := vn.voiceClient.TextToSpeech(ctx, text); err != nil {
+				// Silently ignore errors to not interrupt the main flow
+				// Could log to debug if needed
+			}
+
+			cancel()
+
+		case <-vn.ctx.Done():
+			return
+		}
+	}
+}
+
+// SetEnabled enables or disables voice output
+func (vn *VoiceNarrator) SetEnabled(enabled bool) {
+	vn.enabled = enabled
+}
+
+// IsEnabled returns whether voice output is enabled
+func (vn *VoiceNarrator) IsEnabled() bool {
+	return vn.enabled
+}
+
+// Close stops the voice worker
+func (vn *VoiceNarrator) Close() {
+	vn.cancel()
+	close(vn.queue)
+	vn.wg.Wait()
+}
+
+// Speak adds text to voice queue without returning it
+func (vn *VoiceNarrator) Speak(text string) {
+	if vn.enabled && text != "" {
+		select {
+		case vn.queue <- text:
+		default:
+			// Queue is full, skip voice output
+		}
+	}
+}

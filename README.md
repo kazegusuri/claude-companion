@@ -60,6 +60,9 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 - `-ai`: Use AI narrator instead of rule-based narrator (default: false)
 - `-openai-key`: OpenAI API key for AI narrator (optional, can use OPENAI_API_KEY env var)
 - `-narrator-config`: Path to custom narrator configuration file (optional)
+- `-voice`: Enable voice output using VOICEVOX (default: false)
+- `-voicevox-url`: VOICEVOX server URL (default: http://localhost:50021)
+- `-voice-speaker`: VOICEVOX speaker ID (default: 1)
 
 ## Operating Modes
 
@@ -135,6 +138,37 @@ The narrator supports common development tools and commands:
 - Build tools (make, go build, npm, etc.)
 - Search operations (grep, find, etc.)
 - Web operations (fetch, search)
+
+#### Voice Output Feature
+
+The tool can speak the narrator's descriptions using VOICEVOX text-to-speech engine:
+
+```bash
+# Prerequisites: Start VOICEVOX engine
+# Download from: https://github.com/VOICEVOX/voicevox_engine
+# Run: ./run (or run.exe on Windows)
+
+# Enable voice output
+./claude-companion -project myproject -session mysession -voice
+
+# Use custom VOICEVOX server URL
+./claude-companion -project myproject -session mysession -voice -voicevox-url http://localhost:50021
+
+# Change speaker voice (see VOICEVOX for available speakers)
+./claude-companion -project myproject -session mysession -voice -voice-speaker 3
+```
+
+Voice output requirements:
+- VOICEVOX engine running (default port: 50021)
+- Audio playback support:
+  - macOS: `afplay` (built-in)
+  - Linux: `aplay` or `paplay`
+  - Windows: PowerShell (built-in)
+
+The voice narrator will:
+- Speak tool action descriptions in Japanese
+- Queue multiple narrations to avoid overlapping
+- Gracefully handle errors without interrupting the main output
 
 ## Event Types
 

@@ -19,6 +19,9 @@ func main() {
 	var useAINarrator bool
 	var openaiAPIKey string
 	var narratorConfigPath string
+	var enableVoice bool
+	var voicevoxURL string
+	var voiceSpeakerID int
 
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
@@ -28,6 +31,9 @@ func main() {
 	flag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
 	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
 	flag.StringVar(&narratorConfigPath, "narrator-config", "", "Path to narrator configuration file (JSON)")
+	flag.BoolVar(&enableVoice, "voice", false, "Enable voice output using VOICEVOX")
+	flag.StringVar(&voicevoxURL, "voicevox-url", "http://localhost:50021", "VOICEVOX server URL")
+	flag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
 	flag.Parse()
 
 	var filePath string
@@ -60,6 +66,15 @@ func main() {
 		n = narrator.NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
 	} else {
 		n = narrator.NewHybridNarrator(openaiAPIKey, useAINarrator)
+	}
+
+	// Wrap with voice narrator if enabled
+	var voiceNarrator *narrator.VoiceNarrator
+	if enableVoice {
+		voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
+		voiceNarrator = narrator.NewVoiceNarrator(n, voiceClient, true)
+		n = voiceNarrator
+		defer voiceNarrator.Close()
 	}
 
 	if fullRead {
