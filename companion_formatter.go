@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+const (
+	// MaxMainTextLines is the maximum number of lines to show for main text with placeholders
+	MaxMainTextLines = 10
+	// MaxCodePreviewLines is the maximum number of lines to show in code block preview
+	MaxCodePreviewLines = 5
+	// MaxNormalTextLines is the maximum number of lines to show for normal text without code blocks
+	MaxNormalTextLines = 5
+)
+
 // CompanionFormatter provides enhanced formatting for a more companion-like experience
 type CompanionFormatter struct {
 	fileOperations []string
@@ -151,12 +160,18 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 			processedText = strings.Replace(processedText, original, placeholder, 1)
 		}
 
-		// Show the main text with placeholders
+		// Show the main text without code block placeholders
 		lines := strings.Split(strings.TrimSpace(processedText), "\n")
-		for i, line := range lines {
-			if i < 3 || strings.Contains(line, "[CODE BLOCK") {
+		shownLines := 0
+		for _, line := range lines {
+			// Skip lines that are just code block placeholders
+			if strings.HasPrefix(strings.TrimSpace(line), "[CODE BLOCK") && strings.HasSuffix(strings.TrimSpace(line), "]") {
+				continue
+			}
+			if shownLines < MaxMainTextLines {
 				output.WriteString(fmt.Sprintf("\n  %s", line))
-			} else if i == 3 && len(lines) > 4 {
+				shownLines++
+			} else {
 				output.WriteString("\n  ... (text continues)")
 				break
 			}
@@ -164,23 +179,25 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 
 		// Show code blocks separately
 		for i, block := range codeBlocks {
-			output.WriteString(fmt.Sprintf("\n  \n  📝 Code Block %d (%s):", i+1, block.Language))
+			output.WriteString(fmt.Sprintf("\n  📝 Code Block %d (%s):", i+1, block.Language))
+			output.WriteString("\n    ```")
 			// Show first few lines of code
 			codeLines := strings.Split(strings.TrimSpace(block.Content), "\n")
 			for j, line := range codeLines {
-				if j < 5 {
+				if j < MaxCodePreviewLines {
 					output.WriteString(fmt.Sprintf("\n    %s", line))
-				} else if j == 5 && len(codeLines) > 6 {
-					output.WriteString(fmt.Sprintf("\n    ... (%d more lines)", len(codeLines)-5))
+				} else if j == MaxCodePreviewLines && len(codeLines) > MaxCodePreviewLines+1 {
+					output.WriteString(fmt.Sprintf("\n    ... (%d more lines)", len(codeLines)-MaxCodePreviewLines))
 					break
 				}
 			}
+			output.WriteString("\n    ```")
 		}
 	} else {
 		// No code blocks, show text normally but truncated
 		lines := strings.Split(strings.TrimSpace(text), "\n")
 		for i, line := range lines {
-			if i < 5 {
+			if i < MaxNormalTextLines {
 				if i == 0 && f.narrator != nil {
 					// Use narrator to process the first line, then add 💬
 					narrated := f.narrator.NarrateText(line)
@@ -191,8 +208,8 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 				} else {
 					output.WriteString(fmt.Sprintf("\n  %s", line))
 				}
-			} else if i == 5 && len(lines) > 6 {
-				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-5))
+			} else if i == MaxNormalTextLines && len(lines) > MaxNormalTextLines+1 {
+				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-MaxNormalTextLines))
 				break
 			}
 		}

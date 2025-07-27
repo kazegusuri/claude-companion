@@ -7,7 +7,7 @@ import (
 
 func TestEventParser_ParseAndFormat(t *testing.T) {
 	parser := NewEventParser()
-	parser.SetCompanionMode(false) // Disable companion mode for standard tests
+	// Tests will check enhanced formatting by default
 
 	tests := []struct {
 		name        string
@@ -215,9 +215,56 @@ func TestEventParser_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestEventParser_DebugMode(t *testing.T) {
+	parser := NewEventParser()
+	parser.SetDebugMode(true)
+
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		description  string
+	}{
+		{
+			name:         "user_message_with_debug_info",
+			input:        `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-123","message":{"role":"user","content":"Hello Claude"}}`,
+			wantContains: []string{"👤 USER:", "UUID: user-123", "💬 Hello Claude"},
+			description:  "User message should show UUID in debug mode",
+		},
+		{
+			name:         "assistant_message_with_debug_info",
+			input:        `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"asst-123","requestId":"req-456","message":{"id":"msg-789","type":"message","role":"assistant","model":"claude-3","content":[{"type":"text","text":"Hi"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
+			wantContains: []string{"🤖 ASSISTANT", "ID: msg-789", "ReqID: req-456", "Stop: end_turn"},
+			description:  "Assistant message should show IDs and stop reason in debug mode",
+		},
+		{
+			name:         "system_message_meta_shown_in_debug",
+			input:        `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"sys-123","content":"Meta info","isMeta":true}`,
+			wantContains: []string{"ℹ️ SYSTEM:", "UUID: sys-123", "META"},
+			description:  "Meta system messages should be shown in debug mode",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := parser.ParseAndFormat(tt.input)
+			if err != nil {
+				t.Fatalf("ParseAndFormat() error: %v", err)
+			}
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(output, want) {
+					t.Errorf("ParseAndFormat() output missing expected content\nDescription: %s\nWant substring: %q\nGot: %q",
+						tt.description, want, output)
+				}
+			}
+		})
+	}
+}
+
 func TestEventParser_ComplexToolInput(t *testing.T) {
 	parser := NewEventParser()
-	parser.SetCompanionMode(false) // Disable companion mode for standard tests
+	// Tests will check enhanced formatting by default
 
 	// Test complex nested tool input
 	input := `{

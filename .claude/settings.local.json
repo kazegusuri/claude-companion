@@ -7,7 +7,8 @@
       "Bash(jq:*)",
       "Bash(go test:*)",
       "Bash(go doc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(./claude-companion:*)"
     ],
     "deny": []
   }

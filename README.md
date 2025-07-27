@@ -36,8 +36,8 @@ make build
 # Use a specific file path directly
 ./claude-companion -file /path/to/session.jsonl
 
-# Disable companion mode for simpler output
-./claude-companion -project PROJECT_NAME -session SESSION_ID -companion=false
+# Enable debug mode for detailed information
+./claude-companion -project PROJECT_NAME -session SESSION_ID -debug
 ```
 
 ### Using Make
@@ -56,7 +56,7 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 - `-session`: Session ID without .jsonl extension (required when not using -file)
 - `-file`: Direct path to a session file (alternative to -project/-session)
 - `-full`: Read entire file instead of tailing (optional)
-- `-companion`: Enable companion mode with enhanced formatting (default: true)
+- `-debug`: Enable debug mode with detailed information (default: false)
 - `-narrator`: Narrator mode for tool actions: rule, ai, or off (default: rule)
 - `-openai-key`: OpenAI API key for AI narrator mode (optional, can use OPENAI_API_KEY env var)
 
@@ -82,9 +82,9 @@ In full read mode (`-full` flag), the tool:
 
 This mode is useful for analyzing completed sessions or generating reports.
 
-### Companion Mode
+### Enhanced Formatting
 
-Companion mode (enabled by default) provides enhanced formatting for better readability:
+The tool provides enhanced formatting for better readability:
 
 - **Natural language narration**: Describes tool actions in Japanese (💬)
 - **Emoji indicators**: Visual cues for different event types (🤖 for assistant, 👤 for user, etc.)
@@ -93,11 +93,20 @@ Companion mode (enabled by default) provides enhanced formatting for better read
 - **Smart truncation**: Long messages are intelligently truncated to maintain readability
 - **File operation tracking**: Summarizes all file operations at the end of each assistant message
 
-To disable companion mode and use simple formatting, use `-companion=false`.
+### Debug Mode
+
+Enable debug mode with `-debug` to see additional information:
+
+- Event UUIDs and IDs
+- Request IDs for assistant messages
+- Stop reasons for assistant responses
+- Meta system messages (normally hidden)
+- Full content size information for truncated messages
+- Tool use IDs for system messages
 
 #### Narrator Feature
 
-The companion mode includes a narrator that describes tool actions in natural language:
+The tool includes a narrator that describes tool actions in natural language:
 
 ```bash
 # Use rule-based narrator (default)
@@ -134,18 +143,14 @@ The tool recognizes and formats the following event types:
 
 User input messages, displayed with timestamp and content.
 
-**Standard mode:**
-```
-[15:04:05] USER: Hello, Claude!
-```
+User input messages are displayed with timestamps and emojis:
 
-**Companion mode:**
 ```
 [15:04:05] 👤 USER:
-  Hello, Claude!
+  💬 Hello, Claude!
 ```
 
-For complex inputs (tool results), companion mode provides clearer indicators:
+For complex inputs (tool results), the tool provides clear indicators:
 ```
 [15:04:05] 👤 USER:
   🎯 Command execution
@@ -157,18 +162,7 @@ For complex inputs (tool results), companion mode provides clearer indicators:
 
 Claude's responses, showing model name, content, and token usage.
 
-**Standard mode:**
-```
-[15:04:06] ASSISTANT (claude-opus-4-20250514):
-  Text: Hello! How can I help you today?
-  Tool Use: WebSearch (id: toolu_789)
-    Input: {
-      "query": "latest news"
-    }
-  Tokens: input=10, output=20, cache_read=100, cache_creation=50
-```
-
-**Companion mode:**
+Claude's responses are shown with model information and formatted content:
 ```
 [15:04:06] 🤖 ASSISTANT (claude-opus-4-20250514):
   Hello! How can I help you today?
@@ -189,31 +183,20 @@ Claude's responses, showing model name, content, and token usage.
 
 ### 3. System Events (`system`)
 
-System messages with optional severity levels.
+System messages with optional severity levels are shown with appropriate emojis:
 
-**Standard mode:**
-```
-[15:04:07] SYSTEM [info]: Tool execution completed successfully
-[15:04:08] SYSTEM [warning]: Rate limit approaching
-```
-
-**Companion mode:**
 ```
 [15:04:07] ℹ️ SYSTEM [info]: Tool execution completed successfully
 [15:04:08] ⚠️ SYSTEM [warning]: Rate limit approaching
 [15:04:09] ❌ SYSTEM [error]: Connection failed
 ```
 
+In debug mode, additional information like UUID and tool use IDs are displayed.
+
 ### 4. Summary Events (`summary`)
 
-Session summaries that provide high-level descriptions.
+Session summaries that provide high-level descriptions:
 
-**Standard mode:**
-```
-[SUMMARY] Code Review: Python Web Application Security Analysis
-```
-
-**Companion mode:**
 ```
 📋 [SUMMARY] Code Review: Python Web Application Security Analysis
 ```

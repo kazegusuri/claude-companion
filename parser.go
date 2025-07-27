@@ -8,15 +8,15 @@ import (
 
 // EventParser handles parsing and formatting of JSONL events
 type EventParser struct {
-	companion     *CompanionFormatter
-	companionMode bool
+	companion *CompanionFormatter
+	debugMode bool
 }
 
 // NewEventParser creates a new EventParser instance
 func NewEventParser() *EventParser {
 	return &EventParser{
-		companion:     NewCompanionFormatter(),
-		companionMode: true, // Default to companion mode
+		companion: NewCompanionFormatter(),
+		debugMode: false, // Default to normal mode
 	}
 }
 
@@ -27,9 +27,9 @@ func (p *EventParser) SetNarrator(n Narrator) {
 	}
 }
 
-// SetCompanionMode enables or disables companion mode
-func (p *EventParser) SetCompanionMode(enabled bool) {
-	p.companionMode = enabled
+// SetDebugMode enables or disables debug mode
+func (p *EventParser) SetDebugMode(enabled bool) {
+	p.debugMode = enabled
 }
 
 // ParseAndFormat parses a JSON line and returns formatted output
@@ -65,37 +65,16 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 
 	var output strings.Builder
 
-	if !p.companionMode {
-		// Simple format for non-companion mode
-		switch content := event.Message.Content.(type) {
-		case string:
-			output.WriteString(fmt.Sprintf("\n[%s] USER: %s", event.Timestamp.Format("15:04:05"), content))
-		case []interface{}:
-			output.WriteString(fmt.Sprintf("\n[%s] USER:", event.Timestamp.Format("15:04:05")))
-			for _, item := range content {
-				if contentMap, ok := item.(map[string]interface{}); ok {
-					if contentType, ok := contentMap["type"].(string); ok {
-						switch contentType {
-						case "text":
-							if text, ok := contentMap["text"].(string); ok {
-								output.WriteString(fmt.Sprintf("\n  Text: %s", text))
-							}
-						case "tool_result":
-							output.WriteString(fmt.Sprintf("\n  Tool Result: %v", contentMap["tool_use_id"]))
-						}
-					}
-				}
-			}
-		default:
-			output.WriteString(fmt.Sprintf("\n[%s] USER: %v", event.Timestamp.Format("15:04:05"), event.Message.Content))
-		}
-		return output.String(), nil
+	// Always use enhanced formatting with emojis
+	output.WriteString(fmt.Sprintf("\n[%s] 👤 USER:", event.Timestamp.Format("15:04:05")))
+
+	// Add debug info if enabled
+	if p.debugMode {
+		output.WriteString(fmt.Sprintf(" [UUID: %s]", event.UUID))
 	}
 
-	// Companion mode formatting
 	switch content := event.Message.Content.(type) {
 	case string:
-		output.WriteString(fmt.Sprintf("\n[%s] 👤 USER:", event.Timestamp.Format("15:04:05")))
 		// Truncate long messages
 		lines := strings.Split(strings.TrimSpace(content), "\n")
 		for i, line := range lines {
@@ -110,8 +89,11 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 				break
 			}
 		}
+		// Add full content in debug mode
+		if p.debugMode && len(lines) > 3 {
+			output.WriteString(fmt.Sprintf("\n  [DEBUG] Full content: %d lines, %d chars", len(lines), len(content)))
+		}
 	case []interface{}:
-		output.WriteString(fmt.Sprintf("\n[%s] 👤 USER:", event.Timestamp.Format("15:04:05")))
 		for _, item := range content {
 			if contentMap, ok := item.(map[string]interface{}); ok {
 				if contentType, ok := contentMap["type"].(string); ok {
@@ -152,7 +134,10 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 			}
 		}
 	default:
-		output.WriteString(fmt.Sprintf("\n[%s] 👤 USER: %v", event.Timestamp.Format("15:04:05"), event.Message.Content))
+		output.WriteString(fmt.Sprintf("\n  %v", event.Message.Content))
+		if p.debugMode {
+			output.WriteString(fmt.Sprintf("\n  [DEBUG] Unknown content type: %T", event.Message.Content))
+		}
 	}
 
 	return output.String(), nil
@@ -166,36 +151,16 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 
 	var output strings.Builder
 
-	if !p.companionMode {
-		// Simple format for non-companion mode
-		output.WriteString(fmt.Sprintf("\n[%s] ASSISTANT (%s):", event.Timestamp.Format("15:04:05"), event.Message.Model))
-
-		for _, content := range event.Message.Content {
-			switch content.Type {
-			case "text":
-				output.WriteString(fmt.Sprintf("\n  Text: %s", content.Text))
-			case "tool_use":
-				output.WriteString(fmt.Sprintf("\n  Tool Use: %s (id: %s)", content.Name, content.ID))
-				if content.Input != nil {
-					inputJSON, _ := json.MarshalIndent(content.Input, "    ", "  ")
-					output.WriteString(fmt.Sprintf("\n    Input: %s", string(inputJSON)))
-				}
-			}
-		}
-
-		if event.Message.Usage.OutputTokens > 0 {
-			output.WriteString(fmt.Sprintf("\n  Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d",
-				event.Message.Usage.InputTokens,
-				event.Message.Usage.OutputTokens,
-				event.Message.Usage.CacheReadInputTokens,
-				event.Message.Usage.CacheCreationInputTokens))
-		}
-
-		return output.String(), nil
-	}
-
-	// Companion mode formatting
+	// Always use enhanced formatting with emojis
 	output.WriteString(fmt.Sprintf("\n[%s] 🤖 ASSISTANT (%s):", event.Timestamp.Format("15:04:05"), event.Message.Model))
+
+	// Add debug info if enabled
+	if p.debugMode {
+		output.WriteString(fmt.Sprintf(" [ID: %s, ReqID: %s]", event.Message.ID, event.RequestID))
+		if event.Message.StopReason != nil {
+			output.WriteString(fmt.Sprintf(" [Stop: %s]", *event.Message.StopReason))
+		}
+	}
 
 	// Track if we have any content to show summary for
 	hasContent := false
@@ -220,6 +185,14 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 			}
 			formatted := p.companion.FormatToolUse(content.Name, content.ID, inputMap)
 			output.WriteString(formatted)
+			// Add debug info showing tool use details
+			if p.debugMode {
+				output.WriteString(fmt.Sprintf("\n  [DEBUG] Tool Use: %s (id: %s)", content.Name, content.ID))
+				if content.Input != nil {
+					inputJSON, _ := json.MarshalIndent(content.Input, "    ", "  ")
+					output.WriteString(fmt.Sprintf("\n    Input: %s", string(inputJSON)))
+				}
+			}
 		}
 	}
 
@@ -235,10 +208,11 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 
 	// Add token usage at the end if present
 	if event.Message.Usage.OutputTokens > 0 {
-		output.WriteString(fmt.Sprintf("\n  💰 Tokens: in=%d, out=%d, cache=%d",
+		output.WriteString(fmt.Sprintf("\n  💰 Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d",
 			event.Message.Usage.InputTokens,
 			event.Message.Usage.OutputTokens,
-			event.Message.Usage.CacheReadInputTokens))
+			event.Message.Usage.CacheReadInputTokens,
+			event.Message.Usage.CacheCreationInputTokens))
 	}
 
 	return output.String(), nil
@@ -250,8 +224,8 @@ func (p *EventParser) formatSystemMessage(line string) (string, error) {
 		return "", fmt.Errorf("failed to parse system message: %w", err)
 	}
 
-	if event.IsMeta {
-		return "", nil // Skip meta messages
+	if event.IsMeta && !p.debugMode {
+		return "", nil // Skip meta messages unless in debug mode
 	}
 
 	levelStr := ""
@@ -259,12 +233,7 @@ func (p *EventParser) formatSystemMessage(line string) (string, error) {
 		levelStr = fmt.Sprintf(" [%s]", event.Level)
 	}
 
-	if !p.companionMode {
-		// Simple format
-		return fmt.Sprintf("\n[%s] SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), levelStr, event.Content), nil
-	}
-
-	// Companion mode - choose emoji based on level
+	// Always use enhanced formatting with emojis
 	emoji := "ℹ️"
 	switch event.Level {
 	case "error":
@@ -277,7 +246,22 @@ func (p *EventParser) formatSystemMessage(line string) (string, error) {
 		emoji = "🐛"
 	}
 
-	return fmt.Sprintf("\n[%s] %s SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), emoji, levelStr, event.Content), nil
+	output := fmt.Sprintf("\n[%s] %s SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), emoji, levelStr, event.Content)
+
+	// Add debug info if enabled
+	if p.debugMode {
+		debugInfo := fmt.Sprintf(" [UUID: %s", event.UUID)
+		if event.IsMeta {
+			debugInfo += ", META"
+		}
+		if event.ToolUseID != "" {
+			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
+		}
+		debugInfo += "]"
+		output += debugInfo
+	}
+
+	return output, nil
 }
 
 func (p *EventParser) formatSummaryEvent(line string) (string, error) {
@@ -286,11 +270,15 @@ func (p *EventParser) formatSummaryEvent(line string) (string, error) {
 		return "", fmt.Errorf("failed to parse summary event: %w", err)
 	}
 
-	if !p.companionMode {
-		return fmt.Sprintf("\n[SUMMARY] %s", event.Summary), nil
+	// Always use enhanced formatting with emojis
+	output := fmt.Sprintf("\n📋 [SUMMARY] %s", event.Summary)
+
+	// Add debug info if enabled
+	if p.debugMode {
+		output += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
 	}
 
-	return fmt.Sprintf("\n📋 [SUMMARY] %s", event.Summary), nil
+	return output, nil
 }
 
 func (p *EventParser) formatUnknownEvent(line string, baseEvent BaseEvent) (string, error) {
