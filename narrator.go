@@ -16,8 +16,6 @@ import (
 // Narrator interface for converting tool actions to natural language
 type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) string
-	NarrateCodeBlock(language, content string) string
-	NarrateFileOperation(operation, filePath string) string
 	NarrateText(text string) string
 }
 
@@ -123,18 +121,6 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
 }
 
-// NarrateCodeBlock describes a code block
-func (hn *HybridNarrator) NarrateCodeBlock(language, content string) string {
-	// Delegate to config-based narrator
-	return hn.configNarrator.NarrateCodeBlock(language, content)
-}
-
-// NarrateFileOperation describes file operations
-func (hn *HybridNarrator) NarrateFileOperation(operation, filePath string) string {
-	// Delegate to config-based narrator
-	return hn.configNarrator.NarrateFileOperation(operation, filePath)
-}
-
 // NarrateText returns the text as-is
 func (hn *HybridNarrator) NarrateText(text string) string {
 	return text
@@ -205,18 +191,6 @@ func (ai *OpenAINarrator) NarrateToolUse(toolName string, input map[string]inter
 	}
 
 	return response
-}
-
-// NarrateCodeBlock uses OpenAI to describe code blocks
-func (ai *OpenAINarrator) NarrateCodeBlock(language, content string) string {
-	// For now, just return empty to use rule-based fallback
-	return ""
-}
-
-// NarrateFileOperation uses OpenAI to describe file operations
-func (ai *OpenAINarrator) NarrateFileOperation(operation, filePath string) string {
-	// For now, just return empty to use rule-based fallback
-	return ""
 }
 
 // NarrateText returns the text as-is
