@@ -1,7 +1,7 @@
 .PHONY: build test clean run fmt help
 
 # Go source files
-GO_FILES := $(wildcard *.go)
+GO_FILES := $(wildcard *.go) $(wildcard narrator/*.go)
 
 # Default target
 help:
@@ -22,7 +22,7 @@ test:
 	go test ./...
 
 fmt:
-	gofmt -w *.go
+	gofmt -w *.go narrator/*.go
 
 clean:
 	rm -f claude-companion
