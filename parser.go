@@ -13,17 +13,10 @@ type EventParser struct {
 }
 
 // NewEventParser creates a new EventParser instance
-func NewEventParser() *EventParser {
+func NewEventParser(narrator Narrator) *EventParser {
 	return &EventParser{
-		companion: NewCompanionFormatter(),
+		companion: NewCompanionFormatter(narrator),
 		debugMode: false, // Default to normal mode
-	}
-}
-
-// SetNarrator sets the narrator for the companion formatter
-func (p *EventParser) SetNarrator(n Narrator) {
-	if p.companion != nil {
-		p.companion.SetNarrator(n)
 	}
 }
 

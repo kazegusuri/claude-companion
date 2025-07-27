@@ -306,3 +306,21 @@ func (ai *OpenAINarrator) callOpenAI(ctx context.Context, prompt string) (string
 
 	return "", fmt.Errorf("no response from OpenAI")
 }
+
+// NoOpNarrator is a narrator that returns empty strings for all operations
+type NoOpNarrator struct{}
+
+// NewNoOpNarrator creates a new no-op narrator
+func NewNoOpNarrator() *NoOpNarrator {
+	return &NoOpNarrator{}
+}
+
+// NarrateToolUse returns empty string
+func (n *NoOpNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
+	return ""
+}
+
+// NarrateText returns the text as-is
+func (n *NoOpNarrator) NarrateText(text string) string {
+	return text
+}

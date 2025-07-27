@@ -57,8 +57,9 @@ make run PROJECT=project_name SESSION=session_id FULL=1
 - `-file`: Direct path to a session file (alternative to -project/-session)
 - `-full`: Read entire file instead of tailing (optional)
 - `-debug`: Enable debug mode with detailed information (default: false)
-- `-narrator`: Narrator mode for tool actions: rule, ai, or off (default: rule)
-- `-openai-key`: OpenAI API key for AI narrator mode (optional, can use OPENAI_API_KEY env var)
+- `-ai`: Use AI narrator instead of rule-based narrator (default: false)
+- `-openai-key`: OpenAI API key for AI narrator (optional, can use OPENAI_API_KEY env var)
+- `-narrator-config`: Path to custom narrator configuration file (optional)
 
 ## Operating Modes
 
@@ -110,14 +111,14 @@ The tool includes a narrator that describes tool actions in natural language:
 
 ```bash
 # Use rule-based narrator (default)
-./claude-companion -project myproject -session mysession -narrator=rule
+./claude-companion -project myproject -session mysession
 
 # Use AI-powered narrator (requires OpenAI API key)
 export OPENAI_API_KEY=your-api-key
-./claude-companion -project myproject -session mysession -narrator=ai
+./claude-companion -project myproject -session mysession -ai
 
-# Disable narrator
-./claude-companion -project myproject -session mysession -narrator=off
+# Use custom narrator configuration
+./claude-companion -project myproject -session mysession -narrator-config=/path/to/config.json
 ```
 
 Example output with narrator:

@@ -251,34 +251,24 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			completed := 0
 			inProgress := 0
 			pending := 0
-			var todoList strings.Builder
 
-			for i, todo := range todos {
+			for _, todo := range todos {
 				if todoMap, ok := todo.(map[string]interface{}); ok {
-					content := ""
-					if c, ok := todoMap["content"].(string); ok {
-						content = c
-					}
 					if status, ok := todoMap["status"].(string); ok {
-						emoji := ""
 						switch status {
 						case "completed":
 							completed++
-							emoji = "✅"
 						case "in_progress":
 							inProgress++
-							emoji = "🔄"
 						case "pending":
 							pending++
-							emoji = "⏳"
 						}
-						todoList.WriteString(fmt.Sprintf("\n    %d. %s %s", i+1, emoji, content))
 					}
 				}
 			}
 			msg := strings.ReplaceAll(rules.Default, "{completed}", fmt.Sprintf("%d", completed))
 			msg = strings.ReplaceAll(msg, "{in_progress}", fmt.Sprintf("%d", inProgress))
-			return msg + todoList.String()
+			return msg
 		}
 		msg := cn.getStringOrDefault(cn.config.Messages.TodoListUpdate, cn.defaultConfig.Messages.TodoListUpdate)
 		if msg != "" {

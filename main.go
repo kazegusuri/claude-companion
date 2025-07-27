@@ -14,7 +14,7 @@ import (
 func main() {
 	var project, session, file string
 	var fullRead, debugMode bool
-	var narratorMode string
+	var useAINarrator bool
 	var openaiAPIKey string
 	var narratorConfigPath string
 
@@ -23,7 +23,7 @@ func main() {
 	flag.StringVar(&file, "file", "", "Direct path to session file")
 	flag.BoolVar(&fullRead, "full", false, "Read entire file from beginning to end instead of tailing")
 	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode with detailed information")
-	flag.StringVar(&narratorMode, "narrator", "rule", "Narrator mode: rule, ai, or off")
+	flag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
 	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
 	flag.StringVar(&narratorConfigPath, "narrator-config", "", "Path to narrator configuration file (JSON)")
 	flag.Parse()
@@ -47,19 +47,17 @@ func main() {
 		filePath = filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
 	}
 
-	// Create narrator based on mode
+	// Always create HybridNarrator
+	if useAINarrator && openaiAPIKey == "" {
+		log.Printf("Warning: AI narrator requires OpenAI API key. Using rule-based narrator.")
+		useAINarrator = false
+	}
+
 	var narrator Narrator
-	if narratorMode != "off" {
-		useAI := narratorMode == "ai"
-		if useAI && openaiAPIKey == "" {
-			log.Printf("Warning: AI narrator mode requires OpenAI API key. Falling back to rule-based mode.")
-			useAI = false
-		}
-		if narratorConfigPath != "" {
-			narrator = NewHybridNarratorWithConfig(openaiAPIKey, useAI, &narratorConfigPath)
-		} else {
-			narrator = NewHybridNarrator(openaiAPIKey, useAI)
-		}
+	if narratorConfigPath != "" {
+		narrator = NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
+	} else {
+		narrator = NewHybridNarrator(openaiAPIKey, useAINarrator)
 	}
 
 	if fullRead {
@@ -140,11 +138,8 @@ func readFullFile(filePath string, debugMode bool, narrator Narrator) error {
 }
 
 func processJSONLine(line string, debugMode bool, narrator Narrator) {
-	parser := NewEventParser()
+	parser := NewEventParser(narrator)
 	parser.SetDebugMode(debugMode)
-	if narrator != nil {
-		parser.SetNarrator(narrator)
-	}
 	output, err := parser.ParseAndFormat(line)
 	if err != nil {
 		log.Printf("Failed to parse event: %v", err)

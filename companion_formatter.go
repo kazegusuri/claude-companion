@@ -27,15 +27,11 @@ type CompanionFormatter struct {
 }
 
 // NewCompanionFormatter creates a new CompanionFormatter instance
-func NewCompanionFormatter() *CompanionFormatter {
+func NewCompanionFormatter(narrator Narrator) *CompanionFormatter {
 	return &CompanionFormatter{
 		fileOperations: make([]string, 0),
+		narrator:       narrator,
 	}
-}
-
-// SetNarrator sets the narrator for natural language descriptions
-func (f *CompanionFormatter) SetNarrator(n Narrator) {
-	f.narrator = n
 }
 
 // ExtractCodeBlocks extracts code blocks from text content
@@ -66,21 +62,46 @@ func (f *CompanionFormatter) FormatToolUse(toolName, toolID string, input map[st
 
 	var output strings.Builder
 
-	// Use narrator if available
-	if f.narrator != nil {
-		narration := f.narrator.NarrateToolUse(toolName, input)
-		if narration != "" {
-			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
-			// Track file operations for summary
-			if toolName == "Read" || toolName == "Write" || toolName == "Edit" || toolName == "MultiEdit" {
-				if path, ok := input["file_path"].(string); ok {
-					f.fileOperations = append(f.fileOperations, fmt.Sprintf("%s: %s", toolName, path))
-					f.totalFiles++
+	// Use narrator
+	narration := f.narrator.NarrateToolUse(toolName, input)
+	if narration != "" {
+		output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+		// Track file operations for summary
+		if toolName == "Read" || toolName == "Write" || toolName == "Edit" || toolName == "MultiEdit" {
+			if path, ok := input["file_path"].(string); ok {
+				f.fileOperations = append(f.fileOperations, fmt.Sprintf("%s: %s", toolName, path))
+				f.totalFiles++
+			}
+		}
+		f.totalTools++
+
+		// Special handling for TodoWrite - show details even when narrator is used
+		if toolName == "TodoWrite" {
+			if todos, ok := input["todos"].([]interface{}); ok {
+				for i, todo := range todos {
+					if todoMap, ok := todo.(map[string]interface{}); ok {
+						content := ""
+						if c, ok := todoMap["content"].(string); ok {
+							content = c
+						}
+						if status, ok := todoMap["status"].(string); ok {
+							emoji := ""
+							switch status {
+							case "completed":
+								emoji = "✅"
+							case "in_progress":
+								emoji = "🔄"
+							case "pending":
+								emoji = "⏳"
+							}
+							output.WriteString(fmt.Sprintf("\n    %d. %s %s", i+1, emoji, content))
+						}
+					}
 				}
 			}
-			f.totalTools++
-			return output.String()
 		}
+
+		return output.String()
 	}
 
 	// Fallback to emoji-based formatting if narrator is not available
@@ -123,6 +144,29 @@ func (f *CompanionFormatter) FormatToolUse(toolName, toolID string, input map[st
 		}
 	case "TodoWrite":
 		output.WriteString("\n  ✅ Updating todo list")
+		// Display todo list details
+		if todos, ok := input["todos"].([]interface{}); ok {
+			for i, todo := range todos {
+				if todoMap, ok := todo.(map[string]interface{}); ok {
+					content := ""
+					if c, ok := todoMap["content"].(string); ok {
+						content = c
+					}
+					if status, ok := todoMap["status"].(string); ok {
+						emoji := ""
+						switch status {
+						case "completed":
+							emoji = "✅"
+						case "in_progress":
+							emoji = "🔄"
+						case "pending":
+							emoji = "⏳"
+						}
+						output.WriteString(fmt.Sprintf("\n    %d. %s %s", i+1, emoji, content))
+					}
+				}
+			}
+		}
 	default:
 		if strings.HasPrefix(toolName, "mcp__") {
 			// MCP tools
@@ -198,13 +242,10 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 		lines := strings.Split(strings.TrimSpace(text), "\n")
 		for i, line := range lines {
 			if i < MaxNormalTextLines {
-				if i == 0 && f.narrator != nil {
+				if i == 0 {
 					// Use narrator to process the first line, then add 💬
 					narrated := f.narrator.NarrateText(line)
 					output.WriteString(fmt.Sprintf("\n  💬 %s", narrated))
-				} else if i == 0 {
-					// Fallback if no narrator
-					output.WriteString(fmt.Sprintf("\n  💬 %s", line))
 				} else {
 					output.WriteString(fmt.Sprintf("\n  %s", line))
 				}
