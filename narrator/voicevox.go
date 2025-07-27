@@ -37,7 +37,7 @@ func NewVoiceVoxClient(baseURL string, speakerID int) *VoiceVoxClient {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		speed:      1.0,
+		speed:      1.5,
 		pitch:      0.0,
 		volume:     1.0,
 		intonation: 1.0,

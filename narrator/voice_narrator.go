@@ -16,10 +16,17 @@ type VoiceNarrator struct {
 	wg          sync.WaitGroup
 	ctx         context.Context
 	cancel      context.CancelFunc
+	normalizer  *TextNormalizer
+	translator  *CombinedTranslator
 }
 
 // NewVoiceNarrator creates a new voice narrator
 func NewVoiceNarrator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bool) *VoiceNarrator {
+	return NewVoiceNarratorWithTranslator(narrator, voiceClient, enabled, "", false)
+}
+
+// NewVoiceNarratorWithTranslator creates a new voice narrator with OpenAI translation support
+func NewVoiceNarratorWithTranslator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bool, openaiAPIKey string, useOpenAI bool) *VoiceNarrator {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	vn := &VoiceNarrator{
@@ -29,6 +36,8 @@ func NewVoiceNarrator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bo
 		queue:       make(chan string, 100),
 		ctx:         ctx,
 		cancel:      cancel,
+		normalizer:  NewTextNormalizer(),
+		translator:  NewCombinedTranslator(openaiAPIKey, useOpenAI),
 	}
 
 	if enabled && voiceClient != nil {
@@ -51,8 +60,15 @@ func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interf
 	text := vn.narrator.NarrateToolUse(toolName, input)
 
 	if vn.enabled && text != "" {
+		// Translate English to Japanese if needed
+		ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
+		translatedText, _ := vn.translator.Translate(ctx, text)
+		cancel()
+
+		// Normalize text for better TTS pronunciation
+		normalizedText := vn.normalizer.Normalize(translatedText)
 		select {
-		case vn.queue <- text:
+		case vn.queue <- normalizedText:
 		default:
 			// Queue is full, skip voice output
 		}
@@ -66,8 +82,15 @@ func (vn *VoiceNarrator) NarrateText(text string) string {
 	result := vn.narrator.NarrateText(text)
 
 	if vn.enabled && result != "" {
+		// Translate English to Japanese if needed
+		ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
+		translatedText, _ := vn.translator.Translate(ctx, result)
+		cancel()
+
+		// Normalize text for better TTS pronunciation
+		normalizedText := vn.normalizer.Normalize(translatedText)
 		select {
-		case vn.queue <- result:
+		case vn.queue <- normalizedText:
 		default:
 			// Queue is full, skip voice output
 		}
@@ -120,8 +143,15 @@ func (vn *VoiceNarrator) Close() {
 // Speak adds text to voice queue without returning it
 func (vn *VoiceNarrator) Speak(text string) {
 	if vn.enabled && text != "" {
+		// Translate English to Japanese if needed
+		ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
+		translatedText, _ := vn.translator.Translate(ctx, text)
+		cancel()
+
+		// Normalize text for better TTS pronunciation
+		normalizedText := vn.normalizer.Normalize(translatedText)
 		select {
-		case vn.queue <- text:
+		case vn.queue <- normalizedText:
 		default:
 			// Queue is full, skip voice output
 		}

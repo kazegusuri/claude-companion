@@ -72,7 +72,8 @@ func main() {
 	var voiceNarrator *narrator.VoiceNarrator
 	if enableVoice {
 		voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
-		voiceNarrator = narrator.NewVoiceNarrator(n, voiceClient, true)
+		// Use the same OpenAI API key for translation if available
+		voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
 		n = voiceNarrator
 		defer voiceNarrator.Close()
 	}
