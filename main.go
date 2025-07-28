@@ -22,6 +22,8 @@ func main() {
 	var voicevoxURL string
 	var voiceSpeakerID int
 	var notificationLog string
+	var watchProjects bool
+	var projectsRoot string
 
 	flag.StringVar(&project, "project", "", "Project name")
 	flag.StringVar(&session, "session", "", "Session name")
@@ -35,15 +37,18 @@ func main() {
 	flag.BoolVar(&enableVoice, "voice", false, "Enable voice output using VOICEVOX")
 	flag.StringVar(&voicevoxURL, "voicevox-url", "http://localhost:50021", "VOICEVOX server URL")
 	flag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
+	flag.BoolVar(&watchProjects, "watch-projects", false, "Watch all projects under ~/.claude/projects")
+	flag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects (used with -watch-projects)")
 	flag.Parse()
 
 	// Determine input sources
 	hasNotificationInput := notificationLog != ""
 	hasSessionInput := file != "" || (project != "" && session != "")
+	hasProjectsInput := watchProjects
 
-	if !hasNotificationInput && !hasSessionInput {
+	if !hasNotificationInput && !hasSessionInput && !hasProjectsInput {
 		flag.Usage()
-		log.Fatal("Either -file, -notification-log, or both -project and -session flags are required")
+		log.Fatal("Either -file, -notification-log, -watch-projects, or both -project and -session flags are required")
 	}
 
 	// Determine session file path if applicable
@@ -118,8 +123,21 @@ func main() {
 		}
 	}
 
+	// Start projects watcher if configured
+	if hasProjectsInput {
+		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, eventHandler)
+		if err != nil {
+			log.Fatalf("Error creating projects watcher: %v", err)
+		}
+		log.Printf("Starting projects watcher for: %s", projectsRoot)
+		if err := projectsWatcher.Start(); err != nil {
+			log.Fatalf("Error starting projects watcher: %v", err)
+		}
+		defer projectsWatcher.Stop()
+	}
+
 	// If we're running watchers (not full read mode), wait for interrupt
-	if hasNotificationInput || (hasSessionInput && !fullRead) {
+	if hasNotificationInput || (hasSessionInput && !fullRead) || hasProjectsInput {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
