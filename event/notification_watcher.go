@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"bufio"
@@ -10,24 +10,15 @@ import (
 	"time"
 )
 
-// NotificationEvent represents a notification event from the log file
-type NotificationEvent struct {
-	SessionID      string `json:"session_id"`
-	TranscriptPath string `json:"transcript_path"`
-	CWD            string `json:"cwd"`
-	HookEventName  string `json:"hook_event_name"`
-	Message        string `json:"message"`
-}
-
 // NotificationWatcher watches the notification log file for new events
 type NotificationWatcher struct {
 	filePath     string
-	eventHandler *EventHandler
+	eventHandler *Handler
 	done         chan struct{}
 }
 
 // NewNotificationWatcher creates a new notification watcher
-func NewNotificationWatcher(filePath string, eventHandler *EventHandler) *NotificationWatcher {
+func NewNotificationWatcher(filePath string, eventHandler *Handler) *NotificationWatcher {
 	return &NotificationWatcher{
 		filePath:     filePath,
 		eventHandler: eventHandler,
@@ -122,12 +113,12 @@ func (w *NotificationWatcher) tailFile(file *os.File) error {
 // processNotificationLine processes a single line from the notification log
 func (w *NotificationWatcher) processNotificationLine(line string) {
 	// Parse JSON notification event
-	var event NotificationEvent
-	if err := json.Unmarshal([]byte(line), &event); err != nil {
+	var notificationEvent NotificationEvent
+	if err := json.Unmarshal([]byte(line), &notificationEvent); err != nil {
 		// Send error through event handler if in debug mode
 		return
 	}
 
 	// Send event to handler
-	w.eventHandler.SendEvent(&NotificationLogEvent{Event: &event})
+	w.eventHandler.SendEvent(&NotificationLogEvent{Event: &notificationEvent})
 }

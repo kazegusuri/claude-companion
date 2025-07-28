@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"bufio"
@@ -12,12 +12,12 @@ import (
 // SessionWatcher watches session log files
 type SessionWatcher struct {
 	filePath     string
-	eventHandler *EventHandler
+	eventHandler *Handler
 	done         chan struct{}
 }
 
 // NewSessionWatcher creates a new session watcher
-func NewSessionWatcher(filePath string, eventHandler *EventHandler) *SessionWatcher {
+func NewSessionWatcher(filePath string, eventHandler *Handler) *SessionWatcher {
 	return &SessionWatcher{
 		filePath:     filePath,
 		eventHandler: eventHandler,
@@ -113,4 +113,3 @@ func (w *SessionWatcher) ReadFullFile() error {
 	log.Printf("Finished reading %d lines", lineNum)
 	return nil
 }
-

@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"fmt"
@@ -9,70 +9,22 @@ import (
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
-// EventType represents the type of event
-type EventType string
-
-const (
-	EventTypeSessionLog   EventType = "session_log"
-	EventTypeNotification EventType = "notification"
-)
-
-// Event is the common interface for all events
-type Event interface {
-	Type() EventType
-	Process(handler *EventHandler) error
-}
-
-// SessionLogEvent wraps a session log line
-type SessionLogEvent struct {
-	Line string
-}
-
-func (e *SessionLogEvent) Type() EventType {
-	return EventTypeSessionLog
-}
-
-func (e *SessionLogEvent) Process(handler *EventHandler) error {
-	output, err := handler.parser.ParseAndFormat(e.Line)
-	if err != nil {
-		return fmt.Errorf("failed to parse event: %w", err)
-	}
-	if output != "" {
-		fmt.Print(output)
-	}
-	return nil
-}
-
-// NotificationLogEvent wraps a notification event
-type NotificationLogEvent struct {
-	Event *NotificationEvent
-}
-
-func (e *NotificationLogEvent) Type() EventType {
-	return EventTypeNotification
-}
-
-func (e *NotificationLogEvent) Process(handler *EventHandler) error {
-	handler.formatNotificationEvent(e.Event)
-	return nil
-}
-
-// EventHandler processes events from multiple sources
-type EventHandler struct {
+// Handler processes events from multiple sources
+type Handler struct {
 	narrator  narrator.Narrator
-	parser    *EventParser
+	parser    *Parser
 	debugMode bool
 	eventChan chan Event
 	wg        sync.WaitGroup
 	done      chan struct{}
 }
 
-// NewEventHandler creates a new event handler
-func NewEventHandler(narrator narrator.Narrator, debugMode bool) *EventHandler {
-	parser := NewEventParser(narrator)
+// NewHandler creates a new event handler
+func NewHandler(narrator narrator.Narrator, debugMode bool) *Handler {
+	parser := NewParser(narrator)
 	parser.SetDebugMode(debugMode)
 
-	return &EventHandler{
+	return &Handler{
 		narrator:  narrator,
 		parser:    parser,
 		debugMode: debugMode,
@@ -82,20 +34,20 @@ func NewEventHandler(narrator narrator.Narrator, debugMode bool) *EventHandler {
 }
 
 // Start begins processing events
-func (h *EventHandler) Start() {
+func (h *Handler) Start() {
 	h.wg.Add(1)
 	go h.processEvents()
 }
 
 // Stop stops the event handler
-func (h *EventHandler) Stop() {
+func (h *Handler) Stop() {
 	close(h.done)
 	close(h.eventChan)
 	h.wg.Wait()
 }
 
 // SendEvent sends an event to be processed
-func (h *EventHandler) SendEvent(event Event) {
+func (h *Handler) SendEvent(event Event) {
 	select {
 	case h.eventChan <- event:
 	case <-h.done:
@@ -104,7 +56,7 @@ func (h *EventHandler) SendEvent(event Event) {
 }
 
 // processEvents processes events from the channel
-func (h *EventHandler) processEvents() {
+func (h *Handler) processEvents() {
 	defer h.wg.Done()
 
 	for {
@@ -136,7 +88,7 @@ func (h *EventHandler) processEvents() {
 }
 
 // formatNotificationEvent formats and outputs a notification event (moved from notification_watcher.go)
-func (h *EventHandler) formatNotificationEvent(event *NotificationEvent) {
+func (h *Handler) formatNotificationEvent(event *NotificationEvent) {
 	// Parse permission messages
 	isPermission, toolName, mcpName, operation := h.parsePermissionMessage(event.Message)
 
@@ -200,7 +152,7 @@ func (h *EventHandler) formatNotificationEvent(event *NotificationEvent) {
 }
 
 // parsePermissionMessage parses permission messages to extract tool/MCP information
-func (h *EventHandler) parsePermissionMessage(message string) (isPermission bool, toolName string, mcpName string, operation string) {
+func (h *Handler) parsePermissionMessage(message string) (isPermission bool, toolName string, mcpName string, operation string) {
 	const permissionPrefix = "Claude needs your permission to use "
 
 	if !hasPrefix(message, permissionPrefix) {
@@ -307,4 +259,3 @@ func countOccurrences(s, substr string) int {
 
 // timeNow is a helper function to get current time (for testing)
 var timeNow = time.Now
-

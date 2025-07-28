@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestEventParser_ParseAndFormat(t *testing.T) {
-	parser := NewEventParser(narrator.NewNoOpNarrator())
+	parser := NewParser(narrator.NewNoOpNarrator())
 	// Tests will check enhanced formatting by default
 
 	tests := []struct {
@@ -163,7 +163,7 @@ func TestEventParser_ParseAndFormat(t *testing.T) {
 }
 
 func TestEventParser_EdgeCases(t *testing.T) {
-	parser := NewEventParser(narrator.NewNoOpNarrator())
+	parser := NewParser(narrator.NewNoOpNarrator())
 
 	tests := []struct {
 		name       string
@@ -218,7 +218,7 @@ func TestEventParser_EdgeCases(t *testing.T) {
 }
 
 func TestEventParser_DebugMode(t *testing.T) {
-	parser := NewEventParser(narrator.NewNoOpNarrator())
+	parser := NewParser(narrator.NewNoOpNarrator())
 	parser.SetDebugMode(true)
 
 	tests := []struct {
@@ -265,7 +265,7 @@ func TestEventParser_DebugMode(t *testing.T) {
 }
 
 func TestEventParser_ComplexToolInput(t *testing.T) {
-	parser := NewEventParser(narrator.NewNoOpNarrator())
+	parser := NewParser(narrator.NewNoOpNarrator())
 	// Tests will check enhanced formatting by default
 
 	// Test complex nested tool input
@@ -310,7 +310,7 @@ func TestEventParser_ComplexToolInput(t *testing.T) {
 }
 
 func TestEventParser_CompanionMode(t *testing.T) {
-	parser := NewEventParser(narrator.NewNoOpNarrator())
+	parser := NewParser(narrator.NewNoOpNarrator())
 	// parser.companionMode is true by default
 
 	tests := []struct {

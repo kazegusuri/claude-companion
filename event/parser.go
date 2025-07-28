@@ -1,4 +1,4 @@
-package main
+package event
 
 import (
 	"encoding/json"
@@ -8,27 +8,27 @@ import (
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
-// EventParser handles parsing and formatting of JSONL events
-type EventParser struct {
+// Parser handles parsing and formatting of JSONL events
+type Parser struct {
 	companion *CompanionFormatter
 	debugMode bool
 }
 
-// NewEventParser creates a new EventParser instance
-func NewEventParser(narrator narrator.Narrator) *EventParser {
-	return &EventParser{
+// NewParser creates a new Parser instance
+func NewParser(narrator narrator.Narrator) *Parser {
+	return &Parser{
 		companion: NewCompanionFormatter(narrator),
 		debugMode: false, // Default to normal mode
 	}
 }
 
 // SetDebugMode enables or disables debug mode
-func (p *EventParser) SetDebugMode(enabled bool) {
+func (p *Parser) SetDebugMode(enabled bool) {
 	p.debugMode = enabled
 }
 
 // ParseAndFormat parses a JSON line and returns formatted output
-func (p *EventParser) ParseAndFormat(line string) (string, error) {
+func (p *Parser) ParseAndFormat(line string) (string, error) {
 	// First, parse to get the event type
 	var baseEvent BaseEvent
 	if err := json.Unmarshal([]byte(line), &baseEvent); err != nil {
@@ -52,7 +52,7 @@ func (p *EventParser) ParseAndFormat(line string) (string, error) {
 	}
 }
 
-func (p *EventParser) formatUserMessage(line string) (string, error) {
+func (p *Parser) formatUserMessage(line string) (string, error) {
 	var event UserMessage
 	if err := json.Unmarshal([]byte(line), &event); err != nil {
 		return "", fmt.Errorf("failed to parse user message: %w", err)
@@ -138,7 +138,7 @@ func (p *EventParser) formatUserMessage(line string) (string, error) {
 	return output.String(), nil
 }
 
-func (p *EventParser) formatAssistantMessage(line string) (string, error) {
+func (p *Parser) formatAssistantMessage(line string) (string, error) {
 	var event AssistantMessage
 	if err := json.Unmarshal([]byte(line), &event); err != nil {
 		return "", fmt.Errorf("failed to parse assistant message: %w", err)
@@ -213,7 +213,7 @@ func (p *EventParser) formatAssistantMessage(line string) (string, error) {
 	return output.String(), nil
 }
 
-func (p *EventParser) formatSystemMessage(line string) (string, error) {
+func (p *Parser) formatSystemMessage(line string) (string, error) {
 	var event SystemMessage
 	if err := json.Unmarshal([]byte(line), &event); err != nil {
 		return "", fmt.Errorf("failed to parse system message: %w", err)
@@ -259,7 +259,7 @@ func (p *EventParser) formatSystemMessage(line string) (string, error) {
 	return output, nil
 }
 
-func (p *EventParser) formatSummaryEvent(line string) (string, error) {
+func (p *Parser) formatSummaryEvent(line string) (string, error) {
 	var event SummaryEvent
 	if err := json.Unmarshal([]byte(line), &event); err != nil {
 		return "", fmt.Errorf("failed to parse summary event: %w", err)
@@ -276,7 +276,7 @@ func (p *EventParser) formatSummaryEvent(line string) (string, error) {
 	return output, nil
 }
 
-func (p *EventParser) formatUnknownEvent(line string, baseEvent BaseEvent) (string, error) {
+func (p *Parser) formatUnknownEvent(line string, baseEvent BaseEvent) (string, error) {
 	var output strings.Builder
 	output.WriteString(fmt.Sprintf("\n[%s] %s event", baseEvent.Timestamp.Format("15:04:05"), baseEvent.Type))
 

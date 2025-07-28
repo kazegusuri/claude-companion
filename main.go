@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/kazegusuri/claude-companion/event"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
@@ -84,13 +85,13 @@ func main() {
 	}
 
 	// Create event handler
-	eventHandler := NewEventHandler(n, debugMode)
+	eventHandler := event.NewHandler(n, debugMode)
 	eventHandler.Start()
 	defer eventHandler.Stop()
 
 	// Start notification watcher if configured
 	if hasNotificationInput {
-		notificationWatcher := NewNotificationWatcher(notificationLog, eventHandler)
+		notificationWatcher := event.NewNotificationWatcher(notificationLog, eventHandler)
 		log.Printf("Starting notification log watcher for: %s", notificationLog)
 		if err := notificationWatcher.Start(); err != nil {
 			log.Fatalf("Error starting notification watcher: %v", err)
@@ -100,7 +101,7 @@ func main() {
 
 	// Start session watcher if configured
 	if hasSessionInput {
-		sessionWatcher := NewSessionWatcher(sessionFilePath, eventHandler)
+		sessionWatcher := event.NewSessionWatcher(sessionFilePath, eventHandler)
 
 		if fullRead {
 			log.Printf("Reading file: %s", sessionFilePath)

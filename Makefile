@@ -1,7 +1,7 @@
 .PHONY: build test clean run fmt help
 
-# Go source files
-GO_FILES := $(wildcard *.go) $(wildcard narrator/*.go)
+# Go source files (recursive)
+GO_FILES := $(shell find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*")
 
 # Default target
 help:
@@ -22,7 +22,7 @@ test:
 	go test ./...
 
 fmt:
-	gofmt -w *.go narrator/*.go
+	gofmt -w $(GO_FILES)
 
 clean:
 	rm -f claude-companion
