@@ -87,41 +87,24 @@ func (n *TextNormalizer) Normalize(text string) string {
 		}
 	}
 
+	// Replace dots first (before file extension handling)
+	normalized = n.replaceDots(normalized)
+
 	// Handle file extensions in quoted filenames
 	normalized = n.normalizeQuotedFilenames(normalized)
 
 	// Then handle abbreviations and terms
 	normalized = n.replaceAbbreviations(normalized)
 
+	// Replace hyphens in hyphenated English words
+	normalized = n.replaceHyphens(normalized)
+
 	return normalized
 }
 
 // normalizeQuotedFilenames handles filenames in quotes
 func (n *TextNormalizer) normalizeQuotedFilenames(text string) string {
-	// Match filenames in Japanese quotes 「」
-	re := regexp.MustCompile(`「([^」]+\.[a-zA-Z]+)」`)
-	text = re.ReplaceAllStringFunc(text, func(match string) string {
-		// Extract filename without quotes
-		filename := match[3 : len(match)-3] // Remove 「 and 」
-
-		// Check if it's a known full filename
-		if replacement, ok := n.replacements[filename]; ok {
-			return "「" + replacement + "」"
-		}
-
-		// Otherwise, try to replace just the extension
-		lastDot := strings.LastIndex(filename, ".")
-		if lastDot > 0 {
-			name := filename[:lastDot]
-			ext := filename[lastDot:]
-			if replacement, ok := n.replacements[ext]; ok {
-				return "「" + name + replacement + "」"
-			}
-		}
-
-		return match
-	})
-
+	// Since dots are already replaced, we don't need to handle them here
 	return text
 }
 
@@ -137,4 +120,43 @@ func (n *TextNormalizer) replaceAbbreviations(text string) string {
 		}
 	}
 	return text
+}
+
+// replaceDots replaces dots that are not sentence endings
+func (n *TextNormalizer) replaceDots(text string) string {
+	result := ""
+	runes := []rune(text)
+
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '.' {
+			// Check if this is a sentence ending
+			isSentenceEnd := false
+
+			// Check what follows the dot
+			if i == len(runes)-1 {
+				// Dot at end of text
+				isSentenceEnd = true
+			} else if i+1 < len(runes) && (runes[i+1] == ' ' || runes[i+1] == '　' || runes[i+1] == '\n' || runes[i+1] == '\t') {
+				// Dot followed by whitespace (including full-width space)
+				isSentenceEnd = true
+			}
+
+			if isSentenceEnd {
+				result += "."
+			} else {
+				result += "ドット"
+			}
+		} else {
+			result += string(runes[i])
+		}
+	}
+
+	return result
+}
+
+// replaceHyphens replaces hyphens in hyphenated English words with spaces
+func (n *TextNormalizer) replaceHyphens(text string) string {
+	// Pattern: hyphen between two alphabetic characters (English words)
+	re := regexp.MustCompile(`([a-zA-Z])-([a-zA-Z])`)
+	return re.ReplaceAllString(text, "$1 $2")
 }
