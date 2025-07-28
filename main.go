@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
-	"fmt"
-	"io"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
-	"time"
+	"syscall"
 
 	"github.com/kazegusuri/claude-companion/narrator"
 )
@@ -38,55 +36,32 @@ func main() {
 	flag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
 	flag.Parse()
 
-	// Check if notification log mode is requested
-	if notificationLog != "" {
-		// Create narrator
-		var n narrator.Narrator
-		if narratorConfigPath != "" {
-			n = narrator.NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
+	// Determine input sources
+	hasNotificationInput := notificationLog != ""
+	hasSessionInput := file != "" || (project != "" && session != "")
+
+	if !hasNotificationInput && !hasSessionInput {
+		flag.Usage()
+		log.Fatal("Either -file, -notification-log, or both -project and -session flags are required")
+	}
+
+	// Determine session file path if applicable
+	var sessionFilePath string
+	if hasSessionInput {
+		if file != "" {
+			// Use direct file path
+			sessionFilePath = file
 		} else {
-			n = narrator.NewHybridNarrator(openaiAPIKey, useAINarrator)
+			// Use project/session path
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				log.Fatalf("Failed to get home directory: %v", err)
+			}
+			sessionFilePath = filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
 		}
-
-		// Wrap with voice narrator if enabled
-		var voiceNarrator *narrator.VoiceNarrator
-		if enableVoice {
-			voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
-			voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
-			n = voiceNarrator
-			defer voiceNarrator.Close()
-		}
-
-		// Start watching notification log
-		watcher := NewNotificationWatcher(notificationLog, n)
-		watcher.SetDebugMode(debugMode)
-		log.Printf("Starting notification log watcher for: %s", notificationLog)
-		if err := watcher.Watch(); err != nil {
-			log.Fatalf("Error watching notification log: %v", err)
-		}
-		return
 	}
 
-	var filePath string
-	if file != "" {
-		// Use direct file path
-		filePath = file
-	} else {
-		// Use project/session path
-		if project == "" || session == "" {
-			flag.Usage()
-			log.Fatal("Either -file, -notification-log, or both -project and -session flags are required")
-		}
-
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("Failed to get home directory: %v", err)
-		}
-
-		filePath = filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
-	}
-
-	// Always create HybridNarrator
+	// Create narrator
 	if useAINarrator && openaiAPIKey == "" {
 		log.Printf("Warning: AI narrator requires OpenAI API key. Using rule-based narrator.")
 		useAINarrator = false
@@ -103,98 +78,50 @@ func main() {
 	var voiceNarrator *narrator.VoiceNarrator
 	if enableVoice {
 		voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
-		// Use the same OpenAI API key for translation if available
 		voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
 		n = voiceNarrator
 		defer voiceNarrator.Close()
 	}
 
-	if fullRead {
-		log.Printf("Reading file: %s", filePath)
-		if err := readFullFile(filePath, debugMode, n); err != nil {
-			log.Fatalf("Error reading file: %v", err)
+	// Create event handler
+	eventHandler := NewEventHandler(n, debugMode)
+	eventHandler.Start()
+	defer eventHandler.Stop()
+
+	// Start notification watcher if configured
+	if hasNotificationInput {
+		notificationWatcher := NewNotificationWatcher(notificationLog, eventHandler)
+		log.Printf("Starting notification log watcher for: %s", notificationLog)
+		if err := notificationWatcher.Start(); err != nil {
+			log.Fatalf("Error starting notification watcher: %v", err)
 		}
-	} else {
-		log.Printf("Monitoring file: %s", filePath)
-		if err := tailFile(filePath, debugMode, n); err != nil {
-			log.Fatalf("Error tailing file: %v", err)
-		}
-	}
-}
-
-func tailFile(filePath string, debugMode bool, n narrator.Narrator) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Move to end of file
-	_, err = file.Seek(0, io.SeekEnd)
-	if err != nil {
-		return fmt.Errorf("failed to seek to end: %w", err)
+		defer notificationWatcher.Stop()
 	}
 
-	reader := bufio.NewReader(file)
+	// Start session watcher if configured
+	if hasSessionInput {
+		sessionWatcher := NewSessionWatcher(sessionFilePath, eventHandler)
 
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				// No new data, wait a bit
-				time.Sleep(100 * time.Millisecond)
-				continue
+		if fullRead {
+			log.Printf("Reading file: %s", sessionFilePath)
+			if err := sessionWatcher.ReadFullFile(); err != nil {
+				log.Fatalf("Error reading file: %v", err)
 			}
-			return fmt.Errorf("error reading line: %w", err)
-		}
+		} else {
+			log.Printf("Monitoring file: %s", sessionFilePath)
+			if err := sessionWatcher.Start(); err != nil {
+				log.Fatalf("Error starting session watcher: %v", err)
+			}
+			defer sessionWatcher.Stop()
 
-		// Process the line
-		if len(line) > 0 {
-			processJSONLine(line, debugMode, n)
-		}
-	}
-}
-
-func readFullFile(filePath string, debugMode bool, n narrator.Narrator) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	// Increase buffer size to handle very long JSON lines (default is 64KB)
-	const maxScanTokenSize = 1024 * 1024 // 1MB
-	buf := make([]byte, maxScanTokenSize)
-	scanner.Buffer(buf, maxScanTokenSize)
-
-	lineNum := 0
-
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		if len(line) > 0 {
-			processJSONLine(line, debugMode, n)
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading file: %w", err)
-	}
-
-	log.Printf("Finished reading %d lines", lineNum)
-	return nil
-}
-
-func processJSONLine(line string, debugMode bool, n narrator.Narrator) {
-	parser := NewEventParser(n)
-	parser.SetDebugMode(debugMode)
-	output, err := parser.ParseAndFormat(line)
-	if err != nil {
-		log.Printf("Failed to parse event: %v", err)
-		return
-	}
-	if output != "" {
-		fmt.Print(output)
+	// If we're running watchers (not full read mode), wait for interrupt
+	if hasNotificationInput || (hasSessionInput && !fullRead) {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		<-sigChan
+		log.Println("\nShutting down...")
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 )
 
 // MockNarrator implements narrator.Narrator for testing
@@ -25,85 +26,85 @@ func (m *MockNarrator) NarrateText(text string) string {
 }
 
 func TestParsePermissionMessage(t *testing.T) {
-	watcher := &NotificationWatcher{}
+	handler := &EventHandler{}
 
 	tests := []struct {
-		name          string
-		message       string
+		name           string
+		message        string
 		wantPermission bool
-		wantTool      string
-		wantMCP       string
-		wantOperation string
+		wantTool       string
+		wantMCP        string
+		wantOperation  string
 	}{
 		{
-			name:          "Regular tool permission - Write",
-			message:       "Claude needs your permission to use Write",
+			name:           "Regular tool permission - Write",
+			message:        "Claude needs your permission to use Write",
 			wantPermission: true,
-			wantTool:      "Write",
-			wantMCP:       "",
-			wantOperation: "",
+			wantTool:       "Write",
+			wantMCP:        "",
+			wantOperation:  "",
 		},
 		{
-			name:          "Regular tool permission - Bash",
-			message:       "Claude needs your permission to use Bash",
+			name:           "Regular tool permission - Bash",
+			message:        "Claude needs your permission to use Bash",
 			wantPermission: true,
-			wantTool:      "Bash",
-			wantMCP:       "",
-			wantOperation: "",
+			wantTool:       "Bash",
+			wantMCP:        "",
+			wantOperation:  "",
 		},
 		{
-			name:          "Regular tool permission - Read",
-			message:       "Claude needs your permission to use Read",
+			name:           "Regular tool permission - Read",
+			message:        "Claude needs your permission to use Read",
 			wantPermission: true,
-			wantTool:      "Read",
-			wantMCP:       "",
-			wantOperation: "",
+			wantTool:       "Read",
+			wantMCP:        "",
+			wantOperation:  "",
 		},
 		{
-			name:          "MCP permission - gopls go_package_api",
-			message:       "Claude needs your permission to use gopls - go_package_api (MCP)",
+			name:           "MCP permission - gopls go_package_api",
+			message:        "Claude needs your permission to use gopls - go_package_api (MCP)",
 			wantPermission: true,
-			wantTool:      "",
-			wantMCP:       "gopls",
-			wantOperation: "go_package_api",
+			wantTool:       "",
+			wantMCP:        "gopls",
+			wantOperation:  "go_package_api",
 		},
 		{
-			name:          "MCP permission - gopls go_symbol_references",
-			message:       "Claude needs your permission to use gopls - go_symbol_references (MCP)",
+			name:           "MCP permission - gopls go_symbol_references",
+			message:        "Claude needs your permission to use gopls - go_symbol_references (MCP)",
 			wantPermission: true,
-			wantTool:      "",
-			wantMCP:       "gopls",
-			wantOperation: "go_symbol_references",
+			wantTool:       "",
+			wantMCP:        "gopls",
+			wantOperation:  "go_symbol_references",
 		},
 		{
-			name:          "MCP permission - linear-remote create_comment",
-			message:       "Claude needs your permission to use linear-remote - create_comment (MCP)",
+			name:           "MCP permission - linear-remote create_comment",
+			message:        "Claude needs your permission to use linear-remote - create_comment (MCP)",
 			wantPermission: true,
-			wantTool:      "",
-			wantMCP:       "linear-remote",
-			wantOperation: "create_comment",
+			wantTool:       "",
+			wantMCP:        "linear-remote",
+			wantOperation:  "create_comment",
 		},
 		{
-			name:          "Non-permission message - waiting",
-			message:       "Claude is waiting for your input",
+			name:           "Non-permission message - waiting",
+			message:        "Claude is waiting for your input",
 			wantPermission: false,
-			wantTool:      "",
-			wantMCP:       "",
-			wantOperation: "",
+			wantTool:       "",
+			wantMCP:        "",
+			wantOperation:  "",
 		},
 		{
-			name:          "Non-permission message - completed",
-			message:       "Task completed successfully",
+			name:           "Non-permission message - completed",
+			message:        "Task completed successfully",
 			wantPermission: false,
-			wantTool:      "",
-			wantMCP:       "",
-			wantOperation: "",
+			wantTool:       "",
+			wantMCP:        "",
+			wantOperation:  "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isPermission, toolName, mcpName, operation := watcher.parsePermissionMessage(tt.message)
+			isPermission, toolName, mcpName, operation := handler.parsePermissionMessage(tt.message)
 
 			if isPermission != tt.wantPermission {
 				t.Errorf("parsePermissionMessage() isPermission = %v, want %v", isPermission, tt.wantPermission)
@@ -123,7 +124,7 @@ func TestParsePermissionMessage(t *testing.T) {
 
 func TestFormatNotificationEvent(t *testing.T) {
 	mockNarrator := &MockNarrator{}
-	watcher := &NotificationWatcher{
+	handler := &EventHandler{
 		narrator:  mockNarrator,
 		debugMode: false,
 	}
@@ -203,15 +204,15 @@ func TestFormatNotificationEvent(t *testing.T) {
 			mockNarrator.LastText = ""
 
 			// Call formatNotificationEvent
-			watcher.formatNotificationEvent(tt.event)
+			handler.formatNotificationEvent(tt.event)
 
 			// Check narrator calls
 			if mockNarrator.LastToolPermission != tt.wantToolPermission {
-				t.Errorf("formatNotificationEvent() called NarrateToolUsePermission with %q, want %q", 
+				t.Errorf("formatNotificationEvent() called NarrateToolUsePermission with %q, want %q",
 					mockNarrator.LastToolPermission, tt.wantToolPermission)
 			}
 			if mockNarrator.LastText != tt.wantTextNarration {
-				t.Errorf("formatNotificationEvent() called NarrateText with %q, want %q", 
+				t.Errorf("formatNotificationEvent() called NarrateText with %q, want %q",
 					mockNarrator.LastText, tt.wantTextNarration)
 			}
 		})
@@ -220,7 +221,7 @@ func TestFormatNotificationEvent(t *testing.T) {
 
 func TestFormatNotificationEventDebugMode(t *testing.T) {
 	mockNarrator := &MockNarrator{}
-	watcher := &NotificationWatcher{
+	handler := &EventHandler{
 		narrator:  mockNarrator,
 		debugMode: true,
 	}
@@ -234,7 +235,7 @@ func TestFormatNotificationEventDebugMode(t *testing.T) {
 	}
 
 	// Just ensure it doesn't panic with debug mode enabled
-	watcher.formatNotificationEvent(event)
+	handler.formatNotificationEvent(event)
 
 	// Verify the correct tool was called
 	if mockNarrator.LastToolPermission != "Write" {
@@ -244,16 +245,26 @@ func TestFormatNotificationEventDebugMode(t *testing.T) {
 
 func TestProcessNotificationLine(t *testing.T) {
 	mockNarrator := &MockNarrator{}
-	watcher := &NotificationWatcher{
+	handler := &EventHandler{
 		narrator:  mockNarrator,
 		debugMode: false,
+		eventChan: make(chan Event, 100),
+		done:      make(chan struct{}),
+	}
+	// Start the event handler
+	handler.Start()
+	defer handler.Stop()
+
+	watcher := &NotificationWatcher{
+		filePath:     "/test/path",
+		eventHandler: handler,
 	}
 
 	tests := []struct {
-		name           string
-		line           string
-		wantNarration  bool
-		wantTool       string
+		name          string
+		line          string
+		wantNarration bool
+		wantTool      string
 	}{
 		{
 			name:          "Valid JSON notification",
@@ -290,6 +301,9 @@ func TestProcessNotificationLine(t *testing.T) {
 			// Process line
 			watcher.processNotificationLine(tt.line)
 
+			// Give the event handler time to process
+			time.Sleep(10 * time.Millisecond)
+
 			if tt.wantNarration && mockNarrator.LastToolPermission != tt.wantTool && mockNarrator.LastText == "" {
 				t.Errorf("processNotificationLine() expected narration but got none")
 			}
@@ -304,51 +318,50 @@ func TestProcessNotificationLine(t *testing.T) {
 }
 
 func TestParsePermissionMessageEdgeCases(t *testing.T) {
-	watcher := &NotificationWatcher{}
+	handler := &EventHandler{}
 
 	tests := []struct {
-		name          string
-		message       string
+		name           string
+		message        string
 		wantPermission bool
 	}{
 		{
-			name:          "Message with extra spaces",
-			message:       "Claude needs your permission to use  Write  ",
+			name:           "Message with extra spaces",
+			message:        "Claude needs your permission to use  Write  ",
 			wantPermission: true, // The current implementation accepts this
 		},
 		{
-			name:          "Partial message",
-			message:       "Claude needs your permission",
+			name:           "Partial message",
+			message:        "Claude needs your permission",
 			wantPermission: false,
 		},
 		{
-			name:          "Case sensitivity",
-			message:       "claude needs your permission to use Write",
+			name:           "Case sensitivity",
+			message:        "claude needs your permission to use Write",
 			wantPermission: false,
 		},
 		{
-			name:          "MCP without space before hyphen",
-			message:       "Claude needs your permission to use gopls- go_package_api (MCP)",
+			name:           "MCP without space before hyphen",
+			message:        "Claude needs your permission to use gopls- go_package_api (MCP)",
 			wantPermission: true, // The current implementation accepts this
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isPermission, _, _, _ := watcher.parsePermissionMessage(tt.message)
+			isPermission, _, _, _ := handler.parsePermissionMessage(tt.message)
 			if isPermission != tt.wantPermission {
-				t.Errorf("parsePermissionMessage() for edge case %q = %v, want %v", 
+				t.Errorf("parsePermissionMessage() for edge case %q = %v, want %v",
 					tt.name, isPermission, tt.wantPermission)
 			}
 		})
 	}
 }
 
-
 func TestNotificationEventTime(t *testing.T) {
 	// Test that time formatting works correctly
 	mockNarrator := &MockNarrator{}
-	watcher := &NotificationWatcher{
+	handler := &EventHandler{
 		narrator:  mockNarrator,
 		debugMode: false,
 	}
@@ -363,7 +376,7 @@ func TestNotificationEventTime(t *testing.T) {
 
 	// Since we can't easily capture fmt.Print output in this test environment,
 	// we'll just ensure the function doesn't panic
-	watcher.formatNotificationEvent(event)
+	handler.formatNotificationEvent(event)
 }
 
 func TestMCPToolNameFormatting(t *testing.T) {
@@ -393,7 +406,7 @@ func TestMCPToolNameFormatting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockNarrator := &MockNarrator{}
-			watcher := &NotificationWatcher{
+			handler := &EventHandler{
 				narrator:  mockNarrator,
 				debugMode: false,
 			}
@@ -406,12 +419,13 @@ func TestMCPToolNameFormatting(t *testing.T) {
 				Message:        tt.message,
 			}
 
-			watcher.formatNotificationEvent(event)
+			handler.formatNotificationEvent(event)
 
 			if mockNarrator.LastToolPermission != tt.wantToolName {
-				t.Errorf("MCP tool name formatting: got %q, want %q", 
+				t.Errorf("MCP tool name formatting: got %q, want %q",
 					mockNarrator.LastToolPermission, tt.wantToolName)
 			}
 		})
 	}
 }
+
