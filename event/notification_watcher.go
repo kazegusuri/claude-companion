@@ -12,17 +12,17 @@ import (
 
 // NotificationWatcher watches the notification log file for new events
 type NotificationWatcher struct {
-	filePath     string
-	eventHandler *Handler
-	done         chan struct{}
+	filePath    string
+	eventSender EventSender
+	done        chan struct{}
 }
 
 // NewNotificationWatcher creates a new notification watcher
-func NewNotificationWatcher(filePath string, eventHandler *Handler) *NotificationWatcher {
+func NewNotificationWatcher(filePath string, eventSender EventSender) *NotificationWatcher {
 	return &NotificationWatcher{
-		filePath:     filePath,
-		eventHandler: eventHandler,
-		done:         make(chan struct{}),
+		filePath:    filePath,
+		eventSender: eventSender,
+		done:        make(chan struct{}),
 	}
 }
 
@@ -120,5 +120,5 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 	}
 
 	// Send event to handler
-	w.eventHandler.SendEvent(&NotificationLogEvent{Event: &notificationEvent})
+	w.eventSender.SendEvent(&NotificationLogEvent{Event: &notificationEvent})
 }

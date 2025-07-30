@@ -1,109 +1,370 @@
 package event
 
 import (
+	"encoding/json"
 	"testing"
-	"time"
 
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/google/go-cmp/cmp"
 )
 
-// MockNarrator implements narrator.Narrator for testing
-type MockNarrator struct {
-	LastToolPermission string
-	LastText           string
-}
-
-func (m *MockNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
-	return ""
-}
-
-func (m *MockNarrator) NarrateToolUsePermission(toolName string) string {
-	m.LastToolPermission = toolName
-	return toolName + "の使用許可を求めています"
-}
-
-func (m *MockNarrator) NarrateText(text string) string {
-	m.LastText = text
-	return text
-}
-
-func (m *MockNarrator) NarrateNotification(notificationType narrator.NotificationType) string {
-	switch notificationType {
-	case narrator.NotificationTypeCompact:
-		return "コンテキストを圧縮しています"
-	default:
-		return ""
-	}
-}
-
-// TODO: These tests need to be refactored to work with the new event package structure
-// The parsePermissionMessage and formatNotificationEvent methods are now private in the event package
-
 func TestProcessNotificationLine(t *testing.T) {
-	mockNarrator := &MockNarrator{}
-	handler := NewHandler(mockNarrator, false)
-	// Start the event handler
-	handler.Start()
-	defer handler.Stop()
-
-	watcher := &NotificationWatcher{
-		filePath:     "/test/path",
-		eventHandler: handler,
-	}
-
 	tests := []struct {
-		name          string
-		line          string
-		wantNarration bool
-		wantTool      string
+		name        string
+		line        string
+		wantEvent   *NotificationLogEvent
+		wantNoEvent bool
 	}{
 		{
-			name:          "Valid JSON notification",
-			line:          `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude needs your permission to use Write"}`,
-			wantNarration: true,
-			wantTool:      "Write",
+			name: "SessionStart with source startup",
+			line: `{"session_id":"8c70f7b7-5c83-4083-8930-f1fc33bf3dcd","transcript_path":"/tmp/test/projects/test-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl","cwd":"/tmp/test/project","hook_event_name":"SessionStart","source":"startup"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
+					TranscriptPath: "/tmp/test/projects/test-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
+					CWD:            "/tmp/test/project",
+					HookEventName:  "SessionStart",
+					Source:         "startup",
+				},
+			},
 		},
 		{
-			name:          "Invalid JSON",
-			line:          `{invalid json}`,
-			wantNarration: false,
-			wantTool:      "",
+			name: "SessionStart with source clear",
+			line: `{"session_id":"4e676915-7639-4dca-a41b-cf9684daaf50","transcript_path":"/tmp/test/projects/another-project/4e676915-7639-4dca-a41b-cf9684daaf50.jsonl","cwd":"/tmp/test/another","hook_event_name":"SessionStart","source":"clear"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "4e676915-7639-4dca-a41b-cf9684daaf50",
+					TranscriptPath: "/tmp/test/projects/another-project/4e676915-7639-4dca-a41b-cf9684daaf50.jsonl",
+					CWD:            "/tmp/test/another",
+					HookEventName:  "SessionStart",
+					Source:         "clear",
+				},
+			},
 		},
 		{
-			name:          "Empty line",
-			line:          "",
-			wantNarration: false,
-			wantTool:      "",
+			name: "SessionStart with source resume",
+			line: `{"session_id":"07846160-cc2e-4dc1-9204-8c9817687f4b","transcript_path":"/tmp/test/projects/resume-project/07846160-cc2e-4dc1-9204-8c9817687f4b.jsonl","cwd":"/tmp/test/resume","hook_event_name":"SessionStart","source":"resume"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "07846160-cc2e-4dc1-9204-8c9817687f4b",
+					TranscriptPath: "/tmp/test/projects/resume-project/07846160-cc2e-4dc1-9204-8c9817687f4b.jsonl",
+					CWD:            "/tmp/test/resume",
+					HookEventName:  "SessionStart",
+					Source:         "resume",
+				},
+			},
 		},
 		{
-			name:          "Plain text",
-			line:          "This is not JSON",
-			wantNarration: false,
-			wantTool:      "",
+			name: "PreCompact notification",
+			line: `{"session_id":"abc123","transcript_path":"/tmp/test/transcript.jsonl","cwd":"/tmp/test/project","hook_event_name":"PreCompact","trigger":"compact_trigger"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "abc123",
+					TranscriptPath: "/tmp/test/transcript.jsonl",
+					CWD:            "/tmp/test/project",
+					HookEventName:  "PreCompact",
+					Trigger:        "compact_trigger",
+				},
+			},
+		},
+		{
+			name: "Permission request for Bash",
+			line: `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude needs your permission to use Bash"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "test-123",
+					TranscriptPath: "/tmp/test.jsonl",
+					CWD:            "/tmp",
+					HookEventName:  "Notification",
+					Message:        "Claude needs your permission to use Bash",
+				},
+			},
+		},
+		{
+			name: "Permission request for Write",
+			line: `{"session_id":"test-456","transcript_path":"/tmp/test2.jsonl","cwd":"/tmp/test","hook_event_name":"Notification","message":"Claude needs your permission to use Write"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "test-456",
+					TranscriptPath: "/tmp/test2.jsonl",
+					CWD:            "/tmp/test",
+					HookEventName:  "Notification",
+					Message:        "Claude needs your permission to use Write",
+				},
+			},
+		},
+		{
+			name: "MCP permission request",
+			line: `{"session_id":"test-789","transcript_path":"/tmp/test3.jsonl","cwd":"/tmp/workspace","hook_event_name":"Notification","message":"Claude needs your permission to use filesystem - write (MCP)"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "test-789",
+					TranscriptPath: "/tmp/test3.jsonl",
+					CWD:            "/tmp/workspace",
+					HookEventName:  "Notification",
+					Message:        "Claude needs your permission to use filesystem - write (MCP)",
+				},
+			},
+		},
+		{
+			name: "Stop event",
+			line: `{"session_id":"8c70f7b7-5c83-4083-8930-f1fc33bf3dcd","transcript_path":"/tmp/test/projects/stop-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl","cwd":"/tmp/test/stop","hook_event_name":"Stop","stop_hook_active":false}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
+					TranscriptPath: "/tmp/test/projects/stop-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
+					CWD:            "/tmp/test/stop",
+					HookEventName:  "Stop",
+				},
+			},
+		},
+		{
+			name: "General notification with error message",
+			line: `{"session_id":"error-123","transcript_path":"/tmp/error.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"An error occurred while processing the request"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "error-123",
+					TranscriptPath: "/tmp/error.jsonl",
+					CWD:            "/tmp",
+					HookEventName:  "Notification",
+					Message:        "An error occurred while processing the request",
+				},
+			},
+		},
+		{
+			name: "Notification with custom instructions",
+			line: `{"session_id":"custom-123","transcript_path":"/tmp/custom.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Processing custom command","custom_instructions":"Do something special"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:          "custom-123",
+					TranscriptPath:     "/tmp/custom.jsonl",
+					CWD:                "/tmp",
+					HookEventName:      "Notification",
+					Message:            "Processing custom command",
+					CustomInstructions: "Do something special",
+				},
+			},
+		},
+		{
+			name: "Notification with waiting message",
+			line: `{"session_id":"wait-123","transcript_path":"/tmp/wait.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude is waiting for your response"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "wait-123",
+					TranscriptPath: "/tmp/wait.jsonl",
+					CWD:            "/tmp",
+					HookEventName:  "Notification",
+					Message:        "Claude is waiting for your response",
+				},
+			},
+		},
+		{
+			name: "Notification with success message",
+			line: `{"session_id":"success-123","transcript_path":"/tmp/success.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Operation completed successfully"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "success-123",
+					TranscriptPath: "/tmp/success.jsonl",
+					CWD:            "/tmp",
+					HookEventName:  "Notification",
+					Message:        "Operation completed successfully",
+				},
+			},
+		},
+		{
+			name:        "Invalid JSON",
+			line:        `{invalid json}`,
+			wantNoEvent: true,
+		},
+		{
+			name:        "Empty line",
+			line:        "",
+			wantNoEvent: true,
+		},
+		{
+			name:        "Plain text",
+			line:        "This is not JSON",
+			wantNoEvent: true,
+		},
+		{
+			name:        "Empty JSON object",
+			line:        `{}`,
+			wantNoEvent: false, // Should create event with empty fields
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset mock
-			mockNarrator.LastToolPermission = ""
-			mockNarrator.LastText = ""
+			// Create mock event sender
+			mockSender := NewMockEventSender()
+
+			// Create watcher
+			watcher := &NotificationWatcher{
+				filePath:    "/test/path",
+				eventSender: mockSender,
+			}
 
 			// Process line
 			watcher.processNotificationLine(tt.line)
 
-			// Give the event handler time to process
-			time.Sleep(10 * time.Millisecond)
+			// Get events immediately (no need to wait since it's synchronous)
+			events := mockSender.GetEvents()
 
-			if tt.wantNarration && mockNarrator.LastToolPermission != tt.wantTool && mockNarrator.LastText == "" {
-				t.Errorf("processNotificationLine() expected narration but got none")
+			if tt.wantNoEvent {
+				if len(events) > 0 {
+					t.Errorf("expected no events, got %d events", len(events))
+				}
+				return
 			}
-			if !tt.wantNarration && (mockNarrator.LastToolPermission != "" || mockNarrator.LastText != "") {
-				t.Errorf("processNotificationLine() expected no narration but got narration")
+
+			// Should have exactly one event
+			if len(events) != 1 {
+				t.Fatalf("expected 1 event, got %d events", len(events))
 			}
-			if tt.wantTool != "" && mockNarrator.LastToolPermission != tt.wantTool {
-				t.Errorf("processNotificationLine() expected tool %q but got %q", tt.wantTool, mockNarrator.LastToolPermission)
+
+			// Check event type
+			notificationEvent, ok := events[0].(*NotificationLogEvent)
+			if !ok {
+				t.Fatalf("expected NotificationLogEvent, got %T", events[0])
+			}
+
+			// Compare events
+			if diff := cmp.Diff(tt.wantEvent.Event, notificationEvent.Event); diff != "" {
+				t.Errorf("NotificationEvent mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestParseNotificationJSON tests parsing of notification JSON directly
+func TestParseNotificationJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		json    string
+		want    *NotificationEvent
+		wantErr bool
+	}{
+		{
+			name: "Complete notification",
+			json: `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Test message","trigger":"test_trigger","custom_instructions":"custom","source":"startup"}`,
+			want: &NotificationEvent{
+				SessionID:          "test-123",
+				TranscriptPath:     "/tmp/test.jsonl",
+				CWD:                "/tmp",
+				HookEventName:      "Notification",
+				Message:            "Test message",
+				Trigger:            "test_trigger",
+				CustomInstructions: "custom",
+				Source:             "startup",
+			},
+		},
+		{
+			name: "Minimal notification",
+			json: `{"session_id":"test-123","hook_event_name":"Notification"}`,
+			want: &NotificationEvent{
+				SessionID:     "test-123",
+				HookEventName: "Notification",
+			},
+		},
+		{
+			name:    "Invalid JSON",
+			json:    `{invalid}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var event NotificationEvent
+			err := json.Unmarshal([]byte(tt.json), &event)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("json.Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, &event); diff != "" {
+					t.Errorf("NotificationEvent mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+// TestNotificationWatcher tests the NotificationWatcher functionality
+func TestNotificationWatcher(t *testing.T) {
+	// Create a mock event sender
+	mockSender := NewMockEventSender()
+
+	// Create notification watcher
+	watcher := NewNotificationWatcher("/tmp/test-notification.log", mockSender)
+
+	// Test that watcher is created correctly
+	if watcher.filePath != "/tmp/test-notification.log" {
+		t.Errorf("expected filePath to be /tmp/test-notification.log, got %s", watcher.filePath)
+	}
+
+	// Test multiple events
+	lines := []string{
+		`{"session_id":"test-1","hook_event_name":"SessionStart","source":"startup"}`,
+		`{"session_id":"test-2","hook_event_name":"PreCompact"}`,
+		`{"session_id":"test-3","hook_event_name":"Notification","message":"Test"}`,
+	}
+
+	for _, line := range lines {
+		watcher.processNotificationLine(line)
+	}
+
+	events := mockSender.GetEvents()
+	if len(events) != 3 {
+		t.Errorf("expected 3 events, got %d", len(events))
+	}
+
+	// Verify first event
+	if event, ok := events[0].(*NotificationLogEvent); ok {
+		if event.Event.SessionID != "test-1" || event.Event.HookEventName != "SessionStart" {
+			t.Errorf("unexpected first event: %+v", event.Event)
+		}
+	}
+
+	// Verify second event
+	if event, ok := events[1].(*NotificationLogEvent); ok {
+		if event.Event.SessionID != "test-2" || event.Event.HookEventName != "PreCompact" {
+			t.Errorf("unexpected second event: %+v", event.Event)
+		}
+	}
+
+	// Verify third event
+	if event, ok := events[2].(*NotificationLogEvent); ok {
+		if event.Event.SessionID != "test-3" || event.Event.HookEventName != "Notification" {
+			t.Errorf("unexpected third event: %+v", event.Event)
+		}
+	}
+}
+
+// TestMockEventSender tests the mock event sender functionality
+func TestMockEventSender(t *testing.T) {
+	sender := NewMockEventSender()
+
+	// Test adding events
+	event1 := &NotificationLogEvent{Event: &NotificationEvent{SessionID: "test1"}}
+	event2 := &NotificationLogEvent{Event: &NotificationEvent{SessionID: "test2"}}
+
+	sender.SendEvent(event1)
+	sender.SendEvent(event2)
+
+	events := sender.GetEvents()
+	if len(events) != 2 {
+		t.Errorf("expected 2 events, got %d", len(events))
+	}
+
+	// Test clear
+	sender.Clear()
+	events = sender.GetEvents()
+	if len(events) != 0 {
+		t.Errorf("expected 0 events after clear, got %d", len(events))
 	}
 }

@@ -18,6 +18,11 @@ type Event interface {
 	Process(handler *Handler) error
 }
 
+// EventSender is an interface for sending events
+type EventSender interface {
+	SendEvent(event Event)
+}
+
 // SessionLogEvent wraps a session log line
 type SessionLogEvent struct {
 	Line string
