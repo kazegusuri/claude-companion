@@ -1,15 +1,15 @@
 # Claude Companion
 
-A real-time parser and viewer for Claude's JSONL log files. This tool helps you monitor and analyze Claude sessions by parsing structured log events and displaying them in a human-readable format.
+A real-time parser and viewer for Claude's JSONL log files. This tool helps you monitor and analyze Claude sessions by parsing structured log events and displaying them in a human-readable format with voice narration support.
 
 ## Features
 
 - **Real-time monitoring**: Tail Claude's JSONL log files and display new events as they appear
-- **Full file reading**: Process entire session files from beginning to end
-- **Structured parsing**: Parse and format different event types with type-safe Go structs
+- **Project-wide watching**: Monitor all sessions across projects with smart filtering
+- **Notification integration**: Capture and display Claude hook notifications in real-time
+- **Voice narration**: Speak tool actions using VOICEVOX text-to-speech engine
+- **AI-powered narrator**: Natural language descriptions of tool actions using OpenAI
 - **Human-readable output**: Display events with timestamps and formatted content
-- **Companion mode**: Enhanced formatting with emojis, code block extraction, and file operation tracking
-- **Large file support**: Handle JSONL lines up to 1MB in size
 
 ## Installation
 
@@ -24,7 +24,7 @@ make build
 
 ### Setting up Claude Hooks
 
-Claude Companion requires configuring Claude to send notification events. This is done by setting up hooks in Claude's settings:
+Claude Companion can capture notification events from Claude through hooks:
 
 1. **Install the notification script**:
    ```bash
@@ -78,288 +78,224 @@ Claude Companion requires configuring Claude to send notification events. This i
    }
    ```
 
-3. **Start Claude Companion** to monitor notification events:
-   ```bash
-   # In one terminal, start monitoring notifications
-   ./claude-companion -file /var/log/claude-notification.log -full
-   
-   # In another terminal, monitor a specific Claude session
-   ./claude-companion -project PROJECT_NAME -session SESSION_ID
-   ```
-
-The notification script will capture events from Claude and write them to `/var/log/claude-notification.log`, which Claude Companion can then parse and display in real-time.
-
 ## Usage
 
-### Basic Usage
+### Quick Start
 
 ```bash
-# Monitor a session in real-time (tail mode)
-./claude-companion -project PROJECT_NAME -session SESSION_ID
+# Watch all projects with voice and AI narration (recommended)
+./claude-companion --voice --ai
 
-# Read entire file from beginning to end
-./claude-companion -project PROJECT_NAME -session SESSION_ID -full
+# Watch all projects without voice narration
+./claude-companion
 
-# Use a specific file path directly
-./claude-companion -file /path/to/session.jsonl
+# Watch specific project
+./claude-companion -p myproject
 
-# Enable debug mode for detailed information
-./claude-companion -project PROJECT_NAME -session SESSION_ID -debug
-```
-
-### Using Make
-
-```bash
-# Tail mode
-make run PROJECT=project_name SESSION=session_id
-
-# Full read mode
-make run PROJECT=project_name SESSION=session_id FULL=1
+# Read a specific file directly
+./claude-companion -f /path/to/session.jsonl
 ```
 
 ### Command Line Options
 
-- `-project`: Project name (required when not using -file)
-- `-session`: Session ID without .jsonl extension (required when not using -file)
-- `-file`: Direct path to a session file (alternative to -project/-session)
-- `-full`: Read entire file instead of tailing (optional)
-- `-debug`: Enable debug mode with detailed information (default: false)
-- `-ai`: Use AI narrator instead of rule-based narrator (default: false)
-- `-openai-key`: OpenAI API key for AI narrator (optional, can use OPENAI_API_KEY env var)
-- `-narrator-config`: Path to custom narrator configuration file (optional)
-- `-voice`: Enable voice output using VOICEVOX (default: false)
-- `-voicevox-url`: VOICEVOX server URL (default: http://localhost:50021)
-- `-voice-speaker`: VOICEVOX speaker ID (default: 1)
+#### Core Options
+- `-p, --project`: Filter to specific project name
+- `-s, --session`: Filter to specific session name
+- `-f, --file`: Direct path to a session file
+- `--head`: Read entire file from beginning to end instead of tailing
+- `-d, --debug`: Enable debug mode with detailed information
+
+#### Narrator Options
+- `--ai`: Use AI narrator (requires OpenAI API key)
+- `--openai-key`: OpenAI API key (can also use OPENAI_API_KEY env var)
+- `--narrator-config`: Path to custom narrator configuration file
+
+#### Voice Options
+- `--voice`: Enable voice output using VOICEVOX
+- `--voicevox-url`: VOICEVOX server URL (default: http://localhost:50021)
+- `--voice-speaker`: VOICEVOX speaker ID (default: 1)
+
+#### Other Options
+- `--notification-log`: Path to notification log file (default: /var/log/claude-notification.log)
+- `--projects-root`: Root directory for projects (default: ~/.claude/projects)
 
 ## Operating Modes
 
-### Tail Mode (Default)
+### Watch Mode (Default)
 
-In tail mode, the tool:
-- Opens the log file and seeks to the end
-- Continuously monitors for new lines
-- Displays events in real-time as they are written
-- Runs indefinitely until interrupted (Ctrl+C)
-
-This mode is useful for monitoring active Claude sessions.
-
-### Full Read Mode
-
-In full read mode (`-full` flag), the tool:
-- Reads the file from the beginning
-- Processes all events sequentially
-- Exits after reaching the end of file
-- Shows total line count when finished
-
-This mode is useful for analyzing completed sessions or generating reports.
-
-### Enhanced Formatting
-
-The tool provides enhanced formatting for better readability:
-
-- **Natural language narration**: Describes tool actions in Japanese (💬)
-- **Emoji indicators**: Visual cues for different event types (🤖 for assistant, 👤 for user, etc.)
-- **Code block extraction**: Automatically detects and formats code blocks from assistant responses
-- **Tool visualization**: Shows tool executions with descriptive icons (📄 for file reads, ✏️ for writes, etc.)
-- **Smart truncation**: Long messages are intelligently truncated to maintain readability
-- **File operation tracking**: Summarizes all file operations at the end of each assistant message
-
-### Debug Mode
-
-Enable debug mode with `-debug` to see additional information:
-
-- Event UUIDs and IDs
-- Request IDs for assistant messages
-- Stop reasons for assistant responses
-- Meta system messages (normally hidden)
-- Full content size information for truncated messages
-- Tool use IDs for system messages
-
-#### Narrator Feature
-
-The tool includes a narrator that describes tool actions in natural language:
+By default, Claude Companion watches all projects under `~/.claude/projects`. You can filter what to watch:
 
 ```bash
-# Use rule-based narrator (default)
-./claude-companion -project myproject -session mysession
+# Watch all projects and sessions
+./claude-companion
 
-# Use AI-powered narrator (requires OpenAI API key)
-export OPENAI_API_KEY=your-api-key
-./claude-companion -project myproject -session mysession -ai
+# Watch only "myproject"
+./claude-companion -p myproject
 
-# Use custom narrator configuration
-./claude-companion -project myproject -session mysession -narrator-config=/path/to/config.json
+# Watch only sessions named "coding" across all projects
+./claude-companion -s coding
+
+# Watch only "coding" sessions in "myproject"
+./claude-companion -p myproject -s coding
 ```
 
-Example output with narrator:
-```
-[15:30:45] 🤖 ASSISTANT (claude-3-opus):
-  💬 ファイル「main.go」を読み込みます
-  💬 テストを実行します
-  💬 変更をGitにコミットします
-```
+The watcher automatically:
+- Detects new projects and sessions
+- Handles file creation and deletion
+- Manages multiple session watchers efficiently
+- Cleans up idle watchers automatically
 
-The narrator supports common development tools and commands:
-- File operations (Read, Write, Edit)
-- Git commands (commit, push, pull, etc.)
-- Build tools (make, go build, npm, etc.)
-- Search operations (grep, find, etc.)
-- Web operations (fetch, search)
+### Direct File Mode
 
-#### Voice Output Feature
-
-The tool can speak the narrator's descriptions using VOICEVOX text-to-speech engine:
+For monitoring a specific file:
 
 ```bash
-# Prerequisites: Start VOICEVOX engine
-# Download from: https://github.com/VOICEVOX/voicevox_engine
-# Run: ./run (or run.exe on Windows)
+# Tail a specific file
+./claude-companion -f /path/to/session.jsonl
 
-# Enable voice output
-./claude-companion -project myproject -session mysession -voice
-
-# Use custom VOICEVOX server URL
-./claude-companion -project myproject -session mysession -voice -voicevox-url http://localhost:50021
-
-# Change speaker voice (see VOICEVOX for available speakers)
-./claude-companion -project myproject -session mysession -voice -voice-speaker 3
+# Read entire file
+./claude-companion -f /path/to/session.jsonl --head
 ```
 
-Voice output requirements:
-- VOICEVOX engine running (default port: 50021)
-- Audio playback support:
-  - macOS: `afplay` (built-in)
-  - Linux: `aplay` or `paplay`
-  - Windows: PowerShell (built-in)
+### Notification Monitoring
 
-The voice narrator will:
-- Speak tool action descriptions in Japanese
-- Queue multiple narrations to avoid overlapping
-- Gracefully handle errors without interrupting the main output
+The tool automatically monitors `/var/log/claude-notification.log` if it exists:
+- Waits for file creation if it doesn't exist
+- Handles permission errors gracefully
+- Resumes watching when permissions are granted
+
+**Note**: Notification monitoring requires Claude hooks to be configured. See the "Setting up Claude Hooks" section above for instructions on configuring the notification script and Claude's `settings.json`.
+
+## Voice Narration
+
+### Prerequisites
+
+1. **Install VOICEVOX** (choose one):
+   - **Docker (quickest method)**:
+     ```bash
+     docker run -d --rm -it -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:cpu-latest
+     ```
+   - **Manual installation**:
+     - Download from: https://github.com/VOICEVOX/voicevox_engine
+     - Run the engine: `./run` (or `run.exe` on Windows)
+
+2. **Audio playback support**:
+   - macOS: `afplay` (built-in)
+   - Linux: `aplay` or `paplay`
+   - Windows: PowerShell (built-in)
+
+### Usage
+
+```bash
+# Enable voice narration
+./claude-companion --voice
+
+# Use specific speaker
+./claude-companion --voice --voice-speaker 3
+
+# With AI narrator for more natural descriptions
+./claude-companion --voice --ai
+```
+
+The voice system features:
+- Priority-based queue for important messages
+- Non-blocking audio playback
+- Graceful error handling
+- Support for multiple speakers
 
 ## Event Types
 
-The tool recognizes and formats the following event types:
-
-### 1. User Events (`user`)
-
-User input messages, displayed with timestamp and content.
-
-User input messages are displayed with timestamps and emojis:
-
+### 1. User Events
 ```
 [15:04:05] 👤 USER:
   💬 Hello, Claude!
 ```
 
-For complex inputs (tool results), the tool provides clear indicators:
+### 2. Assistant Events
 ```
-[15:04:05] 👤 USER:
-  🎯 Command execution
-[15:04:06] 👤 USER:
-  ✅ Tool Result: toolu_123456
-```
-
-### 2. Assistant Events (`assistant`)
-
-Claude's responses, showing model name, content, and token usage.
-
-Claude's responses are shown with model information and formatted content:
-```
-[15:04:06] 🤖 ASSISTANT (claude-opus-4-20250514):
-  Hello! How can I help you today?
+[15:04:06] 🤖 ASSISTANT (claude-3-sonnet):
+  I'll help you with that task.
   
-  📝 Code Block 1 (python):
-    def hello_world():
-        print("Hello, World!")
-    ... (10 more lines)
+  💬 ファイル「main.go」を読み込みます
+  📄 Reading: main.go
   
-  🌐 Fetching: https://example.com
-  📄 Reading file: /path/to/file.txt
-  💰 Tokens: in=10, out=20, cache=100
-  
-📁 File Operations Summary:
-  - Read: /path/to/file.txt
-  - Write: /path/to/output.txt
+  💬 テストを実行します
+  🏃 Running: make test
 ```
 
-### 3. System Events (`system`)
-
-System messages with optional severity levels are shown with appropriate emojis:
-
+### 3. System Events
 ```
-[15:04:07] ℹ️ SYSTEM [info]: Tool execution completed successfully
+[15:04:07] ℹ️ SYSTEM [info]: Tool execution completed
 [15:04:08] ⚠️ SYSTEM [warning]: Rate limit approaching
-[15:04:09] ❌ SYSTEM [error]: Connection failed
 ```
 
-In debug mode, additional information like UUID and tool use IDs are displayed.
-
-### 4. Summary Events (`summary`)
-
-Session summaries that provide high-level descriptions:
-
+### 4. Notification Events
 ```
-📋 [SUMMARY] Code Review: Python Web Application Security Analysis
+[15:04:09] 🔔 NOTIFICATION [SessionStart]:
+  Project: myproject
+  Session: coding-session
 ```
 
-### 5. Other Events
+## Narrator Configuration
 
-Any unrecognized event types are displayed with their raw JSON content for debugging.
+Create a custom narrator configuration file:
 
+```json
+{
+  "rules": [
+    {
+      "pattern": "^git commit",
+      "template": "{base} Gitにコミットします: {detail}"
+    },
+    {
+      "tool": "Read",
+      "template": "ファイル「{path}」を読み込みます"
+    }
+  ]
+}
 ```
-[15:04:09] unknown event
-  Raw: {
-    "type": "unknown",
-    "data": "..."
-  }
-```
 
-## Log File Location
-
-Claude stores session logs in:
+Use it with:
+```bash
+./claude-companion --narrator-config=/path/to/config.json
 ```
-~/.claude/projects/PROJECT_NAME/SESSION_ID.jsonl
-```
-
-Each line in the JSONL file represents a single event with structured JSON data.
 
 ## Development
 
 ### Prerequisites
-
 - Go 1.19 or higher
 - Make
 
 ### Building
-
 ```bash
-# Build the binary
-make build
-
-# Run tests
-make test
-
-# Format code
-make fmt
-
-# Clean build artifacts
-make clean
+make build    # Build the binary
+make test     # Run tests
+make fmt      # Format code
+make clean    # Clean build artifacts
 ```
 
 ### Project Structure
-
 ```
 .
-├── main.go                # Main application logic and CLI
-├── types.go              # Event type definitions
-├── parser.go             # Event parsing and formatting logic
-├── parser_test.go        # Unit tests for parser
-├── companion_formatter.go # Companion mode formatting utilities
-├── narrator.go           # Natural language narrator for tool actions
-├── Makefile              # Build automation
-├── CLAUDE.md             # Instructions for Claude
-└── README.md             # This file
+├── main.go                      # Main application and CLI
+├── event/
+│   ├── event.go                # Event type definitions
+│   ├── parser.go               # Event parsing logic
+│   ├── formatter.go            # Event formatting
+│   ├── handler.go              # Event handling and routing
+│   ├── session_watcher.go      # Individual session file watcher
+│   ├── projects_watcher.go     # Projects directory watcher
+│   ├── notification_watcher.go # Notification log watcher
+│   └── session_file_manager.go # Session watcher lifecycle management
+├── narrator/
+│   ├── narrator.go             # Narrator interface and base implementation
+│   ├── config_narrator.go      # Configuration-based narrator
+│   ├── voice_narrator.go       # Voice output implementation
+│   ├── priority_queue.go       # Priority queue for voice messages
+│   └── voicevox.go            # VOICEVOX client
+├── Makefile                    # Build automation
+├── CLAUDE.md                   # Instructions for Claude
+└── README.md                   # This file
 ```
 
 ## Contributing
