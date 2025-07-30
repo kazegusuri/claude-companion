@@ -3,6 +3,8 @@ package event
 import (
 	"testing"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/narrator"
 )
 
 // MockNarrator implements narrator.Narrator for testing
@@ -23,6 +25,15 @@ func (m *MockNarrator) NarrateToolUsePermission(toolName string) string {
 func (m *MockNarrator) NarrateText(text string) string {
 	m.LastText = text
 	return text
+}
+
+func (m *MockNarrator) NarrateNotification(notificationType narrator.NotificationType) string {
+	switch notificationType {
+	case narrator.NotificationTypeCompact:
+		return "コンテキストを圧縮しています"
+	default:
+		return ""
+	}
 }
 
 // TODO: These tests need to be refactored to work with the new event package structure

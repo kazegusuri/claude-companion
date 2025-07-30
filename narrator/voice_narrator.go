@@ -121,6 +121,28 @@ func (vn *VoiceNarrator) NarrateText(text string) string {
 	return result
 }
 
+// NarrateNotification narrates notification events with optional voice
+func (vn *VoiceNarrator) NarrateNotification(notificationType NotificationType) string {
+	text := vn.narrator.NarrateNotification(notificationType)
+
+	if vn.enabled && text != "" {
+		// Translate English to Japanese if needed
+		ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
+		translatedText, _ := vn.translator.Translate(ctx, text)
+		cancel()
+
+		// Normalize text for better TTS pronunciation
+		normalizedText := vn.normalizer.Normalize(translatedText)
+		select {
+		case vn.queue <- normalizedText:
+		default:
+			// Queue is full, skip voice output
+		}
+	}
+
+	return text
+}
+
 // voiceWorker processes voice queue
 func (vn *VoiceNarrator) voiceWorker() {
 	defer vn.wg.Done()

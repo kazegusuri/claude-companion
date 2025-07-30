@@ -13,11 +13,19 @@ import (
 	"time"
 )
 
+// NotificationType represents different types of notifications
+type NotificationType string
+
+const (
+	NotificationTypeCompact NotificationType = "compact"
+)
+
 // Narrator interface for converting tool actions to natural language
 type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) string
 	NarrateToolUsePermission(toolName string) string
 	NarrateText(text string) string
+	NarrateNotification(notificationType NotificationType) string
 }
 
 // HybridNarrator uses rules first, then falls back to AI
@@ -138,6 +146,22 @@ func (hn *HybridNarrator) NarrateText(text string) string {
 	return text
 }
 
+// NarrateNotification narrates notification events
+func (hn *HybridNarrator) NarrateNotification(notificationType NotificationType) string {
+	// Check if config narrator has notification rules
+	if hn.configNarrator != nil {
+		return hn.configNarrator.NarrateNotification(notificationType)
+	}
+
+	// Default fallback
+	switch notificationType {
+	case NotificationTypeCompact:
+		return "コンテキストを圧縮しています"
+	default:
+		return ""
+	}
+}
+
 // Helper function to extract domain from URL
 func extractDomain(url string) string {
 	// Simple domain extraction
@@ -236,6 +260,17 @@ func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) string {
 // NarrateText returns the text as-is
 func (ai *OpenAINarrator) NarrateText(text string) string {
 	return text
+}
+
+// NarrateNotification narrates notification events
+func (ai *OpenAINarrator) NarrateNotification(notificationType NotificationType) string {
+	// For now, just return default messages
+	switch notificationType {
+	case NotificationTypeCompact:
+		return "コンテキストを圧縮しています"
+	default:
+		return ""
+	}
 }
 
 // OpenAI API structures
@@ -368,4 +403,9 @@ func (n *NoOpNarrator) NarrateToolUsePermission(toolName string) string {
 // NarrateText returns the text as-is
 func (n *NoOpNarrator) NarrateText(text string) string {
 	return text
+}
+
+// NarrateNotification returns empty string
+func (n *NoOpNarrator) NarrateNotification(notificationType NotificationType) string {
+	return ""
 }

@@ -320,3 +320,14 @@ func (cn *ConfigBasedNarrator) NarrateToolUsePermission(toolName string) string 
 func (cn *ConfigBasedNarrator) NarrateText(text string) string {
 	return text
 }
+
+// NarrateNotification narrates notification events
+func (cn *ConfigBasedNarrator) NarrateNotification(notificationType NotificationType) string {
+	// For now, return default messages
+	switch notificationType {
+	case NotificationTypeCompact:
+		return "コンテキストを圧縮しています"
+	default:
+		return ""
+	}
+}

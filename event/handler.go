@@ -89,6 +89,45 @@ func (h *Handler) processEvents() {
 
 // formatNotificationEvent formats and outputs a notification event (moved from notification_watcher.go)
 func (h *Handler) formatNotificationEvent(event *NotificationEvent) {
+	// Handle PreCompact event
+	if event.HookEventName == "PreCompact" {
+		emoji := "🗜️"
+
+		// Use narrator to get the narration message
+		var formattedMessage string
+		if h.narrator != nil {
+			formattedMessage = h.narrator.NarrateNotification(narrator.NotificationTypeCompact)
+		} else {
+			formattedMessage = "コンテキストを圧縮しています"
+		}
+
+		// Format the output
+		output := fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
+
+		// Add session info in debug mode
+		if h.debugMode && len(event.SessionID) >= 8 {
+			output += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
+		}
+
+		output += fmt.Sprintf(": %s", formattedMessage)
+
+		// Add debug info if enabled
+		if h.debugMode {
+			output += fmt.Sprintf("\n  [DEBUG] Trigger: %s", event.Trigger)
+			output += fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD)
+			output += fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath)
+		}
+
+		fmt.Print(output)
+
+		// Show narrator emoji
+		if h.narrator != nil && formattedMessage != "" {
+			fmt.Printf("\n  💬 %s", formattedMessage)
+		}
+
+		return
+	}
+
 	// Parse permission messages
 	isPermission, toolName, mcpName, operation := h.parsePermissionMessage(event.Message)
 
