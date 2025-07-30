@@ -22,6 +22,73 @@ cd claude-companion
 make build
 ```
 
+### Setting up Claude Hooks
+
+Claude Companion requires configuring Claude to send notification events. This is done by setting up hooks in Claude's settings:
+
+1. **Install the notification script**:
+   ```bash
+   # Copy the notification script to /usr/local/bin
+   sudo cp script/claude-notification.sh /usr/local/bin/
+   sudo chmod +x /usr/local/bin/claude-notification.sh
+   
+   # Create log file with appropriate permissions
+   sudo touch /var/log/claude-notification.log
+   sudo chmod 666 /var/log/claude-notification.log
+   ```
+
+2. **Configure Claude hooks** in `~/.claude/settings.json`:
+   ```json
+   {
+     "hooks": {
+       "SessionStart": [
+         {
+           "matcher": "*",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "/usr/local/bin/claude-notification.sh"
+             }
+           ]
+         }
+       ],
+       "PreCompact": [
+         {
+           "matcher": "*",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "/usr/local/bin/claude-notification.sh"
+             }
+           ]
+         }
+       ],
+       "Notification": [
+         {
+           "matcher": "",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "/usr/local/bin/claude-notification.sh"
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+3. **Start Claude Companion** to monitor notification events:
+   ```bash
+   # In one terminal, start monitoring notifications
+   ./claude-companion -file /var/log/claude-notification.log -full
+   
+   # In another terminal, monitor a specific Claude session
+   ./claude-companion -project PROJECT_NAME -session SESSION_ID
+   ```
+
+The notification script will capture events from Claude and write them to `/var/log/claude-notification.log`, which Claude Companion can then parse and display in real-time.
+
 ## Usage
 
 ### Basic Usage
