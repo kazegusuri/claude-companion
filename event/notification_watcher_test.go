@@ -54,15 +54,29 @@ func TestProcessNotificationLine(t *testing.T) {
 			},
 		},
 		{
-			name: "PreCompact notification",
-			line: `{"session_id":"abc123","transcript_path":"/tmp/test/transcript.jsonl","cwd":"/tmp/test/project","hook_event_name":"PreCompact","trigger":"compact_trigger"}`,
+			name: "PreCompact notification with manual trigger",
+			line: `{"session_id":"abc123","transcript_path":"/tmp/test/transcript.jsonl","cwd":"/tmp/test/project","hook_event_name":"PreCompact","trigger":"manual","custom_instructions":"Please summarize the conversation"}`,
 			wantEvent: &NotificationLogEvent{
 				Event: &NotificationEvent{
-					SessionID:      "abc123",
-					TranscriptPath: "/tmp/test/transcript.jsonl",
-					CWD:            "/tmp/test/project",
+					SessionID:          "abc123",
+					TranscriptPath:     "/tmp/test/transcript.jsonl",
+					CWD:                "/tmp/test/project",
+					HookEventName:      "PreCompact",
+					Trigger:            "manual",
+					CustomInstructions: "Please summarize the conversation",
+				},
+			},
+		},
+		{
+			name: "PreCompact notification with auto trigger",
+			line: `{"session_id":"def456","transcript_path":"/tmp/test/transcript2.jsonl","cwd":"/tmp/test/project2","hook_event_name":"PreCompact","trigger":"auto"}`,
+			wantEvent: &NotificationLogEvent{
+				Event: &NotificationEvent{
+					SessionID:      "def456",
+					TranscriptPath: "/tmp/test/transcript2.jsonl",
+					CWD:            "/tmp/test/project2",
 					HookEventName:  "PreCompact",
-					Trigger:        "compact_trigger",
+					Trigger:        "auto",
 				},
 			},
 		},
@@ -131,29 +145,15 @@ func TestProcessNotificationLine(t *testing.T) {
 			},
 		},
 		{
-			name: "Notification with custom instructions",
-			line: `{"session_id":"custom-123","transcript_path":"/tmp/custom.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Processing custom command","custom_instructions":"Do something special"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:          "custom-123",
-					TranscriptPath:     "/tmp/custom.jsonl",
-					CWD:                "/tmp",
-					HookEventName:      "Notification",
-					Message:            "Processing custom command",
-					CustomInstructions: "Do something special",
-				},
-			},
-		},
-		{
 			name: "Notification with waiting message",
-			line: `{"session_id":"wait-123","transcript_path":"/tmp/wait.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude is waiting for your response"}`,
+			line: `{"session_id":"wait-123","transcript_path":"/tmp/wait.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude is waiting for your input"}`,
 			wantEvent: &NotificationLogEvent{
 				Event: &NotificationEvent{
 					SessionID:      "wait-123",
 					TranscriptPath: "/tmp/wait.jsonl",
 					CWD:            "/tmp",
 					HookEventName:  "Notification",
-					Message:        "Claude is waiting for your response",
+					Message:        "Claude is waiting for your input",
 				},
 			},
 		},
@@ -247,17 +247,15 @@ func TestParseNotificationJSON(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Complete notification",
-			json: `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Test message","trigger":"test_trigger","custom_instructions":"custom","source":"startup"}`,
+			name: "PreCompact with custom instructions",
+			json: `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"PreCompact","trigger":"manual","custom_instructions":"Please summarize"}`,
 			want: &NotificationEvent{
 				SessionID:          "test-123",
 				TranscriptPath:     "/tmp/test.jsonl",
 				CWD:                "/tmp",
-				HookEventName:      "Notification",
-				Message:            "Test message",
-				Trigger:            "test_trigger",
-				CustomInstructions: "custom",
-				Source:             "startup",
+				HookEventName:      "PreCompact",
+				Trigger:            "manual",
+				CustomInstructions: "Please summarize",
 			},
 		},
 		{
