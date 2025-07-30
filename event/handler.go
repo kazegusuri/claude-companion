@@ -85,20 +85,8 @@ func (h *Handler) processEvents() {
 // processEvent processes a single event based on its type
 func (h *Handler) processEvent(event Event) {
 	switch e := event.(type) {
-	case *NotificationLogEvent:
-		// Process notification events
-		output, err := h.formatter.Format(e.Event)
-		if err != nil {
-			if h.debugMode {
-				log.Printf("Error formatting NotificationEvent: %v", err)
-			}
-			return
-		}
-		if output != "" {
-			fmt.Print(output)
-		}
 	case *NotificationEvent:
-		// Direct notification event
+		// Process notification events
 		output, err := h.formatter.Format(e)
 		if err != nil {
 			if h.debugMode {

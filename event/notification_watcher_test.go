@@ -11,163 +11,139 @@ func TestProcessNotificationLine(t *testing.T) {
 	tests := []struct {
 		name        string
 		line        string
-		wantEvent   *NotificationLogEvent
+		wantEvent   *NotificationEvent
 		wantNoEvent bool
 	}{
 		{
 			name: "SessionStart with source startup",
 			line: `{"session_id":"8c70f7b7-5c83-4083-8930-f1fc33bf3dcd","transcript_path":"/tmp/test/projects/test-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl","cwd":"/tmp/test/project","hook_event_name":"SessionStart","source":"startup"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
-					TranscriptPath: "/tmp/test/projects/test-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
-					CWD:            "/tmp/test/project",
-					HookEventName:  "SessionStart",
-					Source:         "startup",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
+				TranscriptPath: "/tmp/test/projects/test-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
+				CWD:            "/tmp/test/project",
+				HookEventName:  "SessionStart",
+				Source:         "startup",
 			},
 		},
 		{
 			name: "SessionStart with source clear",
 			line: `{"session_id":"4e676915-7639-4dca-a41b-cf9684daaf50","transcript_path":"/tmp/test/projects/another-project/4e676915-7639-4dca-a41b-cf9684daaf50.jsonl","cwd":"/tmp/test/another","hook_event_name":"SessionStart","source":"clear"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "4e676915-7639-4dca-a41b-cf9684daaf50",
-					TranscriptPath: "/tmp/test/projects/another-project/4e676915-7639-4dca-a41b-cf9684daaf50.jsonl",
-					CWD:            "/tmp/test/another",
-					HookEventName:  "SessionStart",
-					Source:         "clear",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "4e676915-7639-4dca-a41b-cf9684daaf50",
+				TranscriptPath: "/tmp/test/projects/another-project/4e676915-7639-4dca-a41b-cf9684daaf50.jsonl",
+				CWD:            "/tmp/test/another",
+				HookEventName:  "SessionStart",
+				Source:         "clear",
 			},
 		},
 		{
 			name: "SessionStart with source resume",
 			line: `{"session_id":"07846160-cc2e-4dc1-9204-8c9817687f4b","transcript_path":"/tmp/test/projects/resume-project/07846160-cc2e-4dc1-9204-8c9817687f4b.jsonl","cwd":"/tmp/test/resume","hook_event_name":"SessionStart","source":"resume"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "07846160-cc2e-4dc1-9204-8c9817687f4b",
-					TranscriptPath: "/tmp/test/projects/resume-project/07846160-cc2e-4dc1-9204-8c9817687f4b.jsonl",
-					CWD:            "/tmp/test/resume",
-					HookEventName:  "SessionStart",
-					Source:         "resume",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "07846160-cc2e-4dc1-9204-8c9817687f4b",
+				TranscriptPath: "/tmp/test/projects/resume-project/07846160-cc2e-4dc1-9204-8c9817687f4b.jsonl",
+				CWD:            "/tmp/test/resume",
+				HookEventName:  "SessionStart",
+				Source:         "resume",
 			},
 		},
 		{
 			name: "PreCompact notification with manual trigger",
 			line: `{"session_id":"abc123","transcript_path":"/tmp/test/transcript.jsonl","cwd":"/tmp/test/project","hook_event_name":"PreCompact","trigger":"manual","custom_instructions":"Please summarize the conversation"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:          "abc123",
-					TranscriptPath:     "/tmp/test/transcript.jsonl",
-					CWD:                "/tmp/test/project",
-					HookEventName:      "PreCompact",
-					Trigger:            "manual",
-					CustomInstructions: "Please summarize the conversation",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:          "abc123",
+				TranscriptPath:     "/tmp/test/transcript.jsonl",
+				CWD:                "/tmp/test/project",
+				HookEventName:      "PreCompact",
+				Trigger:            "manual",
+				CustomInstructions: "Please summarize the conversation",
 			},
 		},
 		{
 			name: "PreCompact notification with auto trigger",
 			line: `{"session_id":"def456","transcript_path":"/tmp/test/transcript2.jsonl","cwd":"/tmp/test/project2","hook_event_name":"PreCompact","trigger":"auto"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "def456",
-					TranscriptPath: "/tmp/test/transcript2.jsonl",
-					CWD:            "/tmp/test/project2",
-					HookEventName:  "PreCompact",
-					Trigger:        "auto",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "def456",
+				TranscriptPath: "/tmp/test/transcript2.jsonl",
+				CWD:            "/tmp/test/project2",
+				HookEventName:  "PreCompact",
+				Trigger:        "auto",
 			},
 		},
 		{
 			name: "Permission request for Bash",
 			line: `{"session_id":"test-123","transcript_path":"/tmp/test.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude needs your permission to use Bash"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "test-123",
-					TranscriptPath: "/tmp/test.jsonl",
-					CWD:            "/tmp",
-					HookEventName:  "Notification",
-					Message:        "Claude needs your permission to use Bash",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "test-123",
+				TranscriptPath: "/tmp/test.jsonl",
+				CWD:            "/tmp",
+				HookEventName:  "Notification",
+				Message:        "Claude needs your permission to use Bash",
 			},
 		},
 		{
 			name: "Permission request for Write",
 			line: `{"session_id":"test-456","transcript_path":"/tmp/test2.jsonl","cwd":"/tmp/test","hook_event_name":"Notification","message":"Claude needs your permission to use Write"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "test-456",
-					TranscriptPath: "/tmp/test2.jsonl",
-					CWD:            "/tmp/test",
-					HookEventName:  "Notification",
-					Message:        "Claude needs your permission to use Write",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "test-456",
+				TranscriptPath: "/tmp/test2.jsonl",
+				CWD:            "/tmp/test",
+				HookEventName:  "Notification",
+				Message:        "Claude needs your permission to use Write",
 			},
 		},
 		{
 			name: "MCP permission request",
 			line: `{"session_id":"test-789","transcript_path":"/tmp/test3.jsonl","cwd":"/tmp/workspace","hook_event_name":"Notification","message":"Claude needs your permission to use filesystem - write (MCP)"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "test-789",
-					TranscriptPath: "/tmp/test3.jsonl",
-					CWD:            "/tmp/workspace",
-					HookEventName:  "Notification",
-					Message:        "Claude needs your permission to use filesystem - write (MCP)",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "test-789",
+				TranscriptPath: "/tmp/test3.jsonl",
+				CWD:            "/tmp/workspace",
+				HookEventName:  "Notification",
+				Message:        "Claude needs your permission to use filesystem - write (MCP)",
 			},
 		},
 		{
 			name: "Stop event",
 			line: `{"session_id":"8c70f7b7-5c83-4083-8930-f1fc33bf3dcd","transcript_path":"/tmp/test/projects/stop-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl","cwd":"/tmp/test/stop","hook_event_name":"Stop","stop_hook_active":false}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
-					TranscriptPath: "/tmp/test/projects/stop-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
-					CWD:            "/tmp/test/stop",
-					HookEventName:  "Stop",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "8c70f7b7-5c83-4083-8930-f1fc33bf3dcd",
+				TranscriptPath: "/tmp/test/projects/stop-project/8c70f7b7-5c83-4083-8930-f1fc33bf3dcd.jsonl",
+				CWD:            "/tmp/test/stop",
+				HookEventName:  "Stop",
 			},
 		},
 		{
 			name: "General notification with error message",
 			line: `{"session_id":"error-123","transcript_path":"/tmp/error.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"An error occurred while processing the request"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "error-123",
-					TranscriptPath: "/tmp/error.jsonl",
-					CWD:            "/tmp",
-					HookEventName:  "Notification",
-					Message:        "An error occurred while processing the request",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "error-123",
+				TranscriptPath: "/tmp/error.jsonl",
+				CWD:            "/tmp",
+				HookEventName:  "Notification",
+				Message:        "An error occurred while processing the request",
 			},
 		},
 		{
 			name: "Notification with waiting message",
 			line: `{"session_id":"wait-123","transcript_path":"/tmp/wait.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Claude is waiting for your input"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "wait-123",
-					TranscriptPath: "/tmp/wait.jsonl",
-					CWD:            "/tmp",
-					HookEventName:  "Notification",
-					Message:        "Claude is waiting for your input",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "wait-123",
+				TranscriptPath: "/tmp/wait.jsonl",
+				CWD:            "/tmp",
+				HookEventName:  "Notification",
+				Message:        "Claude is waiting for your input",
 			},
 		},
 		{
 			name: "Notification with success message",
 			line: `{"session_id":"success-123","transcript_path":"/tmp/success.jsonl","cwd":"/tmp","hook_event_name":"Notification","message":"Operation completed successfully"}`,
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{
-					SessionID:      "success-123",
-					TranscriptPath: "/tmp/success.jsonl",
-					CWD:            "/tmp",
-					HookEventName:  "Notification",
-					Message:        "Operation completed successfully",
-				},
+			wantEvent: &NotificationEvent{
+				SessionID:      "success-123",
+				TranscriptPath: "/tmp/success.jsonl",
+				CWD:            "/tmp",
+				HookEventName:  "Notification",
+				Message:        "Operation completed successfully",
 			},
 		},
 		{
@@ -189,9 +165,7 @@ func TestProcessNotificationLine(t *testing.T) {
 			name:        "Empty JSON object",
 			line:        `{}`,
 			wantNoEvent: false, // Should create event with empty fields
-			wantEvent: &NotificationLogEvent{
-				Event: &NotificationEvent{},
-			},
+			wantEvent:   &NotificationEvent{},
 		},
 	}
 
@@ -225,13 +199,13 @@ func TestProcessNotificationLine(t *testing.T) {
 			}
 
 			// Check event type
-			notificationEvent, ok := events[0].(*NotificationLogEvent)
+			notificationEvent, ok := events[0].(*NotificationEvent)
 			if !ok {
-				t.Fatalf("expected NotificationLogEvent, got %T", events[0])
+				t.Fatalf("expected NotificationEvent, got %T", events[0])
 			}
 
 			// Compare events
-			if diff := cmp.Diff(tt.wantEvent.Event, notificationEvent.Event); diff != "" {
+			if diff := cmp.Diff(tt.wantEvent, notificationEvent); diff != "" {
 				t.Errorf("NotificationEvent mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -322,23 +296,23 @@ func TestNotificationWatcher(t *testing.T) {
 	}
 
 	// Verify first event
-	if event, ok := events[0].(*NotificationLogEvent); ok {
-		if event.Event.SessionID != "test-1" || event.Event.HookEventName != "SessionStart" {
-			t.Errorf("unexpected first event: %+v", event.Event)
+	if event, ok := events[0].(*NotificationEvent); ok {
+		if event.SessionID != "test-1" || event.HookEventName != "SessionStart" {
+			t.Errorf("unexpected first event: %+v", event)
 		}
 	}
 
 	// Verify second event
-	if event, ok := events[1].(*NotificationLogEvent); ok {
-		if event.Event.SessionID != "test-2" || event.Event.HookEventName != "PreCompact" {
-			t.Errorf("unexpected second event: %+v", event.Event)
+	if event, ok := events[1].(*NotificationEvent); ok {
+		if event.SessionID != "test-2" || event.HookEventName != "PreCompact" {
+			t.Errorf("unexpected second event: %+v", event)
 		}
 	}
 
 	// Verify third event
-	if event, ok := events[2].(*NotificationLogEvent); ok {
-		if event.Event.SessionID != "test-3" || event.Event.HookEventName != "Notification" {
-			t.Errorf("unexpected third event: %+v", event.Event)
+	if event, ok := events[2].(*NotificationEvent); ok {
+		if event.SessionID != "test-3" || event.HookEventName != "Notification" {
+			t.Errorf("unexpected third event: %+v", event)
 		}
 	}
 }
@@ -348,8 +322,8 @@ func TestMockEventSender(t *testing.T) {
 	sender := NewMockEventSender()
 
 	// Test adding events
-	event1 := &NotificationLogEvent{Event: &NotificationEvent{SessionID: "test1"}}
-	event2 := &NotificationLogEvent{Event: &NotificationEvent{SessionID: "test2"}}
+	event1 := &NotificationEvent{SessionID: "test1"}
+	event2 := &NotificationEvent{SessionID: "test2"}
 
 	sender.SendEvent(event1)
 	sender.SendEvent(event2)

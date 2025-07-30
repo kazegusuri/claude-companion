@@ -120,5 +120,5 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 	}
 
 	// Send event to handler
-	w.eventSender.SendEvent(&NotificationLogEvent{Event: &notificationEvent})
+	w.eventSender.SendEvent(&notificationEvent)
 }
