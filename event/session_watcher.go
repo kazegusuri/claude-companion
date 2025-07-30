@@ -13,6 +13,7 @@ import (
 type SessionWatcher struct {
 	filePath     string
 	eventHandler *Handler
+	parser       *Parser
 	done         chan struct{}
 }
 
@@ -21,6 +22,7 @@ func NewSessionWatcher(filePath string, eventHandler *Handler) *SessionWatcher {
 	return &SessionWatcher{
 		filePath:     filePath,
 		eventHandler: eventHandler,
+		parser:       NewParser(),
 		done:         make(chan struct{}),
 	}
 }
@@ -76,7 +78,13 @@ func (w *SessionWatcher) tailFile() error {
 
 			// Process the line
 			if len(line) > 0 {
-				w.eventHandler.SendEvent(&SessionLogEvent{Line: line})
+				// Parse the line into an event
+				event, err := w.parser.Parse(line)
+				if err != nil {
+					log.Printf("Error parsing line: %v", err)
+					continue
+				}
+				w.eventHandler.SendEvent(event)
 			}
 		}
 	}
@@ -102,7 +110,13 @@ func (w *SessionWatcher) ReadFullFile() error {
 		lineNum++
 		line := scanner.Text()
 		if len(line) > 0 {
-			w.eventHandler.SendEvent(&SessionLogEvent{Line: line})
+			// Parse the line into an event
+			event, err := w.parser.Parse(line)
+			if err != nil {
+				log.Printf("Error parsing line %d: %v", lineNum, err)
+				continue
+			}
+			w.eventHandler.SendEvent(event)
 		}
 	}
 

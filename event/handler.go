@@ -12,7 +12,7 @@ import (
 // Handler processes events from multiple sources
 type Handler struct {
 	narrator  narrator.Narrator
-	parser    *Parser
+	formatter *Formatter
 	debugMode bool
 	eventChan chan Event
 	wg        sync.WaitGroup
@@ -21,12 +21,12 @@ type Handler struct {
 
 // NewHandler creates a new event handler
 func NewHandler(narrator narrator.Narrator, debugMode bool) *Handler {
-	parser := NewParser(narrator)
-	parser.SetDebugMode(debugMode)
+	formatter := NewFormatter(narrator)
+	formatter.SetDebugMode(debugMode)
 
 	return &Handler{
 		narrator:  narrator,
-		parser:    parser,
+		formatter: formatter,
 		debugMode: debugMode,
 		eventChan: make(chan Event, 100),
 		done:      make(chan struct{}),
@@ -65,11 +65,7 @@ func (h *Handler) processEvents() {
 			if !ok {
 				return
 			}
-			if err := event.Process(h); err != nil {
-				if h.debugMode {
-					log.Printf("Error processing %s event: %v", event.Type(), err)
-				}
-			}
+			h.processEvent(event)
 		case <-h.done:
 			// Drain remaining events
 			for {
@@ -78,11 +74,39 @@ func (h *Handler) processEvents() {
 					if !ok {
 						return
 					}
-					event.Process(h)
+					h.processEvent(event)
 				default:
 					return
 				}
 			}
+		}
+	}
+}
+
+// processEvent processes a single event based on its type
+func (h *Handler) processEvent(event Event) {
+	switch e := event.(type) {
+	case *NotificationLogEvent:
+		// Process notification events
+		h.formatNotificationEvent(e.Event)
+	case *NotificationEvent:
+		// Direct notification event
+		h.formatNotificationEvent(e)
+	case *UserMessage, *AssistantMessage, *SystemMessage, *SummaryEvent, *BaseEvent:
+		// Format and display parsed events
+		output, err := h.formatter.Format(e)
+		if err != nil {
+			if h.debugMode {
+				log.Printf("Error formatting %T: %v", e, err)
+			}
+			return
+		}
+		if output != "" {
+			fmt.Print(output)
+		}
+	default:
+		if h.debugMode {
+			log.Printf("Unknown event type: %T", event)
 		}
 	}
 }
