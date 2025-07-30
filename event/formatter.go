@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kazegusuri/claude-companion/narrator"
 )
@@ -11,6 +12,7 @@ import (
 // Formatter handles formatting of parsed events
 type Formatter struct {
 	companion *CompanionFormatter
+	narrator  narrator.Narrator
 	debugMode bool
 }
 
@@ -18,6 +20,7 @@ type Formatter struct {
 func NewFormatter(narrator narrator.Narrator) *Formatter {
 	return &Formatter{
 		companion: NewCompanionFormatter(narrator),
+		narrator:  narrator,
 		debugMode: false,
 	}
 }
@@ -38,6 +41,8 @@ func (f *Formatter) Format(event Event) (string, error) {
 		return f.formatSystemMessage(e)
 	case *SummaryEvent:
 		return f.formatSummaryEvent(e)
+	case *NotificationEvent:
+		return f.formatNotificationEvent(e)
 	case *BaseEvent:
 		return f.formatUnknownEvent(e)
 	default:
@@ -263,3 +268,267 @@ func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
 
 	return output.String(), nil
 }
+
+// formatNotificationEvent formats a notification event
+func (f *Formatter) formatNotificationEvent(event *NotificationEvent) (string, error) {
+	var output strings.Builder
+
+	// Handle events based on HookEventName
+	switch event.HookEventName {
+	case "PreCompact":
+		output.WriteString(f.formatPreCompactEvent(event))
+	case "SessionStart":
+		output.WriteString(f.formatSessionStartEvent(event))
+	case "Notification":
+		output.WriteString(f.formatGeneralNotificationEvent(event))
+	default:
+		// Return empty string for unknown event types
+		return "", nil
+	}
+
+	return output.String(), nil
+}
+
+// formatPreCompactEvent formats PreCompact events
+func (f *Formatter) formatPreCompactEvent(event *NotificationEvent) string {
+	var output strings.Builder
+	emoji := "🗜️"
+
+	// Use narrator to get the narration message
+	formattedMessage := f.narrator.NarrateNotification(narrator.NotificationTypeCompact)
+
+	// Format the output
+	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
+
+	// Add session info in debug mode
+	if f.debugMode && len(event.SessionID) >= 8 {
+		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+	}
+
+	output.WriteString(fmt.Sprintf(": %s", formattedMessage))
+
+	// Add debug info if enabled
+	if f.debugMode {
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Trigger: %s", event.Trigger))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+	}
+
+	// Show narrator emoji
+	if formattedMessage != "" {
+		output.WriteString(fmt.Sprintf("\n  💬 %s", formattedMessage))
+	}
+
+	return output.String()
+}
+
+// formatSessionStartEvent formats SessionStart events
+func (f *Formatter) formatSessionStartEvent(event *NotificationEvent) string {
+	var output strings.Builder
+	emoji := "🚀"
+
+	// Use narrator to get the narration message based on source
+	var notificationType narrator.NotificationType
+	switch event.Source {
+	case "startup":
+		notificationType = narrator.NotificationTypeSessionStartStartup
+	case "clear":
+		notificationType = narrator.NotificationTypeSessionStartClear
+	case "resume":
+		notificationType = narrator.NotificationTypeSessionStartResume
+	default:
+		notificationType = narrator.NotificationTypeSessionStartStartup
+	}
+	formattedMessage := f.narrator.NarrateNotification(notificationType)
+
+	// Format the output
+	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
+
+	// Add session info in debug mode
+	if f.debugMode && len(event.SessionID) >= 8 {
+		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+	}
+
+	output.WriteString(fmt.Sprintf(" (source: %s)", event.Source))
+
+	// Add debug info if enabled
+	if f.debugMode {
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Source: %s", event.Source))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+	}
+
+	// Show narrator emoji
+	if formattedMessage != "" {
+		output.WriteString(fmt.Sprintf("\n  💬 %s", formattedMessage))
+	}
+
+	return output.String()
+}
+
+// formatGeneralNotificationEvent formats general Notification events
+func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) string {
+	var output strings.Builder
+
+	// Parse permission messages
+	isPermission, toolName, mcpName, operation := f.parsePermissionMessage(event.Message)
+
+	// Determine emoji based on message content
+	emoji := "🔔"
+	formattedMessage := event.Message
+	displayToolName := ""
+
+	if isPermission {
+		emoji = "🔐"
+		if mcpName != "" {
+			// Format MCP tool name as mcp__{mcp_name}__{operation_name}
+			displayToolName = fmt.Sprintf("mcp__%s__%s", mcpName, operation)
+			formattedMessage = fmt.Sprintf("Permission request: Tool '%s' (MCP: %s - %s)", displayToolName, mcpName, operation)
+		} else {
+			// Regular tool permission
+			displayToolName = toolName
+			formattedMessage = fmt.Sprintf("Permission request: Tool '%s'", displayToolName)
+		}
+	} else if containsAny(event.Message, "waiting") {
+		emoji = "⏳"
+	} else if containsAny(event.Message, "error", "failed") {
+		emoji = "❌"
+	} else if containsAny(event.Message, "success", "completed") {
+		emoji = "✅"
+	}
+
+	// Format the output
+	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
+
+	// Add session info in debug mode
+	if f.debugMode && len(event.SessionID) >= 8 {
+		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+	}
+
+	output.WriteString(fmt.Sprintf(": %s", formattedMessage))
+
+	// Add debug info if enabled
+	if f.debugMode {
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Original: %s", event.Message))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
+		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+	}
+
+	// Use narrator for tool permissions
+	if isPermission && displayToolName != "" {
+		// Use NarrateToolUsePermission for permission requests
+		narration := f.narrator.NarrateToolUsePermission(displayToolName)
+		if narration != "" {
+			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+		}
+	} else if event.Message != "" {
+		// Use NarrateText for other notifications
+		narration := f.narrator.NarrateText(event.Message)
+		if narration != "" {
+			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+		}
+	}
+
+	return output.String()
+}
+
+// parsePermissionMessage parses permission messages to extract tool/MCP information
+func (f *Formatter) parsePermissionMessage(message string) (isPermission bool, toolName string, mcpName string, operation string) {
+	const permissionPrefix = "Claude needs your permission to use "
+
+	if !hasPrefix(message, permissionPrefix) {
+		return false, "", "", ""
+	}
+
+	// Extract the tool/MCP part after the prefix
+	toolPart := trimPrefix(message, permissionPrefix)
+
+	// Check if it's an MCP operation (ends with "(MCP)")
+	if hasSuffix(toolPart, " (MCP)") {
+		// Remove the " (MCP)" suffix
+		toolPart = trimSuffix(toolPart, " (MCP)")
+
+		// Split by " - " to get MCP name and operation
+		parts := splitN(toolPart, " - ", 2)
+		if len(parts) == 2 {
+			return true, "", parts[0], parts[1]
+		}
+	}
+
+	// Regular tool use
+	return true, toolPart, "", ""
+}
+
+// Helper functions to avoid importing strings package
+func containsAny(s string, substrs ...string) bool {
+	for _, substr := range substrs {
+		if contains(s, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
+func trimPrefix(s, prefix string) string {
+	if hasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
+}
+
+func trimSuffix(s, suffix string) string {
+	if hasSuffix(s, suffix) {
+		return s[:len(s)-len(suffix)]
+	}
+	return s
+}
+
+func splitN(s, sep string, n int) []string {
+	if n == 0 {
+		return nil
+	}
+	if n == 1 {
+		return []string{s}
+	}
+
+	var result []string
+	for n > 1 && len(s) > 0 {
+		idx := -1
+		for i := 0; i <= len(s)-len(sep); i++ {
+			if s[i:i+len(sep)] == sep {
+				idx = i
+				break
+			}
+		}
+		if idx == -1 {
+			break
+		}
+		result = append(result, s[:idx])
+		s = s[idx+len(sep):]
+		n--
+	}
+	if len(s) > 0 {
+		result = append(result, s)
+	}
+	return result
+}
+
+// timeNow is a helper function to get current time (for testing)
+var timeNow = time.Now
