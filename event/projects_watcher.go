@@ -18,6 +18,8 @@ type ProjectsWatcher struct {
 	debugMode      bool
 	done           chan struct{}
 	wg             sync.WaitGroup
+	projectFilter  string
+	sessionFilter  string
 }
 
 // NewProjectsWatcher creates a new projects watcher
@@ -67,6 +69,16 @@ func (w *ProjectsWatcher) Start() error {
 	return nil
 }
 
+// SetProjectFilter sets the project filter
+func (w *ProjectsWatcher) SetProjectFilter(project string) {
+	w.projectFilter = project
+}
+
+// SetSessionFilter sets the session filter
+func (w *ProjectsWatcher) SetSessionFilter(session string) {
+	w.sessionFilter = session
+}
+
 // Stop stops the watcher
 func (w *ProjectsWatcher) Stop() {
 	close(w.done)
@@ -92,6 +104,19 @@ func (w *ProjectsWatcher) addDirectoryTree(root string) error {
 			// Skip hidden directories (except .claude itself)
 			if strings.HasPrefix(info.Name(), ".") && info.Name() != ".claude" && path != root {
 				return filepath.SkipDir
+			}
+
+			// Apply project filter
+			if w.projectFilter != "" {
+				// Check if this directory is under the projects root
+				rel, err := filepath.Rel(w.rootPath, path)
+				if err == nil && rel != "." {
+					// Get the project name (first component of relative path)
+					parts := strings.Split(rel, string(filepath.Separator))
+					if len(parts) > 0 && parts[0] != w.projectFilter {
+						return filepath.SkipDir
+					}
+				}
 			}
 
 			if err := w.watcher.Add(path); err != nil {
@@ -133,6 +158,33 @@ func (w *ProjectsWatcher) watch() {
 	}
 }
 
+// shouldProcessFile checks if a file should be processed based on filters
+func (w *ProjectsWatcher) shouldProcessFile(path string) bool {
+	// Apply project filter
+	if w.projectFilter != "" {
+		rel, err := filepath.Rel(w.rootPath, path)
+		if err != nil {
+			return false
+		}
+		parts := strings.Split(rel, string(filepath.Separator))
+		if len(parts) == 0 || parts[0] != w.projectFilter {
+			return false
+		}
+	}
+
+	// Apply session filter
+	if w.sessionFilter != "" {
+		base := filepath.Base(path)
+		// Remove .jsonl extension
+		sessionName := strings.TrimSuffix(base, ".jsonl")
+		if sessionName != w.sessionFilter {
+			return false
+		}
+	}
+
+	return true
+}
+
 // handleEvent processes file system events
 func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 	// Check if it's a .jsonl file
@@ -140,11 +192,26 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 		// If it's a new directory, add it to the watcher
 		if event.Op&fsnotify.Create == fsnotify.Create {
 			if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+				// Check if we should watch this directory based on project filter
+				if w.projectFilter != "" {
+					rel, err := filepath.Rel(w.rootPath, event.Name)
+					if err == nil && rel != "." {
+						parts := strings.Split(rel, string(filepath.Separator))
+						if len(parts) > 0 && parts[0] != w.projectFilter {
+							return
+						}
+					}
+				}
 				if err := w.addDirectoryTree(event.Name); err != nil {
 					log.Printf("Error adding new directory: %v", err)
 				}
 			}
 		}
+		return
+	}
+
+	// Check if we should process this file based on filters
+	if !w.shouldProcessFile(event.Name) {
 		return
 	}
 

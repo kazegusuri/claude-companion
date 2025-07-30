@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/kazegusuri/claude-companion/event"
@@ -28,7 +27,7 @@ func main() {
 	pflag.StringVarP(&project, "project", "p", "", "Project name")
 	pflag.StringVarP(&session, "session", "s", "", "Session name")
 	pflag.StringVarP(&file, "file", "f", "", "Direct path to session file")
-	pflag.StringVar(&notificationLog, "notification-log", "", "Path to notification log file to watch")
+	pflag.StringVar(&notificationLog, "notification-log", "/var/log/claude-notification.log", "Path to notification log file to watch")
 	pflag.BoolVar(&headMode, "head", false, "Read entire file from beginning to end instead of tailing")
 	pflag.BoolVarP(&debugMode, "debug", "d", false, "Enable debug mode with detailed information")
 	pflag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
@@ -46,25 +45,17 @@ func main() {
 
 	// Determine input sources
 	hasNotificationInput := notificationLog != ""
-	hasSessionInput := file != "" || (project != "" && session != "")
-	hasProjectsInput := watchProjects && !hasSessionInput && !hasNotificationInput
+	hasDirectFileInput := file != ""
+	// project/session options now act as filters for watch mode
+	hasProjectsInput := watchProjects && !hasDirectFileInput
 
 	// No longer need to check for required flags since watch-projects is default
 
-	// Determine session file path if applicable
+	// Determine session file path if using direct file input
 	var sessionFilePath string
-	if hasSessionInput {
-		if file != "" {
-			// Use direct file path
-			sessionFilePath = file
-		} else {
-			// Use project/session path
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				log.Fatalf("Failed to get home directory: %v", err)
-			}
-			sessionFilePath = filepath.Join(homeDir, ".claude", "projects", project, session+".jsonl")
-		}
+	if hasDirectFileInput {
+		// Use direct file path
+		sessionFilePath = file
 	}
 
 	// Create narrator
@@ -104,8 +95,8 @@ func main() {
 		defer notificationWatcher.Stop()
 	}
 
-	// Start session watcher if configured
-	if hasSessionInput {
+	// Start session watcher if using direct file input
+	if hasDirectFileInput {
 		sessionWatcher := event.NewSessionWatcher(sessionFilePath, eventHandler)
 
 		if headMode {
@@ -129,7 +120,23 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error creating projects watcher: %v", err)
 		}
+
+		// Set filters based on project/session options
+		if project != "" {
+			projectsWatcher.SetProjectFilter(project)
+		}
+		if session != "" {
+			projectsWatcher.SetSessionFilter(session)
+		}
+
 		log.Printf("Starting projects watcher for: %s", projectsRoot)
+		if project != "" {
+			log.Printf("Filtering to project: %s", project)
+		}
+		if session != "" {
+			log.Printf("Filtering to session: %s", session)
+		}
+
 		if err := projectsWatcher.Start(); err != nil {
 			log.Fatalf("Error starting projects watcher: %v", err)
 		}
@@ -137,7 +144,7 @@ func main() {
 	}
 
 	// If we're running watchers (not head mode), wait for interrupt
-	if hasNotificationInput || (hasSessionInput && !headMode) || hasProjectsInput {
+	if hasNotificationInput || (hasDirectFileInput && !headMode) || hasProjectsInput {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
