@@ -35,11 +35,12 @@ type UserMessage struct {
 
 // AssistantContent represents a content item in an assistant message
 type AssistantContent struct {
-	Type  string      `json:"type"`
-	Text  string      `json:"text,omitempty"`
-	ID    string      `json:"id,omitempty"`
-	Name  string      `json:"name,omitempty"`
-	Input interface{} `json:"input,omitempty"`
+	Type     string      `json:"type"`
+	Text     string      `json:"text,omitempty"`
+	ID       string      `json:"id,omitempty"`
+	Name     string      `json:"name,omitempty"`
+	Input    interface{} `json:"input,omitempty"`
+	Thinking string      `json:"thinking,omitempty"`
 }
 
 // Usage represents token usage information

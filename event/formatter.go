@@ -150,6 +150,9 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		case "text":
 			formatted := f.companion.FormatAssistantText(content.Text)
 			output.WriteString(formatted)
+		case "thinking":
+			formatted := f.companion.FormatAssistantText("Thinking: " + content.Thinking)
+			output.WriteString(formatted)
 		case "tool_use":
 			// Convert input to map[string]interface{} for formatter
 			inputMap := make(map[string]interface{})
