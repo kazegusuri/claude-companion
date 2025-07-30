@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -10,11 +9,12 @@ import (
 
 	"github.com/kazegusuri/claude-companion/event"
 	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/spf13/pflag"
 )
 
 func main() {
 	var project, session, file string
-	var fullRead, debugMode bool
+	var headMode, debugMode bool
 	var useAINarrator bool
 	var openaiAPIKey string
 	var narratorConfigPath string
@@ -25,31 +25,31 @@ func main() {
 	var watchProjects bool
 	var projectsRoot string
 
-	flag.StringVar(&project, "project", "", "Project name")
-	flag.StringVar(&session, "session", "", "Session name")
-	flag.StringVar(&file, "file", "", "Direct path to session file")
-	flag.StringVar(&notificationLog, "notification-log", "", "Path to notification log file to watch")
-	flag.BoolVar(&fullRead, "full", false, "Read entire file from beginning to end instead of tailing")
-	flag.BoolVar(&debugMode, "debug", false, "Enable debug mode with detailed information")
-	flag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
-	flag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
-	flag.StringVar(&narratorConfigPath, "narrator-config", "", "Path to narrator configuration file (JSON)")
-	flag.BoolVar(&enableVoice, "voice", false, "Enable voice output using VOICEVOX")
-	flag.StringVar(&voicevoxURL, "voicevox-url", "http://localhost:50021", "VOICEVOX server URL")
-	flag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
-	flag.BoolVar(&watchProjects, "watch-projects", false, "Watch all projects under ~/.claude/projects")
-	flag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects (used with -watch-projects)")
-	flag.Parse()
+	pflag.StringVarP(&project, "project", "p", "", "Project name")
+	pflag.StringVarP(&session, "session", "s", "", "Session name")
+	pflag.StringVarP(&file, "file", "f", "", "Direct path to session file")
+	pflag.StringVar(&notificationLog, "notification-log", "", "Path to notification log file to watch")
+	pflag.BoolVar(&headMode, "head", false, "Read entire file from beginning to end instead of tailing")
+	pflag.BoolVarP(&debugMode, "debug", "d", false, "Enable debug mode with detailed information")
+	pflag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
+	pflag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
+	pflag.StringVar(&narratorConfigPath, "narrator-config", "", "Path to narrator configuration file (JSON)")
+	pflag.BoolVar(&enableVoice, "voice", false, "Enable voice output using VOICEVOX")
+	pflag.StringVar(&voicevoxURL, "voicevox-url", "http://localhost:50021", "VOICEVOX server URL")
+	pflag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
+	// watchProjects is now the default behavior
+	pflag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects")
+	pflag.Parse()
+
+	// Default behavior is to watch projects
+	watchProjects = true
 
 	// Determine input sources
 	hasNotificationInput := notificationLog != ""
 	hasSessionInput := file != "" || (project != "" && session != "")
-	hasProjectsInput := watchProjects
+	hasProjectsInput := watchProjects && !hasSessionInput && !hasNotificationInput
 
-	if !hasNotificationInput && !hasSessionInput && !hasProjectsInput {
-		flag.Usage()
-		log.Fatal("Either -file, -notification-log, -watch-projects, or both -project and -session flags are required")
-	}
+	// No longer need to check for required flags since watch-projects is default
 
 	// Determine session file path if applicable
 	var sessionFilePath string
@@ -108,7 +108,7 @@ func main() {
 	if hasSessionInput {
 		sessionWatcher := event.NewSessionWatcher(sessionFilePath, eventHandler)
 
-		if fullRead {
+		if headMode {
 			log.Printf("Reading file: %s", sessionFilePath)
 			if err := sessionWatcher.ReadFullFile(); err != nil {
 				log.Fatalf("Error reading file: %v", err)
@@ -136,8 +136,8 @@ func main() {
 		defer projectsWatcher.Stop()
 	}
 
-	// If we're running watchers (not full read mode), wait for interrupt
-	if hasNotificationInput || (hasSessionInput && !fullRead) || hasProjectsInput {
+	// If we're running watchers (not head mode), wait for interrupt
+	if hasNotificationInput || (hasSessionInput && !headMode) || hasProjectsInput {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
