@@ -2,6 +2,8 @@
 
 A real-time parser and viewer for Claude's JSONL log files. This tool helps you monitor and analyze Claude sessions by parsing structured log events and displaying them in a human-readable format with voice narration support.
 
+**Note**: This is a hobby project. The interface and functionality may change without notice.
+
 ## Features
 
 - **Real-time monitoring**: Tail Claude's JSONL log files and display new events as they appear
