@@ -17,7 +17,10 @@ import (
 type NotificationType string
 
 const (
-	NotificationTypeCompact NotificationType = "compact"
+	NotificationTypeCompact             NotificationType = "compact"
+	NotificationTypeSessionStartStartup NotificationType = "session_start_startup"
+	NotificationTypeSessionStartClear   NotificationType = "session_start_clear"
+	NotificationTypeSessionStartResume  NotificationType = "session_start_resume"
 )
 
 // Narrator interface for converting tool actions to natural language
@@ -157,6 +160,12 @@ func (hn *HybridNarrator) NarrateNotification(notificationType NotificationType)
 	switch notificationType {
 	case NotificationTypeCompact:
 		return "コンテキストを圧縮しています"
+	case NotificationTypeSessionStartStartup:
+		return "こんにちは！何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartClear:
+		return "何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartResume:
+		return "前回の作業を続けましょう。どこから再開しますか？"
 	default:
 		return ""
 	}
@@ -264,10 +273,16 @@ func (ai *OpenAINarrator) NarrateText(text string) string {
 
 // NarrateNotification narrates notification events
 func (ai *OpenAINarrator) NarrateNotification(notificationType NotificationType) string {
-	// For now, just return default messages
+	// Return default messages
 	switch notificationType {
 	case NotificationTypeCompact:
 		return "コンテキストを圧縮しています"
+	case NotificationTypeSessionStartStartup:
+		return "こんにちは！何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartClear:
+		return "何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartResume:
+		return "前回の作業を続けましょう。どこから再開しますか？"
 	default:
 		return ""
 	}

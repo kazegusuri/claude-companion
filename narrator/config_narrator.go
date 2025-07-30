@@ -145,7 +145,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			if path == "" {
 				path = "プロジェクト全体"
 			} else {
-				path = fmt.Sprintf("「%s」", path)
+				// Use basename for the path
+				path = fmt.Sprintf("「%s」", filepath.Base(path))
 			}
 
 			// Check patterns
@@ -323,10 +324,16 @@ func (cn *ConfigBasedNarrator) NarrateText(text string) string {
 
 // NarrateNotification narrates notification events
 func (cn *ConfigBasedNarrator) NarrateNotification(notificationType NotificationType) string {
-	// For now, return default messages
+	// Return messages based on notification type
 	switch notificationType {
 	case NotificationTypeCompact:
 		return "コンテキストを圧縮しています"
+	case NotificationTypeSessionStartStartup:
+		return "こんにちは！何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartClear:
+		return "何かお手伝いできることはありますか？"
+	case NotificationTypeSessionStartResume:
+		return "前回の作業を続けましょう。どこから再開しますか？"
 	default:
 		return ""
 	}

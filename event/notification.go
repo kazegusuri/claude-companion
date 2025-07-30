@@ -9,4 +9,5 @@ type NotificationEvent struct {
 	Message            string `json:"message"`
 	Trigger            string `json:"trigger"`
 	CustomInstructions string `json:"custom_instructions"`
+	Source             string `json:"source"` // For SessionStart events: startup, clear, resume
 }

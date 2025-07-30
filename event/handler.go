@@ -89,45 +89,97 @@ func (h *Handler) processEvents() {
 
 // formatNotificationEvent formats and outputs a notification event (moved from notification_watcher.go)
 func (h *Handler) formatNotificationEvent(event *NotificationEvent) {
-	// Handle PreCompact event
-	if event.HookEventName == "PreCompact" {
-		emoji := "🗜️"
-
-		// Use narrator to get the narration message
-		var formattedMessage string
-		if h.narrator != nil {
-			formattedMessage = h.narrator.NarrateNotification(narrator.NotificationTypeCompact)
-		} else {
-			formattedMessage = "コンテキストを圧縮しています"
-		}
-
-		// Format the output
-		output := fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
-
-		// Add session info in debug mode
-		if h.debugMode && len(event.SessionID) >= 8 {
-			output += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
-		}
-
-		output += fmt.Sprintf(": %s", formattedMessage)
-
-		// Add debug info if enabled
-		if h.debugMode {
-			output += fmt.Sprintf("\n  [DEBUG] Trigger: %s", event.Trigger)
-			output += fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD)
-			output += fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath)
-		}
-
-		fmt.Print(output)
-
-		// Show narrator emoji
-		if h.narrator != nil && formattedMessage != "" {
-			fmt.Printf("\n  💬 %s", formattedMessage)
-		}
-
+	// Handle events based on HookEventName
+	switch event.HookEventName {
+	case "PreCompact":
+		h.handlePreCompactEvent(event)
+	case "SessionStart":
+		h.handleSessionStartEvent(event)
+	case "Notification":
+		h.handleNotificationEvent(event)
+	default:
+		// Ignore unknown event types
 		return
 	}
+}
 
+// handlePreCompactEvent handles PreCompact events
+func (h *Handler) handlePreCompactEvent(event *NotificationEvent) {
+	emoji := "🗜️"
+
+	// Use narrator to get the narration message
+	formattedMessage := h.narrator.NarrateNotification(narrator.NotificationTypeCompact)
+
+	// Format the output
+	output := fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
+
+	// Add session info in debug mode
+	if h.debugMode && len(event.SessionID) >= 8 {
+		output += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
+	}
+
+	output += fmt.Sprintf(": %s", formattedMessage)
+
+	// Add debug info if enabled
+	if h.debugMode {
+		output += fmt.Sprintf("\n  [DEBUG] Trigger: %s", event.Trigger)
+		output += fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD)
+		output += fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath)
+	}
+
+	fmt.Print(output)
+
+	// Show narrator emoji
+	if formattedMessage != "" {
+		fmt.Printf("\n  💬 %s", formattedMessage)
+	}
+}
+
+// handleSessionStartEvent handles SessionStart events
+func (h *Handler) handleSessionStartEvent(event *NotificationEvent) {
+	emoji := "🚀"
+
+	// Use narrator to get the narration message based on source
+	var notificationType narrator.NotificationType
+	switch event.Source {
+	case "startup":
+		notificationType = narrator.NotificationTypeSessionStartStartup
+	case "clear":
+		notificationType = narrator.NotificationTypeSessionStartClear
+	case "resume":
+		notificationType = narrator.NotificationTypeSessionStartResume
+	default:
+		notificationType = narrator.NotificationTypeSessionStartStartup
+	}
+	formattedMessage := h.narrator.NarrateNotification(notificationType)
+
+	// Format the output
+	output := fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
+
+	// Add session info in debug mode
+	if h.debugMode && len(event.SessionID) >= 8 {
+		output += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
+	}
+
+	output += fmt.Sprintf(" (source: %s)", event.Source)
+
+	// Add debug info if enabled
+	if h.debugMode {
+		output += fmt.Sprintf("\n  [DEBUG] Source: %s", event.Source)
+		output += fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD)
+		output += fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath)
+	}
+
+	fmt.Print(output)
+
+	// Show narrator emoji
+	if formattedMessage != "" {
+		fmt.Printf("\n  💬 %s", formattedMessage)
+	}
+}
+
+// handleNotificationEvent handles general Notification events
+func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 	// Parse permission messages
 	isPermission, toolName, mcpName, operation := h.parsePermissionMessage(event.Message)
 
@@ -174,14 +226,14 @@ func (h *Handler) formatNotificationEvent(event *NotificationEvent) {
 
 	fmt.Print(output)
 
-	// Use narrator if available for tool permissions
-	if h.narrator != nil && isPermission && displayToolName != "" {
+	// Use narrator for tool permissions
+	if isPermission && displayToolName != "" {
 		// Use NarrateToolUsePermission for permission requests
 		narration := h.narrator.NarrateToolUsePermission(displayToolName)
 		if narration != "" {
 			fmt.Printf("\n  💬 %s", narration)
 		}
-	} else if h.narrator != nil && event.Message != "" {
+	} else if event.Message != "" {
 		// Use NarrateText for other notifications
 		narration := h.narrator.NarrateText(event.Message)
 		if narration != "" {
