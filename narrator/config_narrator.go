@@ -278,6 +278,189 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		panic("No todoListUpdate message in config")
 	}
 
+	// Handle MCP tools with dynamic parameters
+	if strings.HasPrefix(toolName, "mcp__") {
+		// Handle memory-related tools
+		if toolName == "mcp__serena__read_memory" {
+			if memoryFile, ok := input["memory_file_name"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
+			}
+		}
+
+		// Handle file search tools
+		if toolName == "mcp__serena__find_file" {
+			if fileMask, ok := input["file_mask"].(string); ok {
+				// Check patterns
+				for _, pattern := range rules.Patterns {
+					if strings.Contains(fileMask, pattern.Contains) {
+						return pattern.Message
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{file_mask}", fileMask)
+			}
+		}
+
+		// Handle pattern search tools
+		if toolName == "mcp__serena__search_for_pattern" {
+			if pattern, ok := input["substring_pattern"].(string); ok {
+				// Check patterns
+				for _, rule := range rules.Patterns {
+					if strings.Contains(pattern, rule.Contains) {
+						return rule.Message
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{substring_pattern}", pattern)
+			}
+		}
+
+		// Handle symbol search tools
+		if toolName == "mcp__serena__find_symbol" {
+			if namePath, ok := input["name_path"].(string); ok {
+				// Check patterns
+				for _, pattern := range rules.Patterns {
+					if strings.Contains(namePath, pattern.Contains) {
+						return strings.ReplaceAll(pattern.Message, "{name_path}", namePath)
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{name_path}", namePath)
+			}
+		}
+
+		// Handle MCP resource tools
+		if toolName == "ReadMcpResourceTool" {
+			if uri, ok := input["uri"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{uri}", uri)
+			}
+		}
+
+		// Handle analyze tool
+		if toolName == "mcp__serena__analyze" {
+			if task, ok := input["task"].(string); ok {
+				// Check patterns
+				for _, pattern := range rules.Patterns {
+					if strings.Contains(task, pattern.Contains) {
+						return pattern.Message
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{task}", task)
+			}
+		}
+
+		// Handle activate project tool
+		if toolName == "mcp__serena__activate_project" {
+			if projectName, ok := input["project_name"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{project_name}", projectName)
+			}
+		}
+
+		// Handle write memory tool
+		if toolName == "mcp__serena__write_memory" {
+			if memoryFile, ok := input["memory_file_name"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
+			}
+		}
+
+		// Handle delete memory tool
+		if toolName == "mcp__serena__delete_memory" {
+			if memoryFile, ok := input["memory_file_name"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
+			}
+		}
+
+		// Handle create text file tool
+		if toolName == "mcp__serena__create_text_file" {
+			if filename, ok := input["filename"].(string); ok {
+				// Check patterns
+				for _, pattern := range rules.Patterns {
+					if strings.Contains(filename, pattern.Contains) {
+						return strings.ReplaceAll(pattern.Message, "{filename}", filename)
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{filename}", filename)
+			}
+		}
+
+		// Handle delete lines tool
+		if toolName == "mcp__serena__delete_lines" {
+			filePath, _ := input["file_path"].(string)
+			startLine, _ := input["start_line"].(float64)
+			endLine, _ := input["end_line"].(float64)
+			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
+			msg = strings.ReplaceAll(msg, "{start_line}", fmt.Sprintf("%.0f", startLine))
+			msg = strings.ReplaceAll(msg, "{end_line}", fmt.Sprintf("%.0f", endLine))
+			return msg
+		}
+
+		// Handle replace lines tool
+		if toolName == "mcp__serena__replace_lines" {
+			filePath, _ := input["file_path"].(string)
+			startLine, _ := input["start_line"].(float64)
+			endLine, _ := input["end_line"].(float64)
+			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
+			msg = strings.ReplaceAll(msg, "{start_line}", fmt.Sprintf("%.0f", startLine))
+			msg = strings.ReplaceAll(msg, "{end_line}", fmt.Sprintf("%.0f", endLine))
+			return msg
+		}
+
+		// Handle insert at line tool
+		if toolName == "mcp__serena__insert_at_line" {
+			filePath, _ := input["file_path"].(string)
+			line, _ := input["line"].(float64)
+			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
+			msg = strings.ReplaceAll(msg, "{line}", fmt.Sprintf("%.0f", line))
+			return msg
+		}
+
+		// Handle symbol-related tools
+		if toolName == "mcp__serena__find_referencing_code_snippets" ||
+			toolName == "mcp__serena__find_referencing_symbols" ||
+			toolName == "mcp__serena__insert_after_symbol" ||
+			toolName == "mcp__serena__insert_before_symbol" ||
+			toolName == "mcp__serena__replace_symbol_body" {
+			if symbolName, ok := input["symbol_name"].(string); ok {
+				return strings.ReplaceAll(rules.Default, "{symbol_name}", symbolName)
+			}
+		}
+
+		// Handle execute shell command tool
+		if toolName == "mcp__serena__execute_shell_command" {
+			if cmd, ok := input["command"].(string); ok {
+				// Check patterns
+				for _, pattern := range rules.Patterns {
+					if strings.Contains(cmd, pattern.Contains) {
+						return pattern.Message
+					}
+				}
+			}
+			return rules.Default
+		}
+
+		// Handle read file tool
+		if toolName == "mcp__serena__read_file" {
+			if filePath, ok := input["file_path"].(string); ok {
+				ext := filepath.Ext(filePath)
+				// Check extensions
+				if message, ok := rules.Extensions[ext]; ok {
+					return strings.ReplaceAll(message, "{file_path}", filePath)
+				}
+				return strings.ReplaceAll(rules.Default, "{file_path}", filePath)
+			}
+		}
+
+		// Handle switch modes tool
+		if toolName == "mcp__serena__switch_modes" {
+			if modes, ok := input["modes"].([]interface{}); ok {
+				modeList := make([]string, len(modes))
+				for i, mode := range modes {
+					if m, ok := mode.(string); ok {
+						modeList[i] = m
+					}
+				}
+				return strings.ReplaceAll(rules.Default, "{modes}", strings.Join(modeList, ", "))
+			}
+		}
+	}
+
 	// Handle tools with simple default messages
 	if rules.Default != "" {
 		return rules.Default
