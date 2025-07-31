@@ -48,6 +48,8 @@ func NewTextNormalizer() *TextNormalizer {
 			"JPG":   "ジェイペグ",
 			"JPEG":  "ジェイペグ",
 			"GIF":   "ジフ",
+			"gRPC":  "ジーアールピーシー",
+			"GRPC":  "ジーアールピーシー",
 
 			// Programming terms
 			"npm":        "エヌピーエム",
@@ -77,35 +79,73 @@ func NewTextNormalizer() *TextNormalizer {
 
 // Normalize converts text for better TTS pronunciation
 func (n *TextNormalizer) Normalize(text string) string {
-	normalized := text
+	// Extract ASCII printable sequences and apply replacements only to them
+	result := ""
+	runes := []rune(text)
+	i := 0
 
-	// First, handle specific full matches like "README.md"
-	for old, new := range n.replacements {
-		if strings.Contains(old, ".") && len(old) > 3 {
-			// Full filename replacements
-			normalized = strings.ReplaceAll(normalized, old, new)
+	for i < len(runes) {
+		// Check if current rune is ASCII printable (32-126)
+		if runes[i] >= 32 && runes[i] <= 126 {
+			// Start of ASCII printable sequence
+			start := i
+			for i < len(runes) && runes[i] >= 32 && runes[i] <= 126 {
+				i++
+			}
+			// Extract ASCII printable substring
+			asciiPart := string(runes[start:i])
+
+			// Apply all normalizations to ASCII part
+			normalized := asciiPart
+
+			// First, handle specific full matches like "README.md"
+			for old, new := range n.replacements {
+				if strings.Contains(old, ".") && len(old) > 3 {
+					// Full filename replacements
+					normalized = strings.ReplaceAll(normalized, old, new)
+				}
+			}
+
+			// Handle abbreviations and terms before dots
+			normalized = n.replaceAbbreviations(normalized)
+
+			// Replace dots (after abbreviation handling)
+			normalized = n.replaceDots(normalized)
+
+			// Handle file extensions after dots have been replaced
+			// This will replace patterns like "ドットgo" with "ドットゴー"
+			for old, new := range n.replacements {
+				if strings.HasPrefix(old, ".") {
+					// Convert ".go" to "ドットgo" pattern for matching
+					dotPattern := "ドット" + old[1:]
+					normalized = strings.ReplaceAll(normalized, dotPattern, new)
+				}
+			}
+
+			// Replace hyphens in hyphenated English words
+			normalized = n.replaceHyphens(normalized)
+
+			// Replace :// with , (before slash replacement)
+			normalized = strings.ReplaceAll(normalized, "://", ",")
+
+			// Replace slashes with "スラ"
+			normalized = n.replaceSlashes(normalized)
+
+			// Replace underscores with spaces
+			normalized = strings.ReplaceAll(normalized, "_", " ")
+
+			// Split long numbers (4+ digits) into groups of 4
+			normalized = n.splitLongNumbers(normalized)
+
+			result += normalized
+		} else {
+			// Non-ASCII printable character, keep as-is
+			result += string(runes[i])
+			i++
 		}
 	}
 
-	// Replace dots first (before file extension handling)
-	normalized = n.replaceDots(normalized)
-
-	// Handle file extensions in quoted filenames
-	normalized = n.normalizeQuotedFilenames(normalized)
-
-	// Then handle abbreviations and terms
-	normalized = n.replaceAbbreviations(normalized)
-
-	// Replace hyphens in hyphenated English words
-	normalized = n.replaceHyphens(normalized)
-
-	return normalized
-}
-
-// normalizeQuotedFilenames handles filenames in quotes
-func (n *TextNormalizer) normalizeQuotedFilenames(text string) string {
-	// Since dots are already replaced, we don't need to handle them here
-	return text
+	return result
 }
 
 // replaceAbbreviations replaces common abbreviations and terms
@@ -159,4 +199,28 @@ func (n *TextNormalizer) replaceHyphens(text string) string {
 	// Pattern: hyphen between two alphabetic characters (English words)
 	re := regexp.MustCompile(`([a-zA-Z])-([a-zA-Z])`)
 	return re.ReplaceAllString(text, "$1 $2")
+}
+
+// replaceSlashes replaces forward slashes with "スラ"
+func (n *TextNormalizer) replaceSlashes(text string) string {
+	return strings.ReplaceAll(text, "/", "スラ")
+}
+
+// splitLongNumbers splits numbers with 4 or more digits into groups of 4
+func (n *TextNormalizer) splitLongNumbers(text string) string {
+	// Pattern to match 4 or more consecutive digits
+	re := regexp.MustCompile(`\d{4,}`)
+
+	return re.ReplaceAllStringFunc(text, func(match string) string {
+		// Split the number into groups of 4 from the left
+		var result []string
+		for i := 0; i < len(match); i += 4 {
+			end := i + 4
+			if end > len(match) {
+				end = len(match)
+			}
+			result = append(result, match[i:end])
+		}
+		return strings.Join(result, " ")
+	})
 }
