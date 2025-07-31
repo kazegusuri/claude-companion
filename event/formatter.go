@@ -336,6 +336,8 @@ func (f *Formatter) formatSessionStartEvent(event *NotificationEvent) string {
 		notificationType = narrator.NotificationTypeSessionStartClear
 	case "resume":
 		notificationType = narrator.NotificationTypeSessionStartResume
+	case "compact":
+		notificationType = narrator.NotificationTypeSessionStartCompact
 	default:
 		notificationType = narrator.NotificationTypeSessionStartStartup
 	}

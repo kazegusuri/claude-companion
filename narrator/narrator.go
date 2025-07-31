@@ -21,6 +21,7 @@ const (
 	NotificationTypeSessionStartStartup NotificationType = "session_start_startup"
 	NotificationTypeSessionStartClear   NotificationType = "session_start_clear"
 	NotificationTypeSessionStartResume  NotificationType = "session_start_resume"
+	NotificationTypeSessionStartCompact NotificationType = "session_start_compact"
 )
 
 // Narrator interface for converting tool actions to natural language
@@ -166,6 +167,8 @@ func (hn *HybridNarrator) NarrateNotification(notificationType NotificationType)
 		return "何かお手伝いできることはありますか？"
 	case NotificationTypeSessionStartResume:
 		return "前回の作業を続けましょう。どこから再開しますか？"
+	case NotificationTypeSessionStartCompact:
+		return "セッションを再開しました"
 	default:
 		return ""
 	}
@@ -283,6 +286,8 @@ func (ai *OpenAINarrator) NarrateNotification(notificationType NotificationType)
 		return "何かお手伝いできることはありますか？"
 	case NotificationTypeSessionStartResume:
 		return "前回の作業を続けましょう。どこから再開しますか？"
+	case NotificationTypeSessionStartCompact:
+		return "セッションを再開しました"
 	default:
 		return ""
 	}

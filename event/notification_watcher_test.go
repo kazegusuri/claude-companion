@@ -48,6 +48,17 @@ func TestProcessNotificationLine(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionStart with source compact",
+			line: `{"session_id":"91c7421d-7f96-4907-b5a7-d3c89d15d51a","transcript_path":"/home/kazegusuri/.claude/projects/-home-kazegusuri-go-src-github-com-kazegusuri-claude-companion/91c7421d-7f96-4907-b5a7-d3c89d15d51a.jsonl","cwd":"/home/kazegusuri/go/src/github.com/kazegusuri/claude-companion","hook_event_name":"SessionStart","source":"compact"}`,
+			wantEvent: &NotificationEvent{
+				SessionID:      "91c7421d-7f96-4907-b5a7-d3c89d15d51a",
+				TranscriptPath: "/home/kazegusuri/.claude/projects/-home-kazegusuri-go-src-github-com-kazegusuri-claude-companion/91c7421d-7f96-4907-b5a7-d3c89d15d51a.jsonl",
+				CWD:            "/home/kazegusuri/go/src/github.com/kazegusuri/claude-companion",
+				HookEventName:  "SessionStart",
+				Source:         "compact",
+			},
+		},
+		{
 			name: "PreCompact notification with manual trigger",
 			line: `{"session_id":"abc123","transcript_path":"/tmp/test/transcript.jsonl","cwd":"/tmp/test/project","hook_event_name":"PreCompact","trigger":"manual","custom_instructions":"Please summarize the conversation"}`,
 			wantEvent: &NotificationEvent{
