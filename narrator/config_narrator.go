@@ -202,8 +202,9 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		}
 	}
 
-	// Special handling for Bash commands
-	if toolName == "Bash" {
+	// Handle tool-specific logic
+	switch toolName {
+	case "Bash":
 		if cmd, ok := input["command"].(string); ok {
 			// Check prefixes
 			for _, prefix := range rules.Prefixes {
@@ -222,11 +223,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			}
 		}
 		return ""
-	}
 
-	// Handle file-based tools
-	if toolName == "Read" || toolName == "Write" || toolName == "Edit" ||
-		toolName == "NotebookRead" || toolName == "NotebookEdit" {
+	case "Read", "Write", "Edit", "NotebookRead", "NotebookEdit":
 		var filePath string
 		if path, ok := input["file_path"].(string); ok {
 			filePath = path
@@ -247,10 +245,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// Always use applyCaptures
 			return cn.applyCaptures(rules.Default, rules.Captures, inputWithFilename)
 		}
-	}
 
-	// Handle MultiEdit
-	if toolName == "MultiEdit" {
+	case "MultiEdit":
 		if path, ok := input["file_path"].(string); ok {
 			fileName := filepath.Base(path)
 			if edits, ok := input["edits"].([]interface{}); ok {
@@ -261,10 +257,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			}
 			return strings.ReplaceAll(rules.Default, "{filename}", fileName)
 		}
-	}
 
-	// Handle Grep
-	if toolName == "Grep" {
+	case "Grep":
 		// Use configuration-driven approach if captures are configured
 		if len(rules.Captures) > 0 {
 			return cn.handleGenericMCPTool(toolName, rules, input)
@@ -294,10 +288,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			msg = strings.ReplaceAll(msg, "{pattern}", pattern)
 			return msg
 		}
-	}
 
-	// Handle Glob
-	if toolName == "Glob" {
+	case "Glob":
 		// Use configuration-driven approach if captures are configured
 		if len(rules.Captures) > 0 {
 			return cn.handleGenericMCPTool(toolName, rules, input)
@@ -315,10 +307,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// Use default
 			return strings.ReplaceAll(rules.Default, "{pattern}", pattern)
 		}
-	}
 
-	// Handle LS
-	if toolName == "LS" {
+	case "LS":
 		if path, ok := input["path"].(string); ok {
 			dirName := filepath.Base(path)
 			if dirName == "." || dirName == "/" {
@@ -335,10 +325,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			return msg
 		}
 		panic("No directoryContents message in config")
-	}
 
-	// Handle WebFetch
-	if toolName == "WebFetch" {
+	case "WebFetch":
 		if url, ok := input["url"].(string); ok {
 			// Check patterns
 			for _, rule := range rules.Patterns {
@@ -351,17 +339,13 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			domain := extractDomain(url)
 			return strings.ReplaceAll(rules.Default, "{domain}", domain)
 		}
-	}
 
-	// Handle WebSearch
-	if toolName == "WebSearch" {
+	case "WebSearch":
 		if query, ok := input["query"].(string); ok {
 			return strings.ReplaceAll(rules.Default, "{query}", query)
 		}
-	}
 
-	// Handle Task
-	if toolName == "Task" {
+	case "Task":
 		if desc, ok := input["description"].(string); ok {
 			return strings.ReplaceAll(rules.Default, "{description}", desc)
 		}
@@ -381,10 +365,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			return msg
 		}
 		panic("No complexTask message in config")
-	}
 
-	// Handle TodoWrite
-	if toolName == "TodoWrite" {
+	case "TodoWrite":
 		if todos, ok := input["todos"].([]interface{}); ok {
 			completed := 0
 			inProgress := 0
