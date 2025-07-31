@@ -680,96 +680,6 @@
     "ExitPlanMode": {
       "default": "実装計画を完了し、コーディングを開始します"
     },
-    "mcp__serena__list_memories": {
-      "default": "利用可能なメモリファイルを一覧表示します"
-    },
-    "mcp__serena__read_memory": {
-      "default": "メモリファイル「{memory_file_name}」を読み込みます",
-      "captures": [
-        {
-          "inputKey": "memory_file_name"
-        }
-      ]
-    },
-    "mcp__serena__find_file": {
-      "patterns": [
-        {
-          "contains": "*test*",
-          "message": "テストファイルを検索します"
-        },
-        {
-          "contains": "*spec*",
-          "message": "仕様ファイルを検索します"
-        },
-        {
-          "contains": "*config*",
-          "message": "設定ファイルを検索します"
-        }
-      ],
-      "default": "パターン「{file_mask}」に一致するファイルを検索します",
-      "captures": [
-        {
-          "inputKey": "file_mask"
-        }
-      ]
-    },
-    "mcp__serena__search_for_pattern": {
-      "patterns": [
-        {
-          "contains": "error",
-          "message": "エラー処理を検索します"
-        },
-        {
-          "contains": "TODO",
-          "message": "TODOコメントを検索します"
-        },
-        {
-          "contains": "FIXME",
-          "message": "修正が必要な箇所を検索します"
-        }
-      ],
-      "default": "パターン「{substring_pattern}」を検索します",
-      "captures": [
-        {
-          "inputKey": "substring_pattern"
-        }
-      ]
-    },
-    "mcp__serena__get_symbols_overview": {
-      "default": "シンボル概要を取得します"
-    },
-    "mcp__serena__list_dir": {
-      "default": "ディレクトリの内容を一覧表示します"
-    },
-    "mcp__serena__find_symbol": {
-      "patterns": [
-        {
-          "contains": "func",
-          "message": "関数「{name_path}」を検索します"
-        },
-        {
-          "contains": "type",
-          "message": "型定義「{name_path}」を検索します"
-        },
-        {
-          "contains": "struct",
-          "message": "構造体「{name_path}」を検索します"
-        },
-        {
-          "contains": "interface",
-          "message": "インターフェース「{name_path}」を検索します"
-        }
-      ],
-      "default": "シンボル「{name_path}」を検索します",
-      "captures": [
-        {
-          "inputKey": "name_path"
-        }
-      ]
-    },
-    "mcp__ide__getDiagnostics": {
-      "default": "コードの診断情報を取得します"
-    },
     "ListMcpResourcesTool": {
       "default": "MCPリソースを一覧表示します"
     },
@@ -778,200 +688,6 @@
       "captures": [
         {
           "inputKey": "uri"
-        }
-      ]
-    },
-    "mcp__serena__analyze": {
-      "patterns": [
-        {
-          "contains": "review",
-          "message": "コードレビューを実行します"
-        },
-        {
-          "contains": "test",
-          "message": "テスト分析を実行します"
-        },
-        {
-          "contains": "security",
-          "message": "セキュリティ分析を実行します"
-        },
-        {
-          "contains": "performance",
-          "message": "パフォーマンス分析を実行します"
-        }
-      ],
-      "default": "タスク「{task}」を分析します"
-    },
-    "mcp__serena__activate_project": {
-      "default": "プロジェクト「{project_name}」をアクティブ化します",
-      "captures": [
-        {
-          "inputKey": "project_name"
-        }
-      ]
-    },
-    "mcp__serena__check_onboarding_performed": {
-      "default": "オンボーディング状態を確認します"
-    },
-    "mcp__serena__onboarding": {
-      "default": "プロジェクトのオンボーディングを実行します"
-    },
-    "mcp__serena__write_memory": {
-      "default": "メモリファイル「{memory_file_name}」に書き込みます",
-      "captures": [
-        {
-          "inputKey": "memory_file_name"
-        }
-      ]
-    },
-    "mcp__serena__think_about_collected_information": {
-      "default": "収集した情報について分析します"
-    },
-    "mcp__serena__think_about_whether_you_are_done": {
-      "default": "タスクの完了状態を評価します"
-    },
-    "mcp__serena__go_workspace": {
-      "default": "Goワークスペース情報を取得します"
-    },
-    "mcp__serena__create_text_file": {
-      "patterns": [
-        {
-          "contains": "test",
-          "message": "テストファイル「{filename}」を作成します"
-        },
-        {
-          "contains": "spec",
-          "message": "仕様ファイル「{filename}」を作成します"
-        },
-        {
-          "contains": "config",
-          "message": "設定ファイル「{filename}」を作成します"
-        }
-      ],
-      "default": "ファイル「{filename}」を作成します"
-    },
-    "mcp__serena__delete_lines": {
-      "default": "「{file_path}」の{start_line}行目から{end_line}行目を削除します",
-      "captures": [
-        {
-          "inputKey": "file_path"
-        },
-        {
-          "inputKey": "start_line"
-        },
-        {
-          "inputKey": "end_line"
-        }
-      ]
-    },
-    "mcp__serena__delete_memory": {
-      "default": "メモリ「{memory_file_name}」を削除します",
-      "captures": [
-        {
-          "inputKey": "memory_file_name"
-        }
-      ]
-    },
-    "mcp__serena__execute_shell_command": {
-      "default": "シェルコマンドを実行します"
-    },
-    "mcp__serena__find_referencing_code_snippets": {
-      "default": "「{symbol_name}」を参照するコードスニペットを検索します",
-      "captures": [
-        {
-          "inputKey": "symbol_name"
-        }
-      ]
-    },
-    "mcp__serena__find_referencing_symbols": {
-      "default": "「{symbol_name}」を参照するシンボルを検索します",
-      "captures": [
-        {
-          "inputKey": "symbol_name"
-        }
-      ]
-    },
-    "mcp__serena__get_active_project": {
-      "default": "アクティブなプロジェクトを確認します"
-    },
-    "mcp__serena__get_current_config": {
-      "default": "現在の設定を確認します"
-    },
-    "mcp__serena__initial_instructions": {
-      "default": "初期指示を取得します"
-    },
-    "mcp__serena__insert_after_symbol": {
-      "default": "シンボル「{symbol_name}」の後に挿入します",
-      "captures": [
-        {
-          "inputKey": "symbol_name"
-        }
-      ]
-    },
-    "mcp__serena__insert_at_line": {
-      "default": "「{file_path}」の{line}行目に挿入します",
-      "captures": [
-        {
-          "inputKey": "file_path"
-        },
-        {
-          "inputKey": "line"
-        }
-      ]
-    },
-    "mcp__serena__insert_before_symbol": {
-      "default": "シンボル「{symbol_name}」の前に挿入します",
-      "captures": [
-        {
-          "inputKey": "symbol_name"
-        }
-      ]
-    },
-    "mcp__serena__prepare_for_new_conversation": {
-      "default": "新しい会話のための準備を行います"
-    },
-    "mcp__serena__read_file": {
-      "default": "{filetype}「{file_path}」を読み込みます",
-      "captures": [
-        {
-          "inputKey": "file_path",
-          "parseFileType": true
-        }
-      ]
-    },
-    "mcp__serena__replace_lines": {
-      "default": "「{file_path}」の{start_line}行目から{end_line}行目を置換します",
-      "captures": [
-        {
-          "inputKey": "file_path"
-        },
-        {
-          "inputKey": "start_line"
-        },
-        {
-          "inputKey": "end_line"
-        }
-      ]
-    },
-    "mcp__serena__replace_symbol_body": {
-      "default": "シンボル「{symbol_name}」の本体を置換します",
-      "captures": [
-        {
-          "inputKey": "symbol_name"
-        }
-      ]
-    },
-    "mcp__serena__restart_language_server": {
-      "default": "言語サーバーを再起動します"
-    },
-    "mcp__serena__summarize_changes": {
-      "default": "変更内容をまとめます"
-    },
-    "mcp__serena__switch_modes": {
-      "default": "モード「{modes}」に切り替えます",
-      "captures": [
-        {
-          "inputKey": "modes"
         }
       ]
     }
@@ -1015,5 +731,301 @@
     ".vue": "Vueファイル",
     ".svelte": "Svelteファイル",
     ".ipynb": "Jupyterノートブック"
+  },
+  "mcpRules": {
+    "serena": {
+      "default": "Serenaツール「{operation}」を実行します",
+      "rules": {
+        "list_memories": {
+          "default": "利用可能なメモリファイルを一覧表示します"
+        },
+        "read_memory": {
+          "default": "メモリファイル「{memory_file_name}」を読み込みます",
+          "captures": [
+            {
+              "inputKey": "memory_file_name"
+            }
+          ]
+        },
+        "find_file": {
+          "patterns": [
+            {
+              "contains": "*test*",
+              "message": "テストファイルを検索します"
+            },
+            {
+              "contains": "*spec*",
+              "message": "仕様ファイルを検索します"
+            },
+            {
+              "contains": "*config*",
+              "message": "設定ファイルを検索します"
+            }
+          ],
+          "default": "パターン「{file_mask}」に一致するファイルを検索します",
+          "captures": [
+            {
+              "inputKey": "file_mask"
+            }
+          ]
+        },
+        "search_for_pattern": {
+          "patterns": [
+            {
+              "contains": "error",
+              "message": "エラー処理を検索します"
+            },
+            {
+              "contains": "TODO",
+              "message": "TODOコメントを検索します"
+            },
+            {
+              "contains": "FIXME",
+              "message": "修正が必要な箇所を検索します"
+            }
+          ],
+          "default": "パターン「{substring_pattern}」を検索します",
+          "captures": [
+            {
+              "inputKey": "substring_pattern"
+            }
+          ]
+        },
+        "get_symbols_overview": {
+          "default": "シンボル概要を取得します"
+        },
+        "list_dir": {
+          "default": "ディレクトリの内容を一覧表示します"
+        },
+        "find_symbol": {
+          "patterns": [
+            {
+              "contains": "func",
+              "message": "関数「{name_path}」を検索します"
+            },
+            {
+              "contains": "type",
+              "message": "型定義「{name_path}」を検索します"
+            },
+            {
+              "contains": "struct",
+              "message": "構造体「{name_path}」を検索します"
+            },
+            {
+              "contains": "interface",
+              "message": "インターフェース「{name_path}」を検索します"
+            }
+          ],
+          "default": "シンボル「{name_path}」を検索します",
+          "captures": [
+            {
+              "inputKey": "name_path"
+            }
+          ]
+        },
+        "analyze": {
+          "patterns": [
+            {
+              "contains": "review",
+              "message": "コードレビューを実行します"
+            },
+            {
+              "contains": "test",
+              "message": "テスト分析を実行します"
+            },
+            {
+              "contains": "security",
+              "message": "セキュリティ分析を実行します"
+            },
+            {
+              "contains": "performance",
+              "message": "パフォーマンス分析を実行します"
+            }
+          ],
+          "default": "タスク「{task}」を分析します"
+        },
+        "activate_project": {
+          "default": "プロジェクト「{project_name}」をアクティブ化します",
+          "captures": [
+            {
+              "inputKey": "project_name"
+            }
+          ]
+        },
+        "check_onboarding_performed": {
+          "default": "オンボーディング状態を確認します"
+        },
+        "onboarding": {
+          "default": "プロジェクトのオンボーディングを実行します"
+        },
+        "write_memory": {
+          "default": "メモリファイル「{memory_file_name}」に書き込みます",
+          "captures": [
+            {
+              "inputKey": "memory_file_name"
+            }
+          ]
+        },
+        "think_about_collected_information": {
+          "default": "収集した情報について分析します"
+        },
+        "think_about_whether_you_are_done": {
+          "default": "タスクの完了状態を評価します"
+        },
+        "go_workspace": {
+          "default": "Goワークスペース情報を取得します"
+        },
+        "create_text_file": {
+          "patterns": [
+            {
+              "contains": "test",
+              "message": "テストファイル「{filename}」を作成します"
+            },
+            {
+              "contains": "spec",
+              "message": "仕様ファイル「{filename}」を作成します"
+            },
+            {
+              "contains": "config",
+              "message": "設定ファイル「{filename}」を作成します"
+            }
+          ],
+          "default": "ファイル「{filename}」を作成します"
+        },
+        "delete_lines": {
+          "default": "「{file_path}」の{start_line}行目から{end_line}行目を削除します",
+          "captures": [
+            {
+              "inputKey": "file_path"
+            },
+            {
+              "inputKey": "start_line"
+            },
+            {
+              "inputKey": "end_line"
+            }
+          ]
+        },
+        "delete_memory": {
+          "default": "メモリ「{memory_file_name}」を削除します",
+          "captures": [
+            {
+              "inputKey": "memory_file_name"
+            }
+          ]
+        },
+        "execute_shell_command": {
+          "default": "シェルコマンドを実行します"
+        },
+        "find_referencing_code_snippets": {
+          "default": "「{symbol_name}」を参照するコードスニペットを検索します",
+          "captures": [
+            {
+              "inputKey": "symbol_name"
+            }
+          ]
+        },
+        "find_referencing_symbols": {
+          "default": "「{symbol_name}」を参照するシンボルを検索します",
+          "captures": [
+            {
+              "inputKey": "symbol_name"
+            }
+          ]
+        },
+        "get_active_project": {
+          "default": "アクティブなプロジェクトを確認します"
+        },
+        "get_current_config": {
+          "default": "現在の設定を確認します"
+        },
+        "initial_instructions": {
+          "default": "初期指示を取得します"
+        },
+        "insert_after_symbol": {
+          "default": "シンボル「{symbol_name}」の後に挿入します",
+          "captures": [
+            {
+              "inputKey": "symbol_name"
+            }
+          ]
+        },
+        "insert_at_line": {
+          "default": "「{file_path}」の{line}行目に挿入します",
+          "captures": [
+            {
+              "inputKey": "file_path"
+            },
+            {
+              "inputKey": "line"
+            }
+          ]
+        },
+        "insert_before_symbol": {
+          "default": "シンボル「{symbol_name}」の前に挿入します",
+          "captures": [
+            {
+              "inputKey": "symbol_name"
+            }
+          ]
+        },
+        "prepare_for_new_conversation": {
+          "default": "新しい会話のための準備を行います"
+        },
+        "read_file": {
+          "default": "{filetype}「{file_path}」を読み込みます",
+          "captures": [
+            {
+              "inputKey": "file_path",
+              "parseFileType": true
+            }
+          ]
+        },
+        "replace_lines": {
+          "default": "「{file_path}」の{start_line}行目から{end_line}行目を置換します",
+          "captures": [
+            {
+              "inputKey": "file_path"
+            },
+            {
+              "inputKey": "start_line"
+            },
+            {
+              "inputKey": "end_line"
+            }
+          ]
+        },
+        "replace_symbol_body": {
+          "default": "シンボル「{symbol_name}」の本体を置換します",
+          "captures": [
+            {
+              "inputKey": "symbol_name"
+            }
+          ]
+        },
+        "restart_language_server": {
+          "default": "言語サーバーを再起動します"
+        },
+        "summarize_changes": {
+          "default": "変更内容をまとめます"
+        },
+        "switch_modes": {
+          "default": "モード「{modes}」に切り替えます",
+          "captures": [
+            {
+              "inputKey": "modes"
+            }
+          ]
+        }
+      }
+    },
+    "ide": {
+      "default": "IDEツール「{operation}」を実行します",
+      "rules": {
+        "getDiagnostics": {
+          "default": "コードの診断情報を取得します"
+        }
+      }
+    }
   }
 }

@@ -38,6 +38,26 @@ func (cn *ConfigBasedNarrator) getFileTypeName(ext string) string {
 	return ""
 }
 
+// parseMCPToolName parses an MCP tool name into server and operation
+func parseMCPToolName(toolName string) (server string, operation string, isMCP bool) {
+	if !strings.HasPrefix(toolName, "mcp__") {
+		return "", "", false
+	}
+	// Remove mcp__ prefix
+	name := strings.TrimPrefix(toolName, "mcp__")
+	// Split by first underscore
+	parts := strings.SplitN(name, "__", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1], true
+	}
+	// Legacy format: mcp__server_operation
+	underscoreIndex := strings.Index(name, "_")
+	if underscoreIndex > 0 {
+		return name[:underscoreIndex], name[underscoreIndex+1:], true
+	}
+	return "", "", false
+}
+
 // getStringOrDefault returns the value from config if not empty, otherwise from defaultConfig
 func (cn *ConfigBasedNarrator) getStringOrDefault(configValue, defaultValue string) string {
 	if configValue != "" {
@@ -135,6 +155,38 @@ func (cn *ConfigBasedNarrator) handleGenericMCPTool(toolName string, rules ToolR
 
 // NarrateToolUse converts tool usage to natural Japanese using config rules
 func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
+	// Handle MCP tools first with new MCPRules structure
+	if server, operation, isMCP := parseMCPToolName(toolName); isMCP {
+		// Check if we have MCPRules for this server
+		var mcpRules MCPRules
+		var found bool
+
+		// First check user config
+		if cn.config.MCPRules != nil {
+			mcpRules, found = cn.config.MCPRules[server]
+		}
+
+		// Then check default config
+		if !found && cn.defaultConfig.MCPRules != nil {
+			mcpRules, found = cn.defaultConfig.MCPRules[server]
+		}
+
+		if found {
+			// Check if we have specific rules for this operation
+			if operationRules, ok := mcpRules.Rules[operation]; ok {
+				if len(operationRules.Captures) > 0 {
+					return cn.applyCaptures(operationRules.Default, operationRules.Captures, input)
+				}
+				return operationRules.Default
+			}
+
+			// Use server default
+			if mcpRules.Default != "" {
+				return strings.ReplaceAll(mcpRules.Default, "{operation}", operation)
+			}
+		}
+	}
+
 	rules, ok := cn.config.Rules[toolName]
 	if !ok {
 		// Try default config
@@ -361,17 +413,6 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			return msg
 		}
 		panic("No todoListUpdate message in config")
-	}
-
-	// Handle MCP tools with dynamic parameters
-	if strings.HasPrefix(toolName, "mcp__") || toolName == "ReadMcpResourceTool" || toolName == "ListMcpResourcesTool" {
-		// Use configuration-driven approach if captures are configured
-		if len(rules.Captures) > 0 {
-			return cn.handleGenericMCPTool(toolName, rules, input)
-		}
-
-		// Fallback to default message for MCP tools without capture config
-		return rules.Default
 	}
 
 	// Handle tools with simple default messages

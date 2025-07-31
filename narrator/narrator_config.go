@@ -15,6 +15,7 @@ type NarratorConfig struct {
 	Rules         map[string]ToolRules `json:"rules"`
 	Messages      MessageTemplates     `json:"messages"`
 	FileTypeNames map[string]string    `json:"fileTypeNames"` // Extension to file type name mapping
+	MCPRules      map[string]MCPRules  `json:"mcpRules"`      // MCP-specific rules by server name
 }
 
 // ToolRules represents rules for a specific tool
@@ -55,6 +56,12 @@ type PatternRule struct {
 type CaptureRule struct {
 	InputKey      string `json:"inputKey"`      // The key in the input map to capture from (placeholder will be {inputKey})
 	ParseFileType bool   `json:"parseFileType"` // If true, parse the value as a file path and add {filetype} replacement
+}
+
+// MCPRules represents rules for a specific MCP server
+type MCPRules struct {
+	Default string               `json:"default"` // Default message for unknown operations
+	Rules   map[string]ToolRules `json:"rules"`   // Operation-specific rules
 }
 
 // MessageTemplates contains general message templates

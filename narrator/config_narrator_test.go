@@ -161,48 +161,6 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			expected: "Jupyterノートブック「analysis.ipynb」を読み込みます",
 		},
 
-		// MCP tool tests with captures
-		{
-			name:     "mcp__serena__read_memory",
-			toolName: "mcp__serena__read_memory",
-			input:    map[string]interface{}{"memory_file_name": "project_notes.md"},
-			expected: "メモリファイル「project_notes.md」を読み込みます",
-		},
-		{
-			name:     "mcp__serena__activate_project",
-			toolName: "mcp__serena__activate_project",
-			input:    map[string]interface{}{"project_name": "MyProject"},
-			expected: "プロジェクト「MyProject」をアクティブ化します",
-		},
-		{
-			name:     "mcp__serena__find_symbol",
-			toolName: "mcp__serena__find_symbol",
-			input:    map[string]interface{}{"name_path": "handleRequest"},
-			expected: "シンボル「handleRequest」を検索します",
-		},
-		{
-			name:     "mcp__serena__delete_lines",
-			toolName: "mcp__serena__delete_lines",
-			input: map[string]interface{}{
-				"file_path":  "main.go",
-				"start_line": 10.0,
-				"end_line":   20.0,
-			},
-			expected: "「main.go」の10行目から20行目を削除します",
-		},
-		{
-			name:     "mcp__serena__read_file with Go file",
-			toolName: "mcp__serena__read_file",
-			input:    map[string]interface{}{"file_path": "/src/main.go"},
-			expected: "Goファイル「/src/main.go」を読み込みます",
-		},
-		{
-			name:     "mcp__serena__read_file with unknown extension",
-			toolName: "mcp__serena__read_file",
-			input:    map[string]interface{}{"file_path": "data.xyz"},
-			expected: "ファイル「data.xyz」を読み込みます",
-		},
-
 		// LS tool tests
 		{
 			name:     "LS with regular directory",
@@ -257,26 +215,48 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			expected: "パターン「src/**/*.txt」に一致するファイルを探します",
 		},
 
-		// MCP tools with hardcoded logic removed
+		// MCP tools with new MCPRules structure
 		{
-			name:     "mcp__serena__execute_shell_command with test command",
-			toolName: "mcp__serena__execute_shell_command",
-			input:    map[string]interface{}{"command": "test -f file.txt"},
-			expected: "シェルコマンドを実行します",
+			name:     "mcp__serena__read_memory with MCPRules",
+			toolName: "mcp__serena__read_memory",
+			input:    map[string]interface{}{"memory_file_name": "notes.md"},
+			expected: "メモリファイル「notes.md」を読み込みます",
 		},
 		{
-			name:     "mcp__serena__execute_shell_command with build command",
-			toolName: "mcp__serena__execute_shell_command",
-			input:    map[string]interface{}{"command": "go build"},
-			expected: "シェルコマンドを実行します",
+			name:     "mcp__serena__activate_project with MCPRules",
+			toolName: "mcp__serena__activate_project",
+			input:    map[string]interface{}{"project_name": "TestProject"},
+			expected: "プロジェクト「TestProject」をアクティブ化します",
 		},
 		{
-			name:     "mcp__serena__switch_modes with multiple modes",
+			name:     "mcp__serena__delete_lines with MCPRules",
+			toolName: "mcp__serena__delete_lines",
+			input: map[string]interface{}{
+				"file_path":  "test.go",
+				"start_line": 5.0,
+				"end_line":   10.0,
+			},
+			expected: "「test.go」の5行目から10行目を削除します",
+		},
+		{
+			name:     "mcp__serena__switch_modes with MCPRules",
 			toolName: "mcp__serena__switch_modes",
 			input: map[string]interface{}{
 				"modes": []interface{}{"read", "write", "execute"},
 			},
 			expected: "モード「read, write, execute」に切り替えます",
+		},
+		{
+			name:     "mcp__ide__getDiagnostics with MCPRules",
+			toolName: "mcp__ide__getDiagnostics",
+			input:    map[string]interface{}{},
+			expected: "コードの診断情報を取得します",
+		},
+		{
+			name:     "mcp__serena__unknown_operation (fallback to default)",
+			toolName: "mcp__serena__unknown_operation",
+			input:    map[string]interface{}{},
+			expected: "Serenaツール「unknown_operation」を実行します",
 		},
 	}
 
