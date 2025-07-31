@@ -170,7 +170,12 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 					json.Unmarshal(data, &inputMap)
 				}
 			}
-			formatted := f.companion.FormatToolUse(content.Name, content.ID, inputMap)
+			// Create EventMeta with tool ID and CWD
+			meta := EventMeta{
+				ToolID: content.ID,
+				CWD:    event.CWD,
+			}
+			formatted := f.companion.FormatToolUse(content.Name, meta, inputMap)
 			output.WriteString(formatted)
 			// Add debug info showing tool use details
 			if f.debugMode {

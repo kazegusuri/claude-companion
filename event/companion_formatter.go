@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -16,6 +17,12 @@ const (
 	// MaxNormalTextLines is the maximum number of lines to show for normal text without code blocks
 	MaxNormalTextLines = 5
 )
+
+// EventMeta contains metadata about the event context
+type EventMeta struct {
+	ToolID string
+	CWD    string
+}
 
 // CompanionFormatter provides enhanced formatting for a more companion-like experience
 type CompanionFormatter struct {
@@ -34,6 +41,27 @@ func NewCompanionFormatter(narrator narrator.Narrator) *CompanionFormatter {
 		fileOperations: make([]string, 0),
 		narrator:       narrator,
 	}
+}
+
+// toRelativePath converts an absolute path to a relative path from cwd
+func toRelativePath(cwd, path string) string {
+	if cwd == "" || path == "" {
+		return path
+	}
+
+	// Try to make the path relative to cwd
+	relPath, err := filepath.Rel(cwd, path)
+	if err != nil {
+		// If failed, return the original path
+		return path
+	}
+
+	// If the relative path starts with "..", it's outside cwd, so return absolute
+	if strings.HasPrefix(relPath, "..") {
+		return path
+	}
+
+	return relPath
 }
 
 // ExtractCodeBlocks extracts code blocks from text content
@@ -59,13 +87,26 @@ func (f *CompanionFormatter) ExtractCodeBlocks(text string) []CodeBlock {
 }
 
 // FormatToolUse formats tool usage for companion display
-func (f *CompanionFormatter) FormatToolUse(toolName, toolID string, input map[string]interface{}) string {
+func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, input map[string]interface{}) string {
 	f.currentTool = toolName
 
 	var output strings.Builder
 
-	// Use narrator
-	narration := f.narrator.NarrateToolUse(toolName, input)
+	// Create a copy of input for potential modifications
+	modifiedInput := make(map[string]interface{})
+	for k, v := range input {
+		modifiedInput[k] = v
+	}
+
+	// Convert paths to relative for specific tools
+	if meta.CWD != "" && (toolName == "Grep" || toolName == "Glob" || toolName == "LS") {
+		if path, ok := modifiedInput["path"].(string); ok && path != "" {
+			modifiedInput["path"] = toRelativePath(meta.CWD, path)
+		}
+	}
+
+	// Use narrator with potentially modified input
+	narration := f.narrator.NarrateToolUse(toolName, modifiedInput)
 	if narration != "" {
 		output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
 		// Track file operations for summary
@@ -180,7 +221,7 @@ func (f *CompanionFormatter) FormatToolUse(toolName, toolID string, input map[st
 
 	// Show detailed input for debugging (optional)
 	if len(input) > 0 && toolName != "TodoWrite" {
-		output.WriteString(fmt.Sprintf(" (id: %s)", toolID))
+		output.WriteString(fmt.Sprintf(" (id: %s)", meta.ToolID))
 	}
 
 	return output.String()

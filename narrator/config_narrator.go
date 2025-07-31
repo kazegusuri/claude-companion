@@ -259,35 +259,17 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		}
 
 	case "Grep":
-		// Use configuration-driven approach if captures are configured
-		if len(rules.Captures) > 0 {
-			return cn.handleGenericMCPTool(toolName, rules, input)
+		// Always use configuration-driven approach
+		// Create a copy of input with default path if not present
+		modifiedInput := make(map[string]interface{})
+		for k, v := range input {
+			modifiedInput[k] = v
 		}
-
-		// Fallback to hardcoded logic
-		if pattern, ok := input["pattern"].(string); ok {
-			path, _ := input["path"].(string)
-			if path == "" {
-				path = "プロジェクト全体"
-			} else {
-				// Use basename for the path
-				path = fmt.Sprintf("「%s」", filepath.Base(path))
-			}
-
-			// Check patterns
-			for _, rule := range rules.Patterns {
-				if strings.Contains(pattern, rule.Contains) {
-					msg := strings.ReplaceAll(rule.Message, "{path}", path)
-					msg = strings.ReplaceAll(msg, "{pattern}", pattern)
-					return msg
-				}
-			}
-
-			// Use default
-			msg := strings.ReplaceAll(rules.Default, "{path}", path)
-			msg = strings.ReplaceAll(msg, "{pattern}", pattern)
-			return msg
+		// Set default path if not present
+		if _, hasPath := modifiedInput["path"]; !hasPath {
+			modifiedInput["path"] = "プロジェクト全体"
 		}
+		return cn.handleGenericMCPTool(toolName, rules, modifiedInput)
 
 	case "Glob":
 		// Use configuration-driven approach if captures are configured

@@ -121,6 +121,24 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			},
 			expected: "/projectから関数定義を検索します",
 		},
+		{
+			name:     "Grep with glob pattern (no path)",
+			toolName: "Grep",
+			input: map[string]interface{}{
+				"pattern": "TODO",
+				"glob":    "**/*.go",
+			},
+			expected: "プロジェクト全体からTODOコメントを検索します",
+		},
+		{
+			name:     "Grep with glob pattern for specific file type",
+			toolName: "Grep",
+			input: map[string]interface{}{
+				"pattern": "import",
+				"glob":    "**/*.py",
+			},
+			expected: "プロジェクト全体から「import」を検索します",
+		},
 
 		// WebSearch tool test
 		{
