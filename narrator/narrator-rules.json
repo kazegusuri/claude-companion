@@ -11,452 +11,1009 @@
   "rules": {
     "Bash": {
       "prefixes": [
-        {"prefix": "git commit", "message": "変更をGitにコミットします"},
-        {"prefix": "git push", "message": "変更をリモートリポジトリにプッシュします"},
-        {"prefix": "git add", "message": "ファイルをGitのステージングエリアに追加します"},
-        {"prefix": "git status", "message": "Gitリポジトリの状態を確認します"},
-        {"prefix": "git diff", "message": "変更内容の差分を確認します"},
-        {"prefix": "git log", "message": "コミット履歴を確認します"},
-        {"prefix": "git pull", "message": "リモートリポジトリから変更を取得します"},
-        {"prefix": "git checkout", "message": "ブランチを切り替えます"},
-        {"prefix": "git branch", "message": "ブランチを管理します"},
-        {"prefix": "git merge", "message": "ブランチをマージします"},
-        {"prefix": "git rebase", "message": "コミット履歴を整理します"},
-        {"prefix": "git stash", "message": "変更を一時的に保存します"},
-        {"prefix": "git clone", "message": "リポジトリをクローンします"},
-        
-        {"prefix": "make test", "message": "テストを実行します"},
-        {"prefix": "make build", "message": "プロジェクトをビルドします"},
-        {"prefix": "make fmt", "message": "コードをフォーマットします"},
-        {"prefix": "make clean", "message": "ビルド成果物をクリーンアップします"},
-        {"prefix": "make install", "message": "プロジェクトをインストールします"},
-        {"prefix": "make run", "message": "プロジェクトを実行します"},
-        
-        {"prefix": "go test", "message": "Goのテストを実行します"},
-        {"prefix": "go build", "message": "Goプログラムをビルドします"},
-        {"prefix": "go run", "message": "Goプログラムを実行します"},
-        {"prefix": "go fmt", "message": "Goコードをフォーマットします"},
-        {"prefix": "gofmt", "message": "Goコードをフォーマットします"},
-        {"prefix": "go mod", "message": "Goモジュールを管理します"},
-        {"prefix": "go get", "message": "Go依存関係を取得します"},
-        
-        {"prefix": "npm install", "message": "依存パッケージをインストールします"},
-        {"prefix": "npm run", "message": "スクリプトを実行します"},
-        {"prefix": "npm test", "message": "テストを実行します"},
-        {"prefix": "npm build", "message": "プロジェクトをビルドします"},
-        {"prefix": "npm start", "message": "アプリケーションを起動します"},
-        {"prefix": "yarn install", "message": "依存パッケージをインストールします"},
-        {"prefix": "yarn run", "message": "スクリプトを実行します"},
-        {"prefix": "yarn test", "message": "テストを実行します"},
-        {"prefix": "yarn build", "message": "プロジェクトをビルドします"},
-        {"prefix": "yarn start", "message": "アプリケーションを起動します"},
-        
-        {"prefix": "mkdir", "message": "ディレクトリを作成します"},
-        {"prefix": "rm", "message": "ファイルまたはディレクトリを削除します"},
-        {"prefix": "cp", "message": "ファイルをコピーします"},
-        {"prefix": "mv", "message": "ファイルを移動します"},
-        {"prefix": "ls", "message": "ディレクトリの内容を確認します"},
-        {"prefix": "cat", "message": "ファイルの内容を表示します"},
-        {"prefix": "grep", "message": "ファイル内を検索します"},
-        {"prefix": "rg", "message": "ファイル内を検索します"},
-        {"prefix": "find", "message": "ファイルを検索します"},
-        {"prefix": "chmod", "message": "ファイルの権限を変更します"},
-        {"prefix": "chown", "message": "ファイルの所有者を変更します"},
-        {"prefix": "touch", "message": "ファイルを作成または更新します"},
-        {"prefix": "echo", "message": "テキストを出力します"},
-        {"prefix": "sed", "message": "テキストを置換します"},
-        {"prefix": "awk", "message": "テキストを処理します"},
-        
-        {"prefix": "python", "message": "Pythonスクリプトを実行します"},
-        {"prefix": "pip install", "message": "Pythonパッケージをインストールします"},
-        {"prefix": "pip freeze", "message": "インストール済みパッケージを確認します"},
-        {"prefix": "pytest", "message": "Pythonテストを実行します"},
-        
-        {"prefix": "docker build", "message": "Dockerイメージをビルドします"},
-        {"prefix": "docker run", "message": "Dockerコンテナを実行します"},
-        {"prefix": "docker ps", "message": "実行中のコンテナを確認します"},
-        {"prefix": "docker stop", "message": "コンテナを停止します"},
-        {"prefix": "docker-compose up", "message": "Docker Composeでサービスを起動します"},
-        {"prefix": "docker-compose down", "message": "Docker Composeでサービスを停止します"},
-        
-        {"prefix": "curl", "message": "HTTPリクエストを送信します"},
-        {"prefix": "wget", "message": "ファイルをダウンロードします"},
-        {"prefix": "ssh", "message": "リモートサーバーに接続します"},
-        {"prefix": "scp", "message": "ファイルをリモートにコピーします"},
-        {"prefix": "tar", "message": "アーカイブを操作します"},
-        {"prefix": "zip", "message": "ファイルを圧縮します"},
-        {"prefix": "unzip", "message": "ファイルを解凍します"},
-        
-        {"prefix": "gh pr create --draft", "message": "ドラフトプルリクエストを作成します"},
-        {"prefix": "gh pr create", "message": "プルリクエストを作成します"},
-        {"prefix": "gh pr view --web", "message": "プルリクエストをブラウザで開きます"},
-        {"prefix": "gh pr view", "message": "プルリクエストの詳細を確認します"},
-        {"prefix": "gh pr edit", "message": "プルリクエストを編集します"},
-        {"prefix": "gh pr checks --watch", "message": "CI/CDチェックの状態をリアルタイムで監視します"},
-        {"prefix": "gh pr checks", "message": "プルリクエストのCI/CDチェック状態を確認します"},
-        {"prefix": "gh pr diff", "message": "プルリクエストの変更内容を確認します"},
-        {"prefix": "gh pr review --approve", "message": "プルリクエストを承認します"},
-        {"prefix": "gh pr review", "message": "プルリクエストをレビューします"},
-        {"prefix": "gh pr list", "message": "プルリクエスト一覧を表示します"},
-        {"prefix": "gh pr status", "message": "プルリクエストの状態を確認します"},
-        {"prefix": "gh pr merge", "message": "プルリクエストをマージします"},
-        {"prefix": "gh pr close", "message": "プルリクエストをクローズします"},
-        {"prefix": "gh pr checkout", "message": "プルリクエストのブランチをチェックアウトします"},
-        
-        {"prefix": "gh issue create", "message": "新しいイシューを作成します"},
-        {"prefix": "gh issue view", "message": "イシューの詳細を確認します"},
-        {"prefix": "gh issue list", "message": "イシュー一覧を表示します"},
-        {"prefix": "gh issue status", "message": "イシューの状態を確認します"},
-        {"prefix": "gh issue close", "message": "イシューをクローズします"},
-        {"prefix": "gh issue edit", "message": "イシューを編集します"},
-        
-        {"prefix": "gh run view --log-failed", "message": "失敗したステップのログを確認します"},
-        {"prefix": "gh run view --log", "message": "GitHub Actionsの実行ログを確認します"},
-        {"prefix": "gh run view --web", "message": "GitHub Actionsの実行をブラウザで開きます"},
-        {"prefix": "gh run view", "message": "GitHub Actionsの実行詳細を確認します"},
-        {"prefix": "gh run list", "message": "GitHub Actionsの実行一覧を表示します"},
-        {"prefix": "gh run download", "message": "GitHub Actionsの成果物をダウンロードします"},
-        {"prefix": "gh run cancel", "message": "GitHub Actionsの実行をキャンセルします"},
-        {"prefix": "gh run rerun", "message": "GitHub Actionsを再実行します"},
-        
-        {"prefix": "gh workflow run", "message": "ワークフローを手動実行します"},
-        {"prefix": "gh workflow list", "message": "ワークフロー一覧を表示します"},
-        {"prefix": "gh workflow view", "message": "ワークフローの詳細を確認します"},
-        {"prefix": "gh workflow enable", "message": "ワークフローを有効化します"},
-        {"prefix": "gh workflow disable", "message": "ワークフローを無効化します"},
-        
-        {"prefix": "gh api", "message": "GitHub APIを直接呼び出します"},
-        {"prefix": "gh auth login", "message": "GitHubにログインします"},
-        {"prefix": "gh auth status", "message": "認証状態を確認します"},
-        {"prefix": "gh auth logout", "message": "GitHubからログアウトします"},
-        
-        {"prefix": "gh repo create", "message": "新しいリポジトリを作成します"},
-        {"prefix": "gh repo clone", "message": "リポジトリをクローンします"},
-        {"prefix": "gh repo view", "message": "リポジトリの情報を確認します"},
-        {"prefix": "gh repo list", "message": "リポジトリ一覧を表示します"},
-        {"prefix": "gh repo delete", "message": "リポジトリを削除します"},
-        
-        {"prefix": "gh release create", "message": "新しいリリースを作成します"},
-        {"prefix": "gh release list", "message": "リリース一覧を表示します"},
-        {"prefix": "gh release view", "message": "リリースの詳細を確認します"},
-        {"prefix": "gh release download", "message": "リリース成果物をダウンロードします"},
-        {"prefix": "gh release delete", "message": "リリースを削除します"},
-        
-        {"prefix": "gh gist create", "message": "新しいGistを作成します"},
-        {"prefix": "gh gist list", "message": "Gist一覧を表示します"},
-        {"prefix": "gh gist view", "message": "Gistの内容を確認します"},
-        {"prefix": "gh gist edit", "message": "Gistを編集します"},
-        
-        {"prefix": "gh browse", "message": "リポジトリをブラウザで開きます"},
-        {"prefix": "gh status", "message": "GitHubの通知とアクティビティを確認します"},
-        {"prefix": "gh --version", "message": "GitHub CLIのバージョンを確認します"}
+        {
+          "prefix": "git commit",
+          "message": "変更をGitにコミットします"
+        },
+        {
+          "prefix": "git push",
+          "message": "変更をリモートリポジトリにプッシュします"
+        },
+        {
+          "prefix": "git add",
+          "message": "ファイルをGitのステージングエリアに追加します"
+        },
+        {
+          "prefix": "git status",
+          "message": "Gitリポジトリの状態を確認します"
+        },
+        {
+          "prefix": "git diff",
+          "message": "変更内容の差分を確認します"
+        },
+        {
+          "prefix": "git log",
+          "message": "コミット履歴を確認します"
+        },
+        {
+          "prefix": "git pull",
+          "message": "リモートリポジトリから変更を取得します"
+        },
+        {
+          "prefix": "git checkout",
+          "message": "ブランチを切り替えます"
+        },
+        {
+          "prefix": "git branch",
+          "message": "ブランチを管理します"
+        },
+        {
+          "prefix": "git merge",
+          "message": "ブランチをマージします"
+        },
+        {
+          "prefix": "git rebase",
+          "message": "コミット履歴を整理します"
+        },
+        {
+          "prefix": "git stash",
+          "message": "変更を一時的に保存します"
+        },
+        {
+          "prefix": "git clone",
+          "message": "リポジトリをクローンします"
+        },
+        {
+          "prefix": "make test",
+          "message": "テストを実行します"
+        },
+        {
+          "prefix": "make build",
+          "message": "プロジェクトをビルドします"
+        },
+        {
+          "prefix": "make fmt",
+          "message": "コードをフォーマットします"
+        },
+        {
+          "prefix": "make clean",
+          "message": "ビルド成果物をクリーンアップします"
+        },
+        {
+          "prefix": "make install",
+          "message": "プロジェクトをインストールします"
+        },
+        {
+          "prefix": "make run",
+          "message": "プロジェクトを実行します"
+        },
+        {
+          "prefix": "go test",
+          "message": "Goのテストを実行します"
+        },
+        {
+          "prefix": "go build",
+          "message": "Goプログラムをビルドします"
+        },
+        {
+          "prefix": "go run",
+          "message": "Goプログラムを実行します"
+        },
+        {
+          "prefix": "go fmt",
+          "message": "Goコードをフォーマットします"
+        },
+        {
+          "prefix": "gofmt",
+          "message": "Goコードをフォーマットします"
+        },
+        {
+          "prefix": "go mod",
+          "message": "Goモジュールを管理します"
+        },
+        {
+          "prefix": "go get",
+          "message": "Go依存関係を取得します"
+        },
+        {
+          "prefix": "npm install",
+          "message": "依存パッケージをインストールします"
+        },
+        {
+          "prefix": "npm run",
+          "message": "スクリプトを実行します"
+        },
+        {
+          "prefix": "npm test",
+          "message": "テストを実行します"
+        },
+        {
+          "prefix": "npm build",
+          "message": "プロジェクトをビルドします"
+        },
+        {
+          "prefix": "npm start",
+          "message": "アプリケーションを起動します"
+        },
+        {
+          "prefix": "yarn install",
+          "message": "依存パッケージをインストールします"
+        },
+        {
+          "prefix": "yarn run",
+          "message": "スクリプトを実行します"
+        },
+        {
+          "prefix": "yarn test",
+          "message": "テストを実行します"
+        },
+        {
+          "prefix": "yarn build",
+          "message": "プロジェクトをビルドします"
+        },
+        {
+          "prefix": "yarn start",
+          "message": "アプリケーションを起動します"
+        },
+        {
+          "prefix": "mkdir",
+          "message": "ディレクトリを作成します"
+        },
+        {
+          "prefix": "rm",
+          "message": "ファイルまたはディレクトリを削除します"
+        },
+        {
+          "prefix": "cp",
+          "message": "ファイルをコピーします"
+        },
+        {
+          "prefix": "mv",
+          "message": "ファイルを移動します"
+        },
+        {
+          "prefix": "ls",
+          "message": "ディレクトリの内容を確認します"
+        },
+        {
+          "prefix": "cat",
+          "message": "ファイルの内容を表示します"
+        },
+        {
+          "prefix": "grep",
+          "message": "ファイル内を検索します"
+        },
+        {
+          "prefix": "rg",
+          "message": "ファイル内を検索します"
+        },
+        {
+          "prefix": "find",
+          "message": "ファイルを検索します"
+        },
+        {
+          "prefix": "chmod",
+          "message": "ファイルの権限を変更します"
+        },
+        {
+          "prefix": "chown",
+          "message": "ファイルの所有者を変更します"
+        },
+        {
+          "prefix": "touch",
+          "message": "ファイルを作成または更新します"
+        },
+        {
+          "prefix": "echo",
+          "message": "テキストを出力します"
+        },
+        {
+          "prefix": "sed",
+          "message": "テキストを置換します"
+        },
+        {
+          "prefix": "awk",
+          "message": "テキストを処理します"
+        },
+        {
+          "prefix": "python",
+          "message": "Pythonスクリプトを実行します"
+        },
+        {
+          "prefix": "pip install",
+          "message": "Pythonパッケージをインストールします"
+        },
+        {
+          "prefix": "pip freeze",
+          "message": "インストール済みパッケージを確認します"
+        },
+        {
+          "prefix": "pytest",
+          "message": "Pythonテストを実行します"
+        },
+        {
+          "prefix": "docker build",
+          "message": "Dockerイメージをビルドします"
+        },
+        {
+          "prefix": "docker run",
+          "message": "Dockerコンテナを実行します"
+        },
+        {
+          "prefix": "docker ps",
+          "message": "実行中のコンテナを確認します"
+        },
+        {
+          "prefix": "docker stop",
+          "message": "コンテナを停止します"
+        },
+        {
+          "prefix": "docker-compose up",
+          "message": "Docker Composeでサービスを起動します"
+        },
+        {
+          "prefix": "docker-compose down",
+          "message": "Docker Composeでサービスを停止します"
+        },
+        {
+          "prefix": "curl",
+          "message": "HTTPリクエストを送信します"
+        },
+        {
+          "prefix": "wget",
+          "message": "ファイルをダウンロードします"
+        },
+        {
+          "prefix": "ssh",
+          "message": "リモートサーバーに接続します"
+        },
+        {
+          "prefix": "scp",
+          "message": "ファイルをリモートにコピーします"
+        },
+        {
+          "prefix": "tar",
+          "message": "アーカイブを操作します"
+        },
+        {
+          "prefix": "zip",
+          "message": "ファイルを圧縮します"
+        },
+        {
+          "prefix": "unzip",
+          "message": "ファイルを解凍します"
+        },
+        {
+          "prefix": "gh pr create --draft",
+          "message": "ドラフトプルリクエストを作成します"
+        },
+        {
+          "prefix": "gh pr create",
+          "message": "プルリクエストを作成します"
+        },
+        {
+          "prefix": "gh pr view --web",
+          "message": "プルリクエストをブラウザで開きます"
+        },
+        {
+          "prefix": "gh pr view",
+          "message": "プルリクエストの詳細を確認します"
+        },
+        {
+          "prefix": "gh pr edit",
+          "message": "プルリクエストを編集します"
+        },
+        {
+          "prefix": "gh pr checks --watch",
+          "message": "CI/CDチェックの状態をリアルタイムで監視します"
+        },
+        {
+          "prefix": "gh pr checks",
+          "message": "プルリクエストのCI/CDチェック状態を確認します"
+        },
+        {
+          "prefix": "gh pr diff",
+          "message": "プルリクエストの変更内容を確認します"
+        },
+        {
+          "prefix": "gh pr review --approve",
+          "message": "プルリクエストを承認します"
+        },
+        {
+          "prefix": "gh pr review",
+          "message": "プルリクエストをレビューします"
+        },
+        {
+          "prefix": "gh pr list",
+          "message": "プルリクエスト一覧を表示します"
+        },
+        {
+          "prefix": "gh pr status",
+          "message": "プルリクエストの状態を確認します"
+        },
+        {
+          "prefix": "gh pr merge",
+          "message": "プルリクエストをマージします"
+        },
+        {
+          "prefix": "gh pr close",
+          "message": "プルリクエストをクローズします"
+        },
+        {
+          "prefix": "gh pr checkout",
+          "message": "プルリクエストのブランチをチェックアウトします"
+        },
+        {
+          "prefix": "gh issue create",
+          "message": "新しいイシューを作成します"
+        },
+        {
+          "prefix": "gh issue view",
+          "message": "イシューの詳細を確認します"
+        },
+        {
+          "prefix": "gh issue list",
+          "message": "イシュー一覧を表示します"
+        },
+        {
+          "prefix": "gh issue status",
+          "message": "イシューの状態を確認します"
+        },
+        {
+          "prefix": "gh issue close",
+          "message": "イシューをクローズします"
+        },
+        {
+          "prefix": "gh issue edit",
+          "message": "イシューを編集します"
+        },
+        {
+          "prefix": "gh run view --log-failed",
+          "message": "失敗したステップのログを確認します"
+        },
+        {
+          "prefix": "gh run view --log",
+          "message": "GitHub Actionsの実行ログを確認します"
+        },
+        {
+          "prefix": "gh run view --web",
+          "message": "GitHub Actionsの実行をブラウザで開きます"
+        },
+        {
+          "prefix": "gh run view",
+          "message": "GitHub Actionsの実行詳細を確認します"
+        },
+        {
+          "prefix": "gh run list",
+          "message": "GitHub Actionsの実行一覧を表示します"
+        },
+        {
+          "prefix": "gh run download",
+          "message": "GitHub Actionsの成果物をダウンロードします"
+        },
+        {
+          "prefix": "gh run cancel",
+          "message": "GitHub Actionsの実行をキャンセルします"
+        },
+        {
+          "prefix": "gh run rerun",
+          "message": "GitHub Actionsを再実行します"
+        },
+        {
+          "prefix": "gh workflow run",
+          "message": "ワークフローを手動実行します"
+        },
+        {
+          "prefix": "gh workflow list",
+          "message": "ワークフロー一覧を表示します"
+        },
+        {
+          "prefix": "gh workflow view",
+          "message": "ワークフローの詳細を確認します"
+        },
+        {
+          "prefix": "gh workflow enable",
+          "message": "ワークフローを有効化します"
+        },
+        {
+          "prefix": "gh workflow disable",
+          "message": "ワークフローを無効化します"
+        },
+        {
+          "prefix": "gh api",
+          "message": "GitHub APIを直接呼び出します"
+        },
+        {
+          "prefix": "gh auth login",
+          "message": "GitHubにログインします"
+        },
+        {
+          "prefix": "gh auth status",
+          "message": "認証状態を確認します"
+        },
+        {
+          "prefix": "gh auth logout",
+          "message": "GitHubからログアウトします"
+        },
+        {
+          "prefix": "gh repo create",
+          "message": "新しいリポジトリを作成します"
+        },
+        {
+          "prefix": "gh repo clone",
+          "message": "リポジトリをクローンします"
+        },
+        {
+          "prefix": "gh repo view",
+          "message": "リポジトリの情報を確認します"
+        },
+        {
+          "prefix": "gh repo list",
+          "message": "リポジトリ一覧を表示します"
+        },
+        {
+          "prefix": "gh repo delete",
+          "message": "リポジトリを削除します"
+        },
+        {
+          "prefix": "gh release create",
+          "message": "新しいリリースを作成します"
+        },
+        {
+          "prefix": "gh release list",
+          "message": "リリース一覧を表示します"
+        },
+        {
+          "prefix": "gh release view",
+          "message": "リリースの詳細を確認します"
+        },
+        {
+          "prefix": "gh release download",
+          "message": "リリース成果物をダウンロードします"
+        },
+        {
+          "prefix": "gh release delete",
+          "message": "リリースを削除します"
+        },
+        {
+          "prefix": "gh gist create",
+          "message": "新しいGistを作成します"
+        },
+        {
+          "prefix": "gh gist list",
+          "message": "Gist一覧を表示します"
+        },
+        {
+          "prefix": "gh gist view",
+          "message": "Gistの内容を確認します"
+        },
+        {
+          "prefix": "gh gist edit",
+          "message": "Gistを編集します"
+        },
+        {
+          "prefix": "gh browse",
+          "message": "リポジトリをブラウザで開きます"
+        },
+        {
+          "prefix": "gh status",
+          "message": "GitHubの通知とアクティビティを確認します"
+        },
+        {
+          "prefix": "gh --version",
+          "message": "GitHub CLIのバージョンを確認します"
+        }
       ],
       "default": "コマンド「{command}」を実行します",
       "permissionMessage": "コマンド実行の許可を求めています"
     },
-    
     "Read": {
-      "extensions": {
-        ".go": "Goファイル「{filename}」を読み込みます",
-        ".js": "JavaScriptファイル「{filename}」を読み込みます",
-        ".ts": "TypeScriptファイル「{filename}」を読み込みます",
-        ".jsx": "Reactファイル「{filename}」を読み込みます",
-        ".tsx": "Reactファイル「{filename}」を読み込みます",
-        ".py": "Pythonファイル「{filename}」を読み込みます",
-        ".md": "ドキュメント「{filename}」を読み込みます",
-        ".json": "JSON設定ファイル「{filename}」を読み込みます",
-        ".yaml": "YAML設定ファイル「{filename}」を読み込みます",
-        ".yml": "YAML設定ファイル「{filename}」を読み込みます",
-        ".txt": "テキストファイル「{filename}」を読み込みます",
-        ".log": "ログファイル「{filename}」を読み込みます",
-        ".sh": "シェルスクリプト「{filename}」を読み込みます",
-        ".bash": "シェルスクリプト「{filename}」を読み込みます",
-        ".sql": "SQLファイル「{filename}」を読み込みます",
-        ".html": "HTMLファイル「{filename}」を読み込みます",
-        ".css": "CSSファイル「{filename}」を読み込みます",
-        ".xml": "XMLファイル「{filename}」を読み込みます",
-        ".toml": "TOML設定ファイル「{filename}」を読み込みます",
-        ".ini": "設定ファイル「{filename}」を読み込みます",
-        ".env": "環境設定ファイル「{filename}」を読み込みます"
-      },
-      "default": "ファイル「{filename}」を読み込みます",
-      "permissionMessage": "ファイル読み取りの許可を求めています"
+      "default": "{filetype}「{filename}」を読み込みます",
+      "permissionMessage": "ファイル読み取りの許可を求めています",
+      "captures": [
+        {
+          "inputKey": "file_path",
+          "parseFileType": true
+        },
+        {
+          "inputKey": "filename"
+        }
+      ]
     },
-    
     "Write": {
-      "patterns": [
-        {"contains": "test", "message": "テストファイル「{filename}」を作成します"}
-      ],
-      "default": "ファイル「{filename}」を作成します",
-      "permissionMessage": "ファイル書き込みの許可を求めています"
+      "default": "{filetype}「{filename}」を作成します",
+      "permissionMessage": "ファイル書き込みの許可を求めています",
+      "captures": [
+        {
+          "inputKey": "file_path",
+          "parseFileType": true
+        },
+        {
+          "inputKey": "filename"
+        }
+      ]
     },
-    
     "Edit": {
-      "patterns": [
-        {"contains": "func", "message": "関数を{filename}で修正します"},
-        {"contains": "import", "message": "インポート文を{filename}で更新します"},
-        {"contains": "TODO", "message": "TODOコメントを{filename}で更新します"}
-      ],
-      "default": "ファイル「{filename}」を編集します",
-      "permissionMessage": "ファイル編集の許可を求めています"
+      "default": "{filetype}「{filename}」を編集します",
+      "permissionMessage": "ファイル編集の許可を求めています",
+      "captures": [
+        {
+          "inputKey": "file_path",
+          "parseFileType": true
+        },
+        {
+          "inputKey": "filename"
+        }
+      ]
     },
-    
     "MultiEdit": {
       "default": "ファイル「{filename}」に{count}箇所の変更を加えます"
     },
-    
     "Grep": {
       "patterns": [
-        {"contains": "func", "message": "{path}から関数定義を検索します"},
-        {"contains": "class", "message": "{path}からクラス定義を検索します"},
-        {"contains": "TODO", "message": "{path}からTODOコメントを検索します"},
-        {"contains": "error", "message": "{path}からエラー処理を検索します"},
-        {"contains": "Error", "message": "{path}からエラー処理を検索します"}
+        {
+          "contains": "func",
+          "message": "{path}から関数定義を検索します"
+        },
+        {
+          "contains": "class",
+          "message": "{path}からクラス定義を検索します"
+        },
+        {
+          "contains": "TODO",
+          "message": "{path}からTODOコメントを検索します"
+        },
+        {
+          "contains": "error",
+          "message": "{path}からエラー処理を検索します"
+        },
+        {
+          "contains": "Error",
+          "message": "{path}からエラー処理を検索します"
+        }
       ],
       "default": "{path}から「{pattern}」を検索します",
+      "captures": [
+        {
+          "inputKey": "pattern"
+        },
+        {
+          "inputKey": "path"
+        }
+      ],
       "permissionMessage": "ファイル検索の許可を求めています"
     },
-    
     "Glob": {
       "patterns": [
-        {"contains": "*test*", "message": "テストファイルを探します"},
-        {"contains": "*.go", "message": "Goファイルを探します"},
-        {"contains": "*.js", "message": "JavaScriptファイルを探します"},
-        {"contains": "*.ts", "message": "TypeScriptファイルを探します"},
-        {"contains": "*.py", "message": "Pythonファイルを探します"},
-        {"contains": "*.md", "message": "ドキュメントファイルを探します"}
+        {
+          "contains": "*test*",
+          "message": "テストファイルを探します"
+        },
+        {
+          "contains": "*.go",
+          "message": "Goファイルを探します"
+        },
+        {
+          "contains": "*.js",
+          "message": "JavaScriptファイルを探します"
+        },
+        {
+          "contains": "*.ts",
+          "message": "TypeScriptファイルを探します"
+        },
+        {
+          "contains": "*.py",
+          "message": "Pythonファイルを探します"
+        },
+        {
+          "contains": "*.md",
+          "message": "ドキュメントファイルを探します"
+        }
       ],
       "default": "パターン「{pattern}」に一致するファイルを探します",
       "permissionMessage": "ファイル一覧取得の許可を求めています"
     },
-    
     "LS": {
       "default": "ディレクトリ「{dirname}」の内容を確認します",
       "permissionMessage": "ディレクトリ一覧の許可を求めています"
     },
-    
     "WebFetch": {
       "patterns": [
-        {"contains": "github.com", "message": "GitHubから情報を取得します"},
-        {"contains": "docs", "message": "ドキュメントを参照します"},
-        {"contains": "api", "message": "APIから情報を取得します"}
+        {
+          "contains": "github.com",
+          "message": "GitHubから情報を取得します"
+        },
+        {
+          "contains": "docs",
+          "message": "ドキュメントを参照します"
+        },
+        {
+          "contains": "api",
+          "message": "APIから情報を取得します"
+        }
       ],
       "default": "「{domain}」から情報を取得します"
     },
-    
     "WebSearch": {
       "default": "「{query}」についてWeb検索します"
     },
-    
     "Task": {
       "default": "タスク「{description}」を実行します"
     },
-    
     "TodoWrite": {
       "default": "TODOリストを更新します（完了: {completed}, 進行中: {in_progress}）"
     },
-    
     "NotebookRead": {
-      "default": "Jupyterノートブック「{filename}」を読み込みます"
+      "default": "{filetype}「{filename}」を読み込みます",
+      "captures": [
+        {
+          "inputKey": "notebook_path",
+          "parseFileType": true
+        },
+        {
+          "inputKey": "filename"
+        }
+      ]
     },
-    
     "NotebookEdit": {
       "patterns": [
-        {"contains": "insert", "message": "ノートブック「{filename}」に新しいセルを追加します"},
-        {"contains": "delete", "message": "ノートブック「{filename}」からセルを削除します"}
+        {
+          "contains": "insert",
+          "message": "ノートブック「{filename}」に新しいセルを追加します"
+        },
+        {
+          "contains": "delete",
+          "message": "ノートブック「{filename}」からセルを削除します"
+        }
       ],
-      "default": "ノートブック「{filename}」を編集します"
+      "default": "{filetype}「{filename}」を編集します",
+      "captures": [
+        {
+          "inputKey": "notebook_path",
+          "parseFileType": true
+        },
+        {
+          "inputKey": "filename"
+        }
+      ]
     },
-    
     "ExitPlanMode": {
       "default": "実装計画を完了し、コーディングを開始します"
     },
-    
     "mcp__serena__list_memories": {
       "default": "利用可能なメモリファイルを一覧表示します"
     },
-    
     "mcp__serena__read_memory": {
-      "default": "メモリファイル「{memory_file_name}」を読み込みます"
+      "default": "メモリファイル「{memory_file_name}」を読み込みます",
+      "captures": [
+        {
+          "inputKey": "memory_file_name"
+        }
+      ]
     },
-    
     "mcp__serena__find_file": {
       "patterns": [
-        {"contains": "*test*", "message": "テストファイルを検索します"},
-        {"contains": "*spec*", "message": "仕様ファイルを検索します"},
-        {"contains": "*config*", "message": "設定ファイルを検索します"}
+        {
+          "contains": "*test*",
+          "message": "テストファイルを検索します"
+        },
+        {
+          "contains": "*spec*",
+          "message": "仕様ファイルを検索します"
+        },
+        {
+          "contains": "*config*",
+          "message": "設定ファイルを検索します"
+        }
       ],
-      "default": "パターン「{file_mask}」に一致するファイルを検索します"
+      "default": "パターン「{file_mask}」に一致するファイルを検索します",
+      "captures": [
+        {
+          "inputKey": "file_mask"
+        }
+      ]
     },
-    
     "mcp__serena__search_for_pattern": {
       "patterns": [
-        {"contains": "error", "message": "エラー処理を検索します"},
-        {"contains": "TODO", "message": "TODOコメントを検索します"},
-        {"contains": "FIXME", "message": "修正が必要な箇所を検索します"}
+        {
+          "contains": "error",
+          "message": "エラー処理を検索します"
+        },
+        {
+          "contains": "TODO",
+          "message": "TODOコメントを検索します"
+        },
+        {
+          "contains": "FIXME",
+          "message": "修正が必要な箇所を検索します"
+        }
       ],
-      "default": "パターン「{substring_pattern}」を検索します"
+      "default": "パターン「{substring_pattern}」を検索します",
+      "captures": [
+        {
+          "inputKey": "substring_pattern"
+        }
+      ]
     },
-    
     "mcp__serena__get_symbols_overview": {
       "default": "シンボル概要を取得します"
     },
-    
     "mcp__serena__list_dir": {
       "default": "ディレクトリの内容を一覧表示します"
     },
-    
     "mcp__serena__find_symbol": {
       "patterns": [
-        {"contains": "func", "message": "関数「{name_path}」を検索します"},
-        {"contains": "type", "message": "型定義「{name_path}」を検索します"},
-        {"contains": "struct", "message": "構造体「{name_path}」を検索します"},
-        {"contains": "interface", "message": "インターフェース「{name_path}」を検索します"}
+        {
+          "contains": "func",
+          "message": "関数「{name_path}」を検索します"
+        },
+        {
+          "contains": "type",
+          "message": "型定義「{name_path}」を検索します"
+        },
+        {
+          "contains": "struct",
+          "message": "構造体「{name_path}」を検索します"
+        },
+        {
+          "contains": "interface",
+          "message": "インターフェース「{name_path}」を検索します"
+        }
       ],
-      "default": "シンボル「{name_path}」を検索します"
+      "default": "シンボル「{name_path}」を検索します",
+      "captures": [
+        {
+          "inputKey": "name_path"
+        }
+      ]
     },
-    
     "mcp__ide__getDiagnostics": {
       "default": "コードの診断情報を取得します"
     },
-    
     "ListMcpResourcesTool": {
       "default": "MCPリソースを一覧表示します"
     },
-    
     "ReadMcpResourceTool": {
-      "default": "MCPリソース「{uri}」を読み込みます"
+      "default": "MCPリソース「{uri}」を読み込みます",
+      "captures": [
+        {
+          "inputKey": "uri"
+        }
+      ]
     },
-    
     "mcp__serena__analyze": {
       "patterns": [
-        {"contains": "review", "message": "コードレビューを実行します"},
-        {"contains": "test", "message": "テスト分析を実行します"},
-        {"contains": "security", "message": "セキュリティ分析を実行します"},
-        {"contains": "performance", "message": "パフォーマンス分析を実行します"}
+        {
+          "contains": "review",
+          "message": "コードレビューを実行します"
+        },
+        {
+          "contains": "test",
+          "message": "テスト分析を実行します"
+        },
+        {
+          "contains": "security",
+          "message": "セキュリティ分析を実行します"
+        },
+        {
+          "contains": "performance",
+          "message": "パフォーマンス分析を実行します"
+        }
       ],
       "default": "タスク「{task}」を分析します"
     },
-    
     "mcp__serena__activate_project": {
-      "default": "プロジェクト「{project_name}」をアクティブ化します"
+      "default": "プロジェクト「{project_name}」をアクティブ化します",
+      "captures": [
+        {
+          "inputKey": "project_name"
+        }
+      ]
     },
-    
     "mcp__serena__check_onboarding_performed": {
       "default": "オンボーディング状態を確認します"
     },
-    
     "mcp__serena__onboarding": {
       "default": "プロジェクトのオンボーディングを実行します"
     },
-    
     "mcp__serena__write_memory": {
-      "default": "メモリファイル「{memory_file_name}」に書き込みます"
+      "default": "メモリファイル「{memory_file_name}」に書き込みます",
+      "captures": [
+        {
+          "inputKey": "memory_file_name"
+        }
+      ]
     },
-    
     "mcp__serena__think_about_collected_information": {
       "default": "収集した情報について分析します"
     },
-    
     "mcp__serena__think_about_whether_you_are_done": {
       "default": "タスクの完了状態を評価します"
     },
-    
     "mcp__serena__go_workspace": {
       "default": "Goワークスペース情報を取得します"
     },
-    
     "mcp__serena__create_text_file": {
       "patterns": [
-        {"contains": "test", "message": "テストファイル「{filename}」を作成します"},
-        {"contains": "spec", "message": "仕様ファイル「{filename}」を作成します"},
-        {"contains": "config", "message": "設定ファイル「{filename}」を作成します"}
+        {
+          "contains": "test",
+          "message": "テストファイル「{filename}」を作成します"
+        },
+        {
+          "contains": "spec",
+          "message": "仕様ファイル「{filename}」を作成します"
+        },
+        {
+          "contains": "config",
+          "message": "設定ファイル「{filename}」を作成します"
+        }
       ],
       "default": "ファイル「{filename}」を作成します"
     },
-    
     "mcp__serena__delete_lines": {
-      "default": "「{file_path}」の{start_line}行目から{end_line}行目を削除します"
+      "default": "「{file_path}」の{start_line}行目から{end_line}行目を削除します",
+      "captures": [
+        {
+          "inputKey": "file_path"
+        },
+        {
+          "inputKey": "start_line"
+        },
+        {
+          "inputKey": "end_line"
+        }
+      ]
     },
-    
     "mcp__serena__delete_memory": {
-      "default": "メモリ「{memory_file_name}」を削除します"
+      "default": "メモリ「{memory_file_name}」を削除します",
+      "captures": [
+        {
+          "inputKey": "memory_file_name"
+        }
+      ]
     },
-    
     "mcp__serena__execute_shell_command": {
-      "patterns": [
-        {"contains": "test", "message": "テストコマンドを実行します"},
-        {"contains": "build", "message": "ビルドコマンドを実行します"},
-        {"contains": "run", "message": "実行コマンドを実行します"}
-      ],
       "default": "シェルコマンドを実行します"
     },
-    
     "mcp__serena__find_referencing_code_snippets": {
-      "default": "「{symbol_name}」を参照するコードスニペットを検索します"
+      "default": "「{symbol_name}」を参照するコードスニペットを検索します",
+      "captures": [
+        {
+          "inputKey": "symbol_name"
+        }
+      ]
     },
-    
     "mcp__serena__find_referencing_symbols": {
-      "default": "「{symbol_name}」を参照するシンボルを検索します"
+      "default": "「{symbol_name}」を参照するシンボルを検索します",
+      "captures": [
+        {
+          "inputKey": "symbol_name"
+        }
+      ]
     },
-    
     "mcp__serena__get_active_project": {
       "default": "アクティブなプロジェクトを確認します"
     },
-    
     "mcp__serena__get_current_config": {
       "default": "現在の設定を確認します"
     },
-    
     "mcp__serena__initial_instructions": {
       "default": "初期指示を取得します"
     },
-    
     "mcp__serena__insert_after_symbol": {
-      "default": "シンボル「{symbol_name}」の後に挿入します"
+      "default": "シンボル「{symbol_name}」の後に挿入します",
+      "captures": [
+        {
+          "inputKey": "symbol_name"
+        }
+      ]
     },
-    
     "mcp__serena__insert_at_line": {
-      "default": "「{file_path}」の{line}行目に挿入します"
+      "default": "「{file_path}」の{line}行目に挿入します",
+      "captures": [
+        {
+          "inputKey": "file_path"
+        },
+        {
+          "inputKey": "line"
+        }
+      ]
     },
-    
     "mcp__serena__insert_before_symbol": {
-      "default": "シンボル「{symbol_name}」の前に挿入します"
+      "default": "シンボル「{symbol_name}」の前に挿入します",
+      "captures": [
+        {
+          "inputKey": "symbol_name"
+        }
+      ]
     },
-    
     "mcp__serena__prepare_for_new_conversation": {
       "default": "新しい会話のための準備を行います"
     },
-    
     "mcp__serena__read_file": {
-      "extensions": {
-        ".go": "Goファイル「{file_path}」を読み込みます",
-        ".js": "JavaScriptファイル「{file_path}」を読み込みます",
-        ".ts": "TypeScriptファイル「{file_path}」を読み込みます",
-        ".py": "Pythonファイル「{file_path}」を読み込みます",
-        ".md": "ドキュメント「{file_path}」を読み込みます"
-      },
-      "default": "ファイル「{file_path}」を読み込みます"
+      "default": "{filetype}「{file_path}」を読み込みます",
+      "captures": [
+        {
+          "inputKey": "file_path",
+          "parseFileType": true
+        }
+      ]
     },
-    
     "mcp__serena__replace_lines": {
-      "default": "「{file_path}」の{start_line}行目から{end_line}行目を置換します"
+      "default": "「{file_path}」の{start_line}行目から{end_line}行目を置換します",
+      "captures": [
+        {
+          "inputKey": "file_path"
+        },
+        {
+          "inputKey": "start_line"
+        },
+        {
+          "inputKey": "end_line"
+        }
+      ]
     },
-    
     "mcp__serena__replace_symbol_body": {
-      "default": "シンボル「{symbol_name}」の本体を置換します"
+      "default": "シンボル「{symbol_name}」の本体を置換します",
+      "captures": [
+        {
+          "inputKey": "symbol_name"
+        }
+      ]
     },
-    
     "mcp__serena__restart_language_server": {
       "default": "言語サーバーを再起動します"
     },
-    
     "mcp__serena__summarize_changes": {
       "default": "変更内容をまとめます"
     },
-    
     "mcp__serena__switch_modes": {
-      "default": "モード「{modes}」に切り替えます"
+      "default": "モード「{modes}」に切り替えます",
+      "captures": [
+        {
+          "inputKey": "modes"
+        }
+      ]
     }
+  },
+  "fileTypeNames": {
+    ".go": "Goファイル",
+    ".js": "JavaScriptファイル",
+    ".ts": "TypeScriptファイル",
+    ".jsx": "Reactファイル",
+    ".tsx": "Reactファイル",
+    ".py": "Pythonファイル",
+    ".md": "ドキュメント",
+    ".json": "JSON設定ファイル",
+    ".yaml": "YAML設定ファイル",
+    ".yml": "YAML設定ファイル",
+    ".txt": "テキストファイル",
+    ".log": "ログファイル",
+    ".sh": "シェルスクリプト",
+    ".bash": "シェルスクリプト",
+    ".sql": "SQLファイル",
+    ".html": "HTMLファイル",
+    ".css": "CSSファイル",
+    ".xml": "XMLファイル",
+    ".toml": "TOML設定ファイル",
+    ".ini": "設定ファイル",
+    ".env": "環境設定ファイル",
+    ".java": "Javaファイル",
+    ".c": "Cファイル",
+    ".cpp": "C++ファイル",
+    ".h": "ヘッダーファイル",
+    ".hpp": "C++ヘッダーファイル",
+    ".rs": "Rustファイル",
+    ".rb": "Rubyファイル",
+    ".php": "PHPファイル",
+    ".swift": "Swiftファイル",
+    ".kt": "Kotlinファイル",
+    ".scala": "Scalaファイル",
+    ".r": "Rファイル",
+    ".m": "Objective-Cファイル",
+    ".dart": "Dartファイル",
+    ".vue": "Vueファイル",
+    ".svelte": "Svelteファイル",
+    ".ipynb": "Jupyterノートブック"
   }
 }

@@ -20,12 +20,117 @@ func NewConfigBasedNarrator(config *NarratorConfig) *ConfigBasedNarrator {
 	}
 }
 
+// getFileTypeName returns the file type name for a given extension
+func (cn *ConfigBasedNarrator) getFileTypeName(ext string) string {
+	// First check user config
+	if cn.config.FileTypeNames != nil {
+		if name, ok := cn.config.FileTypeNames[ext]; ok {
+			return name
+		}
+	}
+	// Then check default config
+	if cn.defaultConfig.FileTypeNames != nil {
+		if name, ok := cn.defaultConfig.FileTypeNames[ext]; ok {
+			return name
+		}
+	}
+	// Return empty string if not found
+	return ""
+}
+
 // getStringOrDefault returns the value from config if not empty, otherwise from defaultConfig
 func (cn *ConfigBasedNarrator) getStringOrDefault(configValue, defaultValue string) string {
 	if configValue != "" {
 		return configValue
 	}
 	return defaultValue
+}
+
+// applyCaptures applies capture rules to a template string using input values
+func (cn *ConfigBasedNarrator) applyCaptures(template string, captures []CaptureRule, input map[string]interface{}) string {
+	result := template
+	for _, capture := range captures {
+		if value, exists := input[capture.InputKey]; exists {
+			// Convert value to string
+			var strValue string
+			switch v := value.(type) {
+			case string:
+				strValue = v
+			case float64:
+				strValue = fmt.Sprintf("%.0f", v)
+			case int:
+				strValue = fmt.Sprintf("%d", v)
+			case []interface{}:
+				// For arrays, join with comma
+				strList := make([]string, len(v))
+				for i, item := range v {
+					if s, ok := item.(string); ok {
+						strList[i] = s
+					} else {
+						strList[i] = fmt.Sprintf("%v", item)
+					}
+				}
+				strValue = strings.Join(strList, ", ")
+			default:
+				strValue = fmt.Sprintf("%v", v)
+			}
+			// Automatically generate placeholder from inputKey
+			placeholder := fmt.Sprintf("{%s}", capture.InputKey)
+			result = strings.ReplaceAll(result, placeholder, strValue)
+
+			// If parseFileType is true, also replace {filetype}
+			if capture.ParseFileType && strValue != "" {
+				ext := filepath.Ext(strValue)
+				fileTypeName := cn.getFileTypeName(ext)
+				if fileTypeName == "" {
+					fileTypeName = "ファイル" // Default for unknown extensions
+				}
+				result = strings.ReplaceAll(result, "{filetype}", fileTypeName)
+			}
+		}
+	}
+	return result
+}
+
+// processDefaultWithCaptures processes a default message with capture rules if available
+func (cn *ConfigBasedNarrator) processDefaultWithCaptures(rules ToolRules, input map[string]interface{}) string {
+	if rules.Default == "" {
+		return ""
+	}
+
+	// If captures are configured, use them
+	if len(rules.Captures) > 0 {
+		return cn.applyCaptures(rules.Default, rules.Captures, input)
+	}
+
+	// Fallback to the original default without replacement
+	return rules.Default
+}
+
+// handleGenericMCPTool handles MCP tools using configuration-driven approach
+func (cn *ConfigBasedNarrator) handleGenericMCPTool(toolName string, rules ToolRules, input map[string]interface{}) string {
+	// First try patterns if available
+	for _, pattern := range rules.Patterns {
+		for _, value := range input {
+			if strValue, ok := value.(string); ok {
+				if strings.Contains(strValue, pattern.Contains) {
+					// Apply captures to pattern message
+					if len(rules.Captures) > 0 {
+						return cn.applyCaptures(pattern.Message, rules.Captures, input)
+					}
+					return pattern.Message
+				}
+			}
+		}
+	}
+
+	// Then try captures with default message
+	if len(rules.Captures) > 0 {
+		return cn.applyCaptures(rules.Default, rules.Captures, input)
+	}
+
+	// Final fallback
+	return rules.Default
 }
 
 // NarrateToolUse converts tool usage to natural Japanese using config rules
@@ -79,48 +184,16 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 
 		if filePath != "" {
 			fileName := filepath.Base(filePath)
-			ext := filepath.Ext(fileName)
 
-			// Check extensions
-			if message, ok := rules.Extensions[ext]; ok {
-				return strings.ReplaceAll(message, "{filename}", fileName)
+			// Add filename to input for captures
+			inputWithFilename := make(map[string]interface{})
+			for k, v := range input {
+				inputWithFilename[k] = v
 			}
+			inputWithFilename["filename"] = fileName
 
-			// Check patterns
-			for _, pattern := range rules.Patterns {
-				if toolName == "Edit" || toolName == "NotebookEdit" {
-					// For edit tools, check patterns in the input content
-					if oldStr, ok := input["old_string"].(string); ok {
-						if strings.Contains(oldStr, pattern.Contains) {
-							msg := strings.ReplaceAll(pattern.Message, "{filename}", fileName)
-							return msg
-						}
-					}
-					if newStr, ok := input["new_string"].(string); ok {
-						if strings.Contains(newStr, pattern.Contains) {
-							msg := strings.ReplaceAll(pattern.Message, "{filename}", fileName)
-							return msg
-						}
-					}
-					if mode, ok := input["edit_mode"].(string); ok {
-						if strings.Contains(mode, pattern.Contains) {
-							msg := strings.ReplaceAll(pattern.Message, "{filename}", fileName)
-							return msg
-						}
-					}
-				} else if toolName == "Write" {
-					// For write, check patterns in the file path
-					if strings.Contains(filePath, pattern.Contains) {
-						msg := strings.ReplaceAll(pattern.Message, "{filename}", fileName)
-						return msg
-					}
-				}
-			}
-
-			// Use default
-			if rules.Default != "" {
-				return strings.ReplaceAll(rules.Default, "{filename}", fileName)
-			}
+			// Always use applyCaptures
+			return cn.applyCaptures(rules.Default, rules.Captures, inputWithFilename)
 		}
 	}
 
@@ -140,6 +213,12 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 
 	// Handle Grep
 	if toolName == "Grep" {
+		// Use configuration-driven approach if captures are configured
+		if len(rules.Captures) > 0 {
+			return cn.handleGenericMCPTool(toolName, rules, input)
+		}
+
+		// Fallback to hardcoded logic
 		if pattern, ok := input["pattern"].(string); ok {
 			path, _ := input["path"].(string)
 			if path == "" {
@@ -167,6 +246,12 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 
 	// Handle Glob
 	if toolName == "Glob" {
+		// Use configuration-driven approach if captures are configured
+		if len(rules.Captures) > 0 {
+			return cn.handleGenericMCPTool(toolName, rules, input)
+		}
+
+		// Fallback to hardcoded logic
 		if pattern, ok := input["pattern"].(string); ok {
 			// Check patterns
 			for _, rule := range rules.Patterns {
@@ -279,190 +364,22 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 	}
 
 	// Handle MCP tools with dynamic parameters
-	if strings.HasPrefix(toolName, "mcp__") {
-		// Handle memory-related tools
-		if toolName == "mcp__serena__read_memory" {
-			if memoryFile, ok := input["memory_file_name"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
-			}
+	if strings.HasPrefix(toolName, "mcp__") || toolName == "ReadMcpResourceTool" || toolName == "ListMcpResourcesTool" {
+		// Use configuration-driven approach if captures are configured
+		if len(rules.Captures) > 0 {
+			return cn.handleGenericMCPTool(toolName, rules, input)
 		}
 
-		// Handle file search tools
-		if toolName == "mcp__serena__find_file" {
-			if fileMask, ok := input["file_mask"].(string); ok {
-				// Check patterns
-				for _, pattern := range rules.Patterns {
-					if strings.Contains(fileMask, pattern.Contains) {
-						return pattern.Message
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{file_mask}", fileMask)
-			}
-		}
-
-		// Handle pattern search tools
-		if toolName == "mcp__serena__search_for_pattern" {
-			if pattern, ok := input["substring_pattern"].(string); ok {
-				// Check patterns
-				for _, rule := range rules.Patterns {
-					if strings.Contains(pattern, rule.Contains) {
-						return rule.Message
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{substring_pattern}", pattern)
-			}
-		}
-
-		// Handle symbol search tools
-		if toolName == "mcp__serena__find_symbol" {
-			if namePath, ok := input["name_path"].(string); ok {
-				// Check patterns
-				for _, pattern := range rules.Patterns {
-					if strings.Contains(namePath, pattern.Contains) {
-						return strings.ReplaceAll(pattern.Message, "{name_path}", namePath)
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{name_path}", namePath)
-			}
-		}
-
-		// Handle MCP resource tools
-		if toolName == "ReadMcpResourceTool" {
-			if uri, ok := input["uri"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{uri}", uri)
-			}
-		}
-
-		// Handle analyze tool
-		if toolName == "mcp__serena__analyze" {
-			if task, ok := input["task"].(string); ok {
-				// Check patterns
-				for _, pattern := range rules.Patterns {
-					if strings.Contains(task, pattern.Contains) {
-						return pattern.Message
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{task}", task)
-			}
-		}
-
-		// Handle activate project tool
-		if toolName == "mcp__serena__activate_project" {
-			if projectName, ok := input["project_name"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{project_name}", projectName)
-			}
-		}
-
-		// Handle write memory tool
-		if toolName == "mcp__serena__write_memory" {
-			if memoryFile, ok := input["memory_file_name"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
-			}
-		}
-
-		// Handle delete memory tool
-		if toolName == "mcp__serena__delete_memory" {
-			if memoryFile, ok := input["memory_file_name"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{memory_file_name}", memoryFile)
-			}
-		}
-
-		// Handle create text file tool
-		if toolName == "mcp__serena__create_text_file" {
-			if filename, ok := input["filename"].(string); ok {
-				// Check patterns
-				for _, pattern := range rules.Patterns {
-					if strings.Contains(filename, pattern.Contains) {
-						return strings.ReplaceAll(pattern.Message, "{filename}", filename)
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{filename}", filename)
-			}
-		}
-
-		// Handle delete lines tool
-		if toolName == "mcp__serena__delete_lines" {
-			filePath, _ := input["file_path"].(string)
-			startLine, _ := input["start_line"].(float64)
-			endLine, _ := input["end_line"].(float64)
-			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
-			msg = strings.ReplaceAll(msg, "{start_line}", fmt.Sprintf("%.0f", startLine))
-			msg = strings.ReplaceAll(msg, "{end_line}", fmt.Sprintf("%.0f", endLine))
-			return msg
-		}
-
-		// Handle replace lines tool
-		if toolName == "mcp__serena__replace_lines" {
-			filePath, _ := input["file_path"].(string)
-			startLine, _ := input["start_line"].(float64)
-			endLine, _ := input["end_line"].(float64)
-			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
-			msg = strings.ReplaceAll(msg, "{start_line}", fmt.Sprintf("%.0f", startLine))
-			msg = strings.ReplaceAll(msg, "{end_line}", fmt.Sprintf("%.0f", endLine))
-			return msg
-		}
-
-		// Handle insert at line tool
-		if toolName == "mcp__serena__insert_at_line" {
-			filePath, _ := input["file_path"].(string)
-			line, _ := input["line"].(float64)
-			msg := strings.ReplaceAll(rules.Default, "{file_path}", filePath)
-			msg = strings.ReplaceAll(msg, "{line}", fmt.Sprintf("%.0f", line))
-			return msg
-		}
-
-		// Handle symbol-related tools
-		if toolName == "mcp__serena__find_referencing_code_snippets" ||
-			toolName == "mcp__serena__find_referencing_symbols" ||
-			toolName == "mcp__serena__insert_after_symbol" ||
-			toolName == "mcp__serena__insert_before_symbol" ||
-			toolName == "mcp__serena__replace_symbol_body" {
-			if symbolName, ok := input["symbol_name"].(string); ok {
-				return strings.ReplaceAll(rules.Default, "{symbol_name}", symbolName)
-			}
-		}
-
-		// Handle execute shell command tool
-		if toolName == "mcp__serena__execute_shell_command" {
-			if cmd, ok := input["command"].(string); ok {
-				// Check patterns
-				for _, pattern := range rules.Patterns {
-					if strings.Contains(cmd, pattern.Contains) {
-						return pattern.Message
-					}
-				}
-			}
-			return rules.Default
-		}
-
-		// Handle read file tool
-		if toolName == "mcp__serena__read_file" {
-			if filePath, ok := input["file_path"].(string); ok {
-				ext := filepath.Ext(filePath)
-				// Check extensions
-				if message, ok := rules.Extensions[ext]; ok {
-					return strings.ReplaceAll(message, "{file_path}", filePath)
-				}
-				return strings.ReplaceAll(rules.Default, "{file_path}", filePath)
-			}
-		}
-
-		// Handle switch modes tool
-		if toolName == "mcp__serena__switch_modes" {
-			if modes, ok := input["modes"].([]interface{}); ok {
-				modeList := make([]string, len(modes))
-				for i, mode := range modes {
-					if m, ok := mode.(string); ok {
-						modeList[i] = m
-					}
-				}
-				return strings.ReplaceAll(rules.Default, "{modes}", strings.Join(modeList, ", "))
-			}
-		}
+		// Fallback to default message for MCP tools without capture config
+		return rules.Default
 	}
 
 	// Handle tools with simple default messages
 	if rules.Default != "" {
+		// Check if captures are configured
+		if len(rules.Captures) > 0 {
+			return cn.applyCaptures(rules.Default, rules.Captures, input)
+		}
 		return rules.Default
 	}
 

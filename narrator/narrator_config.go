@@ -12,8 +12,9 @@ var defaultNarratorRulesJSON string
 
 // NarratorConfig represents the configuration for narrative rules
 type NarratorConfig struct {
-	Rules    map[string]ToolRules `json:"rules"`
-	Messages MessageTemplates     `json:"messages"`
+	Rules         map[string]ToolRules `json:"rules"`
+	Messages      MessageTemplates     `json:"messages"`
+	FileTypeNames map[string]string    `json:"fileTypeNames"` // Extension to file type name mapping
 }
 
 // ToolRules represents rules for a specific tool
@@ -32,6 +33,9 @@ type ToolRules struct {
 
 	// For permission requests
 	PermissionMessage string `json:"permissionMessage,omitempty"`
+
+	// For configurable input value captures and replacements
+	Captures []CaptureRule `json:"captures,omitempty"`
 }
 
 // PrefixRule represents a prefix-based rule (mainly for Bash commands)
@@ -42,8 +46,15 @@ type PrefixRule struct {
 
 // PatternRule represents a pattern-based rule
 type PatternRule struct {
-	Contains string `json:"contains"`
-	Message  string `json:"message"`
+	Contains        string `json:"contains"`
+	Message         string `json:"message"`
+	AppendToDefault bool   `json:"appendToDefault"` // If true, append pattern info to default message
+}
+
+// CaptureRule represents a configurable input capture and replacement rule
+type CaptureRule struct {
+	InputKey      string `json:"inputKey"`      // The key in the input map to capture from (placeholder will be {inputKey})
+	ParseFileType bool   `json:"parseFileType"` // If true, parse the value as a file path and add {filetype} replacement
 }
 
 // MessageTemplates contains general message templates
