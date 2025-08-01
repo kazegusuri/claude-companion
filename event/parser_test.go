@@ -431,7 +431,7 @@ func TestFormatter_Format(t *testing.T) {
 				Content: "Tool execution completed",
 				IsMeta:  false,
 			},
-			wantOutput:  "[15:30:45] ℹ️ SYSTEM: Tool execution completed\n",
+			wantOutput:  "[15:30:45] 📣 SYSTEM:\n  Tool execution completed\n",
 			description: "Simple system message",
 		},
 		{
@@ -446,7 +446,7 @@ func TestFormatter_Format(t *testing.T) {
 				IsMeta:  false,
 				Level:   "warning",
 			},
-			wantOutput:  "[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning\n",
+			wantOutput:  "[15:30:45] 📣 SYSTEM [warning]:\n  ⚠️ Rate limit warning\n",
 			description: "System message with warning level",
 		},
 		{
@@ -461,7 +461,7 @@ func TestFormatter_Format(t *testing.T) {
 				IsMeta:    false,
 				ToolUseID: "toolu_123",
 			},
-			wantOutput:  "[15:30:45] ℹ️ SYSTEM: Tool execution started\n",
+			wantOutput:  "[15:30:45] 📣 SYSTEM:\n  Tool execution started\n",
 			description: "System message with tool use ID",
 		},
 		// Summary Event Tests
@@ -677,19 +677,19 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		{
 			name:           "system_message_simple",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution completed","isMeta":false}`,
-			expectedOutput: "[15:30:45] ℹ️ SYSTEM: Tool execution completed\n",
+			expectedOutput: "[15:30:45] 📣 SYSTEM:\n  Tool execution completed\n",
 			description:    "Parse and format simple system message",
 		},
 		{
 			name:           "system_message_with_warning",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Rate limit warning","isMeta":false,"level":"warning"}`,
-			expectedOutput: "[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning\n",
+			expectedOutput: "[15:30:45] 📣 SYSTEM [warning]:\n  ⚠️ Rate limit warning\n",
 			description:    "Parse and format system message with warning level",
 		},
 		{
 			name:           "system_message_with_error",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"API error occurred","isMeta":false,"level":"error"}`,
-			expectedOutput: "[15:30:45] ❌ SYSTEM [error]: API error occurred\n",
+			expectedOutput: "[15:30:45] 📣 SYSTEM [error]:\n  ❌ API error occurred\n",
 			description:    "Parse and format system message with error level",
 		},
 		{
@@ -701,7 +701,7 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		{
 			name:           "system_message_with_tooluse",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution started","isMeta":false,"toolUseID":"toolu_123"}`,
-			expectedOutput: "[15:30:45] ℹ️ SYSTEM: Tool execution started\n",
+			expectedOutput: "[15:30:45] 📣 SYSTEM:\n  Tool execution started\n",
 			description:    "Parse and format system message with tool use ID",
 		},
 		// Summary Event Tests
