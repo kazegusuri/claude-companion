@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // OpenAITranslator uses OpenAI API for English to Japanese translation
@@ -201,6 +203,7 @@ func (ct *CombinedTranslator) Translate(ctx context.Context, text string) (strin
 				return openAITranslated, nil
 			}
 			// Fall back to simple translation on error
+			logger.LogError("Failed to translate with OpenAI, falling back to simple translation: %v", err)
 		}
 	}
 

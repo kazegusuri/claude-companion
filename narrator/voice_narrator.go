@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // VoiceNarrator wraps a narrator and adds voice output
@@ -131,6 +132,7 @@ func (vn *VoiceNarrator) voiceWorker() {
 		// Try to synthesize and play
 		if err := vn.voiceClient.TextToSpeech(ctx, item.Text); err != nil {
 			vn.metrics.IncrementErrors()
+			logger.LogError("Failed to play text to speech: %v", err)
 		} else {
 			vn.metrics.IncrementPlayed()
 		}

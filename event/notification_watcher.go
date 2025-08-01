@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // NotificationWatcher watches the notification log file for new events
@@ -54,7 +54,7 @@ func (w *NotificationWatcher) Stop() {
 // watch monitors the notification file
 func (w *NotificationWatcher) watch() {
 	if err := w.watchFile(); err != nil {
-		log.Printf("Error watching notification file: %v", err)
+		logger.LogError("Error watching notification file: %v", err)
 	}
 }
 
@@ -64,12 +64,12 @@ func (w *NotificationWatcher) watchFile() error {
 	if err != nil {
 		// If file doesn't exist, wait for it to be created
 		if os.IsNotExist(err) {
-			log.Printf("Notification log file %s does not exist, waiting for it to be created...", w.filePath)
+			logger.LogInfo("Notification log file %s does not exist, waiting for it to be created...", w.filePath)
 			return w.waitForFileAndWatch()
 		}
 		// If permission denied, wait for permissions to change
 		if os.IsPermission(err) {
-			log.Printf("Permission denied for %s, waiting for permissions to change...", w.filePath)
+			logger.LogWarning("Permission denied for %s, waiting for permissions to change...", w.filePath)
 			return w.waitForPermissionAndWatch()
 		}
 		return fmt.Errorf("failed to open notification log: %w", err)
@@ -82,7 +82,7 @@ func (w *NotificationWatcher) watchFile() error {
 		return fmt.Errorf("failed to seek to end: %w", err)
 	}
 
-	log.Printf("Watching notification log: %s", w.filePath)
+	logger.LogInfo("Watching notification log: %s", w.filePath)
 	w.watchingFile = true
 	return w.tailFile(file)
 }
@@ -105,7 +105,7 @@ func (w *NotificationWatcher) waitForFileAndWatch() error {
 		return fmt.Errorf("failed to watch directory %s: %w", dir, err)
 	}
 
-	log.Printf("Waiting for notification log file to be created: %s", w.filePath)
+	logger.LogInfo("Waiting for notification log file to be created: %s", w.filePath)
 
 	for {
 		select {
@@ -118,7 +118,7 @@ func (w *NotificationWatcher) waitForFileAndWatch() error {
 			}
 			// Check if the created file is our target file
 			if event.Op&fsnotify.Create == fsnotify.Create && filepath.Base(event.Name) == fileName {
-				log.Printf("Notification log file created: %s", w.filePath)
+				logger.LogInfo("Notification log file created: %s", w.filePath)
 				watcher.Close()
 				w.dirWatcher = nil
 				// Give the file a moment to be fully created
@@ -129,7 +129,7 @@ func (w *NotificationWatcher) waitForFileAndWatch() error {
 			if !ok {
 				return fmt.Errorf("directory watcher error channel closed")
 			}
-			log.Printf("Directory watcher error: %v", err)
+			logger.LogError("Directory watcher error: %v", err)
 		}
 	}
 }
@@ -151,7 +151,7 @@ func (w *NotificationWatcher) waitForPermissionAndWatch() error {
 		return w.retryWithInterval()
 	}
 
-	log.Printf("Waiting for permission changes on: %s", w.filePath)
+	logger.LogInfo("Waiting for permission changes on: %s", w.filePath)
 
 	for {
 		select {
@@ -167,27 +167,27 @@ func (w *NotificationWatcher) waitForPermissionAndWatch() error {
 				file, err := os.Open(w.filePath)
 				if err == nil {
 					file.Close()
-					log.Printf("File permissions changed, now accessible: %s", w.filePath)
+					logger.LogInfo("File permissions changed, now accessible: %s", w.filePath)
 					watcher.Close()
 					w.fileWatcher = nil
 					return w.watchFile()
 				}
 				// Still no permission, continue waiting
 				if os.IsPermission(err) {
-					log.Printf("Still no permission to read file: %s", w.filePath)
+					logger.LogWarning("Still no permission to read file: %s", w.filePath)
 				}
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
 				return fmt.Errorf("file watcher error channel closed")
 			}
-			log.Printf("File watcher error: %v", err)
+			logger.LogError("File watcher error: %v", err)
 		case <-time.After(w.retryInterval):
 			// Periodic retry in case fsnotify misses the change
 			file, err := os.Open(w.filePath)
 			if err == nil {
 				file.Close()
-				log.Printf("File now accessible (periodic check): %s", w.filePath)
+				logger.LogInfo("File now accessible (periodic check): %s", w.filePath)
 				watcher.Close()
 				w.fileWatcher = nil
 				return w.watchFile()
@@ -198,7 +198,7 @@ func (w *NotificationWatcher) waitForPermissionAndWatch() error {
 
 // retryWithInterval retries opening the file at regular intervals
 func (w *NotificationWatcher) retryWithInterval() error {
-	log.Printf("Falling back to periodic retry for: %s", w.filePath)
+	logger.LogInfo("Falling back to periodic retry for: %s", w.filePath)
 
 	ticker := time.NewTicker(w.retryInterval)
 	defer ticker.Stop()
@@ -211,7 +211,7 @@ func (w *NotificationWatcher) retryWithInterval() error {
 			file, err := os.Open(w.filePath)
 			if err == nil {
 				file.Close()
-				log.Printf("File now accessible: %s", w.filePath)
+				logger.LogInfo("File now accessible: %s", w.filePath)
 				return w.watchFile()
 			}
 			if !os.IsPermission(err) && !os.IsNotExist(err) {

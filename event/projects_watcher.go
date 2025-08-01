@@ -1,13 +1,13 @@
 package event
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // ProjectsWatcher watches the ~/.claude/projects directory for changes
@@ -64,7 +64,7 @@ func (w *ProjectsWatcher) Start() error {
 	go w.watch()
 
 	if w.debugMode {
-		log.Printf("Started watching projects directory: %s", w.rootPath)
+		logger.LogInfo("Started watching projects directory: %s", w.rootPath)
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (w *ProjectsWatcher) addDirectoryTree(root string) error {
 		if err != nil {
 			// Skip directories we can't access
 			if os.IsPermission(err) {
-				log.Printf("Skipping directory due to permission error: %s", path)
+				logger.LogWarning("Skipping directory due to permission error: %s", path)
 				return nil
 			}
 			return err
@@ -121,11 +121,11 @@ func (w *ProjectsWatcher) addDirectoryTree(root string) error {
 
 			if err := w.watcher.Add(path); err != nil {
 				if w.debugMode {
-					log.Printf("Error adding directory to watcher: %s - %v", path, err)
+					logger.LogError("Error adding directory to watcher: %s - %v", path, err)
 				}
 			} else {
 				if w.debugMode {
-					log.Printf("Watching directory: %s", path)
+					logger.LogInfo("Watching directory: %s", path)
 				}
 			}
 		}
@@ -150,7 +150,7 @@ func (w *ProjectsWatcher) watch() {
 			if !ok {
 				return
 			}
-			log.Printf("Watcher error: %v", err)
+			logger.LogError("Watcher error: %v", err)
 
 		case <-w.done:
 			return
@@ -203,7 +203,7 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 					}
 				}
 				if err := w.addDirectoryTree(event.Name); err != nil {
-					log.Printf("Error adding new directory: %v", err)
+					logger.LogError("Error adding new directory: %v", err)
 				}
 			}
 		}
@@ -219,23 +219,23 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 	switch {
 	case event.Op&fsnotify.Create == fsnotify.Create:
 		if w.debugMode {
-			log.Printf("New session file created: %s", event.Name)
+			logger.LogInfo("New session file created: %s", event.Name)
 		}
 		if err := w.sessionManager.AddOrUpdateWatcher(event.Name); err != nil {
-			log.Printf("Error creating watcher for new file: %v", err)
+			logger.LogError("Error creating watcher for new file: %v", err)
 		}
 
 	case event.Op&fsnotify.Write == fsnotify.Write:
 		if w.debugMode {
-			log.Printf("Session file updated: %s", event.Name)
+			logger.LogInfo("Session file updated: %s", event.Name)
 		}
 		if err := w.sessionManager.AddOrUpdateWatcher(event.Name); err != nil {
-			log.Printf("Error updating watcher for file: %v", err)
+			logger.LogError("Error updating watcher for file: %v", err)
 		}
 
 	case event.Op&fsnotify.Remove == fsnotify.Remove:
 		if w.debugMode {
-			log.Printf("Session file removed: %s", event.Name)
+			logger.LogInfo("Session file removed: %s", event.Name)
 		}
 		// The session manager will clean it up automatically on idle timeout
 	}

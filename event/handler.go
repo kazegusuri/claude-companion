@@ -2,9 +2,9 @@ package event
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
+	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
@@ -89,9 +89,7 @@ func (h *Handler) processEvent(event Event) {
 		// Process notification events
 		output, err := h.formatter.Format(e)
 		if err != nil {
-			if h.debugMode {
-				log.Printf("Error formatting NotificationEvent: %v", err)
-			}
+			logger.LogError("Error formatting NotificationEvent: %v", err)
 			return
 		}
 		if output != "" {
@@ -101,9 +99,7 @@ func (h *Handler) processEvent(event Event) {
 		// Format and display parsed events
 		output, err := h.formatter.Format(e)
 		if err != nil {
-			if h.debugMode {
-				log.Printf("Error formatting %T: %v", e, err)
-			}
+			logger.LogError("Error formatting %T: %v", e, err)
 			return
 		}
 		if output != "" {
@@ -111,7 +107,7 @@ func (h *Handler) processEvent(event Event) {
 		}
 	default:
 		if h.debugMode {
-			log.Printf("Unknown event type: %T", event)
+			logger.LogWarning("Unknown event type: %T", event)
 		}
 	}
 }

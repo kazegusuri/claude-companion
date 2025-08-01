@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // SessionWatcher watches session log files
@@ -41,7 +42,7 @@ func (w *SessionWatcher) Stop() {
 // watch monitors the session file
 func (w *SessionWatcher) watch() {
 	if err := w.tailFile(); err != nil {
-		log.Printf("Error watching session file: %v", err)
+		logger.LogError("Error watching session file: %v", err)
 	}
 }
 
@@ -81,7 +82,7 @@ func (w *SessionWatcher) tailFile() error {
 				// Parse the line into an event
 				event, err := w.parser.Parse(line)
 				if err != nil {
-					log.Printf("Error parsing line: %v", err)
+					logger.LogError("Error parsing line: %v", err)
 					continue
 				}
 				w.eventHandler.SendEvent(event)
@@ -113,7 +114,7 @@ func (w *SessionWatcher) ReadFullFile() error {
 			// Parse the line into an event
 			event, err := w.parser.Parse(line)
 			if err != nil {
-				log.Printf("Error parsing line %d: %v", lineNum, err)
+				logger.LogError("Error parsing line %d: %v", lineNum, err)
 				continue
 			}
 			w.eventHandler.SendEvent(event)
@@ -124,6 +125,6 @@ func (w *SessionWatcher) ReadFullFile() error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	log.Printf("Finished reading %d lines", lineNum)
+	logger.LogInfo("Finished reading %d lines", lineNum)
 	return nil
 }

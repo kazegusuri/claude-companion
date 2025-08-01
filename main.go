@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/kazegusuri/claude-companion/event"
+	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 	"github.com/spf13/pflag"
 )
@@ -60,7 +60,7 @@ func main() {
 
 	// Create narrator
 	if useAINarrator && openaiAPIKey == "" {
-		log.Printf("Warning: AI narrator requires OpenAI API key. Using rule-based narrator.")
+		logger.LogWarning("AI narrator requires OpenAI API key. Using rule-based narrator.")
 		useAINarrator = false
 	}
 
@@ -88,9 +88,10 @@ func main() {
 	// Start notification watcher if configured
 	if hasNotificationInput {
 		notificationWatcher := event.NewNotificationWatcher(notificationLog, eventHandler)
-		log.Printf("Starting notification log watcher for: %s", notificationLog)
+		logger.LogInfo("Starting notification log watcher for: %s", notificationLog)
 		if err := notificationWatcher.Start(); err != nil {
-			log.Fatalf("Error starting notification watcher: %v", err)
+			logger.LogError("Error starting notification watcher: %v", err)
+			os.Exit(1)
 		}
 		defer notificationWatcher.Stop()
 	}
@@ -100,14 +101,16 @@ func main() {
 		sessionWatcher := event.NewSessionWatcher(sessionFilePath, eventHandler)
 
 		if headMode {
-			log.Printf("Reading file: %s", sessionFilePath)
+			logger.LogInfo("Reading file: %s", sessionFilePath)
 			if err := sessionWatcher.ReadFullFile(); err != nil {
-				log.Fatalf("Error reading file: %v", err)
+				logger.LogError("Error reading file: %v", err)
+				os.Exit(1)
 			}
 		} else {
-			log.Printf("Monitoring file: %s", sessionFilePath)
+			logger.LogInfo("Monitoring file: %s", sessionFilePath)
 			if err := sessionWatcher.Start(); err != nil {
-				log.Fatalf("Error starting session watcher: %v", err)
+				logger.LogError("Error starting session watcher: %v", err)
+				os.Exit(1)
 			}
 			defer sessionWatcher.Stop()
 
@@ -118,7 +121,8 @@ func main() {
 	if hasProjectsInput {
 		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, eventHandler)
 		if err != nil {
-			log.Fatalf("Error creating projects watcher: %v", err)
+			logger.LogError("Error creating projects watcher: %v", err)
+			os.Exit(1)
 		}
 
 		// Set filters based on project/session options
@@ -129,16 +133,17 @@ func main() {
 			projectsWatcher.SetSessionFilter(session)
 		}
 
-		log.Printf("Starting projects watcher for: %s", projectsRoot)
+		logger.LogInfo("Starting projects watcher for: %s", projectsRoot)
 		if project != "" {
-			log.Printf("Filtering to project: %s", project)
+			logger.LogInfo("Filtering to project: %s", project)
 		}
 		if session != "" {
-			log.Printf("Filtering to session: %s", session)
+			logger.LogInfo("Filtering to session: %s", session)
 		}
 
 		if err := projectsWatcher.Start(); err != nil {
-			log.Fatalf("Error starting projects watcher: %v", err)
+			logger.LogError("Error starting projects watcher: %v", err)
+			os.Exit(1)
 		}
 		defer projectsWatcher.Stop()
 	}
@@ -148,6 +153,6 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
-		log.Println("\nShutting down...")
+		logger.LogInfo("\nShutting down...")
 	}
 }
