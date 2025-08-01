@@ -187,10 +187,10 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 			output.WriteString(formatted)
 			// Add debug info showing tool use details
 			if f.debugMode {
-				output.WriteString(fmt.Sprintf("\n  [DEBUG] Tool Use: %s (id: %s)", content.Name, content.ID))
+				output.WriteString(fmt.Sprintf("  [DEBUG] Tool Use: %s (id: %s)\n", content.Name, content.ID))
 				if content.Input != nil {
 					inputJSON, _ := json.MarshalIndent(content.Input, "    ", "  ")
-					output.WriteString(fmt.Sprintf("\n    Input: %s", string(inputJSON)))
+					output.WriteString(fmt.Sprintf("    Input: %s\n", string(inputJSON)))
 				}
 			}
 		}
@@ -209,7 +209,8 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 
 	// Add token usage at the end if present
 	if event.Message.Usage.OutputTokens > 0 {
-		output.WriteString(fmt.Sprintf("\n  💰 Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d",
+		output.WriteString("\n")
+		output.WriteString(fmt.Sprintf("  💰 Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d",
 			event.Message.Usage.InputTokens,
 			event.Message.Usage.OutputTokens,
 			event.Message.Usage.CacheReadInputTokens,
