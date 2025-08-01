@@ -2,7 +2,6 @@ package narrator
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +48,7 @@ func NewVoiceNarratorWithTranslator(narrator Narrator, voiceClient *VoiceVoxClie
 	if enabled && voiceClient != nil {
 		// Check if VOICEVOX is available
 		if !voiceClient.IsAvailable() {
-			fmt.Println("⚠️  Warning: VOICEVOX server is not available at", voiceClient.baseURL)
+			logger.LogWarning("VOICEVOX server is not available at %s", voiceClient.baseURL)
 			vn.enabled = false
 		} else {
 			// Start voice worker
