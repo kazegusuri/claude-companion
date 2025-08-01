@@ -132,8 +132,8 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 		}
 	}
 
-	// Generic fallback
-	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
+	// Generic fallback - return a simple message
+	return fmt.Sprintf("%sを実行中...", toolName)
 }
 
 // NarrateToolUsePermission narrates a tool permission request

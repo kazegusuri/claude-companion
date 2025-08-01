@@ -299,7 +299,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 				if msg != "" {
 					return msg
 				}
-				panic("No currentDirectory message in config")
+				// Return fallback message
+				return fmt.Sprintf("現在のディレクトリ: %s", dirName)
 			}
 			return strings.ReplaceAll(rules.Default, "{dirname}", dirName)
 		}
@@ -307,7 +308,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		if msg != "" {
 			return msg
 		}
-		panic("No directoryContents message in config")
+		// Return fallback message
+		return "ディレクトリの内容を確認中..."
 
 	case "WebFetch":
 		if url, ok := input["url"].(string); ok {
@@ -340,14 +342,16 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 				if template != "" {
 					return strings.ReplaceAll(template, "{command}", cmd)
 				}
-				panic(fmt.Sprintf("No genericCommandExecution message in config for command: %s", cmd))
+				// Return fallback message
+				return fmt.Sprintf("コマンド実行中: %s", cmd)
 			}
 		}
 		msg := cn.getStringOrDefault(cn.config.Messages.ComplexTask, cn.defaultConfig.Messages.ComplexTask)
 		if msg != "" {
 			return msg
 		}
-		panic("No complexTask message in config")
+		// Return fallback message
+		return "エージェントを起動してタスクを実行中..."
 
 	case "TodoWrite":
 		if todos, ok := input["todos"].([]interface{}); ok {
@@ -377,7 +381,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		if msg != "" {
 			return msg
 		}
-		panic("No todoListUpdate message in config")
+		// Return fallback message
+		return "TODOリストを更新中..."
 	}
 
 	// Handle tools with simple default messages
@@ -394,7 +399,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 	if template != "" {
 		return strings.ReplaceAll(template, "{tool}", toolName)
 	}
-	panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
+	// Return fallback message
+	return fmt.Sprintf("%sを実行中...", toolName)
 }
 
 // NarrateToolUsePermission narrates a tool permission request using config rules
