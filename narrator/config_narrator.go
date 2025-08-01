@@ -198,7 +198,8 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			if template != "" {
 				return strings.ReplaceAll(template, "{tool}", toolName)
 			}
-			panic(fmt.Sprintf("No narration config found for tool: %s", toolName))
+			// Return a fallback message instead of panic
+			return fmt.Sprintf("%sを実行中...", toolName)
 		}
 	}
 
