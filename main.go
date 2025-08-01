@@ -153,6 +153,6 @@ func main() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
-		logger.LogInfo("\nShutting down...")
+		logger.LogInfo("Shutting down...")
 	}
 }

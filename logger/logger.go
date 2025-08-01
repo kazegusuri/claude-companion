@@ -6,19 +6,22 @@ import (
 )
 
 // LogError logs an error message with consistent formatting
-func LogError(message string, args ...interface{}) {
+func LogError(message string, args ...any) {
 	timestamp := time.Now().Format("15:04:05")
-	fmt.Printf("[%s] ❌ ERROR: "+message+"\n", append([]interface{}{timestamp}, args...)...)
+	formattedMessage := fmt.Sprintf(message, args...)
+	fmt.Printf("[%s] ❌ ERROR: %s\n", timestamp, formattedMessage)
 }
 
 // LogInfo logs an info message with consistent formatting
-func LogInfo(message string, args ...interface{}) {
+func LogInfo(message string, args ...any) {
 	timestamp := time.Now().Format("15:04:05")
-	fmt.Printf("[%s] ℹ️ INFO: "+message+"\n", append([]interface{}{timestamp}, args...)...)
+	formattedMessage := fmt.Sprintf(message, args...)
+	fmt.Printf("[%s] ℹ️ INFO: %s\n", timestamp, formattedMessage)
 }
 
 // LogWarning logs a warning message with consistent formatting
-func LogWarning(message string, args ...interface{}) {
+func LogWarning(message string, args ...any) {
 	timestamp := time.Now().Format("15:04:05")
-	fmt.Printf("[%s] ⚠️ WARNING: "+message+"\n", append([]interface{}{timestamp}, args...)...)
+	formattedMessage := fmt.Sprintf(message, args...)
+	fmt.Printf("[%s] ⚠️ WARNING: %s\n", timestamp, formattedMessage)
 }

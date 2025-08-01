@@ -108,7 +108,7 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 	// Use narrator with potentially modified input
 	narration := f.narrator.NarrateToolUse(toolName, modifiedInput)
 	if narration != "" {
-		output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+		output.WriteString(fmt.Sprintf("  💬 %s", narration))
 		// Track file operations for summary
 		if toolName == "Read" || toolName == "Write" || toolName == "Edit" || toolName == "MultiEdit" {
 			if path, ok := input["file_path"].(string); ok {
@@ -153,21 +153,21 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 	case "Read", "mcp__ide__read":
 		if filePath, ok := input["file_path"].(string); ok {
 			f.fileOperations = append(f.fileOperations, fmt.Sprintf("Read: %s", filePath))
-			output.WriteString(fmt.Sprintf("\n  📄 Reading file: %s", filePath))
+			output.WriteString(fmt.Sprintf("  📄 Reading file: %s", filePath))
 		}
 	case "Write":
 		if filePath, ok := input["file_path"].(string); ok {
 			f.fileOperations = append(f.fileOperations, fmt.Sprintf("Write: %s", filePath))
-			output.WriteString(fmt.Sprintf("\n  ✏️  Writing file: %s", filePath))
+			output.WriteString(fmt.Sprintf("  ✏️  Writing file: %s", filePath))
 		}
 	case "Edit", "MultiEdit":
 		if filePath, ok := input["file_path"].(string); ok {
 			f.fileOperations = append(f.fileOperations, fmt.Sprintf("Edit: %s", filePath))
-			output.WriteString(fmt.Sprintf("\n  ✂️  Editing file: %s", filePath))
+			output.WriteString(fmt.Sprintf("  ✂️  Editing file: %s", filePath))
 		}
 	case "Bash":
 		if command, ok := input["command"].(string); ok {
-			output.WriteString(fmt.Sprintf("\n  🖥️  Running command: %s", command))
+			output.WriteString(fmt.Sprintf("  🖥️  Running command: %s", command))
 		}
 	case "Grep":
 		if pattern, ok := input["pattern"].(string); ok {
@@ -175,18 +175,18 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 			if path == "" {
 				path = "current directory"
 			}
-			output.WriteString(fmt.Sprintf("\n  🔍 Searching for '%s' in %s", pattern, path))
+			output.WriteString(fmt.Sprintf("  🔍 Searching for '%s' in %s", pattern, path))
 		}
 	case "WebFetch":
 		if url, ok := input["url"].(string); ok {
-			output.WriteString(fmt.Sprintf("\n  🌐 Fetching: %s", url))
+			output.WriteString(fmt.Sprintf("  🌐 Fetching: %s", url))
 		}
 	case "Task":
 		if desc, ok := input["description"].(string); ok {
-			output.WriteString(fmt.Sprintf("\n  🤖 Launching agent: %s", desc))
+			output.WriteString(fmt.Sprintf("  🤖 Launching agent: %s", desc))
 		}
 	case "TodoWrite":
-		output.WriteString("\n  ✅ Updating todo list")
+		output.WriteString("  ✅ Updating todo list")
 		// Display todo list details
 		if todos, ok := input["todos"].([]interface{}); ok {
 			for i, todo := range todos {
@@ -213,9 +213,9 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 	default:
 		if strings.HasPrefix(toolName, "mcp__") {
 			// MCP tools
-			output.WriteString(fmt.Sprintf("\n  🔧 MCP Tool: %s", toolName))
+			output.WriteString(fmt.Sprintf("  🔧 MCP Tool: %s", toolName))
 		} else {
-			output.WriteString(fmt.Sprintf("\n  🔧 Tool: %s", toolName))
+			output.WriteString(fmt.Sprintf("  🔧 Tool: %s", toolName))
 		}
 	}
 
@@ -256,7 +256,11 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 				continue
 			}
 			if shownLines < MaxMainTextLines {
-				output.WriteString(fmt.Sprintf("\n  %s", line))
+				if shownLines == 0 {
+					output.WriteString(fmt.Sprintf("  %s", line))
+				} else {
+					output.WriteString(fmt.Sprintf("\n  %s", line))
+				}
 				shownLines++
 			} else {
 				output.WriteString("\n  ... (text continues)")
@@ -266,7 +270,10 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 
 		// Show code blocks separately
 		for i, block := range codeBlocks {
-			output.WriteString(fmt.Sprintf("\n  📝 Code Block %d (%s):", i+1, block.Language))
+			if shownLines > 0 || i > 0 {
+				output.WriteString("\n")
+			}
+			output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):", i+1, block.Language))
 			output.WriteString("\n    ```")
 			// Show first few lines of code
 			codeLines := strings.Split(strings.TrimSpace(block.Content), "\n")
@@ -288,7 +295,7 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 				if i == 0 {
 					// Use narrator to process the first line, then add 💬
 					narrated := f.narrator.NarrateText(line)
-					output.WriteString(fmt.Sprintf("\n  💬 %s", narrated))
+					output.WriteString(fmt.Sprintf("  💬 %s", narrated))
 				} else {
 					output.WriteString(fmt.Sprintf("\n  %s", line))
 				}
@@ -309,7 +316,7 @@ func (f *CompanionFormatter) GetFileSummary() string {
 	}
 
 	var output strings.Builder
-	output.WriteString("\n  📁 File Operations Summary:")
+	output.WriteString("  📁 File Operations Summary:")
 	for _, op := range f.fileOperations {
 		output.WriteString(fmt.Sprintf("\n    - %s", op))
 	}
