@@ -1,0 +1,66 @@
+package main
+
+import (
+	"fmt"
+	"github.com/kazegusuri/claude-companion/narrator"
+)
+
+func main() {
+	// Load the actual configuration
+	config := narrator.GetDefaultNarratorConfig()
+	cn := narrator.NewConfigBasedNarrator(config)
+
+	// Test Read tool with various extensions
+	fmt.Println("=== Read tool ===")
+	testFiles := []string{
+		"main.go",
+		"app.js",
+		"config.yaml",
+		"README.md",
+		"styles.css",
+		"unknown.xyz", // Unknown extension
+	}
+
+	for _, filename := range testFiles {
+		input := map[string]interface{}{
+			"file_path": filename,
+		}
+		result := cn.NarrateToolUse("Read", input)
+		fmt.Printf("%s -> %s\n", filename, result)
+	}
+
+	// Test mcp__serena__read_file tool
+	fmt.Println("\n=== mcp__serena__read_file tool ===")
+	testPaths := []string{
+		"/project/src/main.go",
+		"/project/lib/utils.js",
+		"/config/settings.yaml",
+		"/docs/README.md",
+	}
+
+	for _, filepath := range testPaths {
+		input := map[string]interface{}{
+			"file_path": filepath,
+		}
+		result := cn.NarrateToolUse("mcp__serena__read_file", input)
+		fmt.Printf("%s -> %s\n", filepath, result)
+	}
+
+	// Test Write tool
+	fmt.Println("\n=== Write tool ===")
+	writeInput := map[string]interface{}{
+		"file_path": "test.py",
+	}
+	result := cn.NarrateToolUse("Write", writeInput)
+	fmt.Printf("test.py -> %s\n", result)
+
+	// Test Edit tool
+	fmt.Println("\n=== Edit tool ===")
+	editInput := map[string]interface{}{
+		"file_path":  "components/Header.tsx",
+		"old_string": "old content",
+		"new_string": "new content",
+	}
+	result = cn.NarrateToolUse("Edit", editInput)
+	fmt.Printf("Header.tsx -> %s\n", result)
+}

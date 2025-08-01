@@ -344,7 +344,7 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 			input:    "TODO: Update README.md in src/docs folder using GitHub API",
 			expected: "トゥードゥー: Update リードミー in ソーススラドキュメント folder using ギットハブ エーピーアイ",
 		},
-		
+
 		// gRPC tests
 		{
 			name:     "gRPC lowercase",

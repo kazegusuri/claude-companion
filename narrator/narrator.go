@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // NotificationType represents different types of notifications
@@ -235,6 +237,7 @@ func (ai *OpenAINarrator) NarrateToolUse(toolName string, input map[string]inter
 	response, err := ai.callOpenAI(ctx, prompt)
 	if err != nil {
 		// Return empty to fallback to rule-based
+		logger.LogError("Failed to call OpenAI for tool narration: %v", err)
 		return ""
 	}
 
@@ -263,6 +266,7 @@ func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) string {
 	response, err := ai.callOpenAI(ctx, prompt)
 	if err != nil {
 		// Fallback to simple format
+		logger.LogError("Failed to call OpenAI for tool permission narration: %v", err)
 		return fmt.Sprintf("%sの使用許可を求めています", toolName)
 	}
 

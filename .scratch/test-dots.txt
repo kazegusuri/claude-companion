@@ -1,0 +1,4 @@
+foo.bar.baz ファイルを確認してください
+これは文章です。 次の文章です。
+This is a sentence. Next sentence.
+192.168.0.1 はIPアドレスです

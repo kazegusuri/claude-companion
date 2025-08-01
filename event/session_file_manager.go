@@ -1,9 +1,10 @@
 package event
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	"github.com/kazegusuri/claude-companion/logger"
 )
 
 // SessionFileManager manages multiple SessionWatcher instances
@@ -70,7 +71,7 @@ func (m *SessionFileManager) AddOrUpdateWatcher(filePath string) error {
 	if mw, exists := m.watchers[filePath]; exists {
 		mw.lastActivity = time.Now()
 		if m.debugMode {
-			log.Printf("Updated activity time for watcher: %s", filePath)
+			logger.LogInfo("Updated activity time for watcher: %s", filePath)
 		}
 		return nil
 	}
@@ -88,7 +89,7 @@ func (m *SessionFileManager) AddOrUpdateWatcher(filePath string) error {
 	}
 
 	if m.debugMode {
-		log.Printf("Created new session watcher for: %s", filePath)
+		logger.LogInfo("Created new session watcher for: %s", filePath)
 	}
 	return nil
 }
@@ -129,13 +130,13 @@ func (m *SessionFileManager) cleanupIdleWatchers() {
 			mw.watcher.Stop()
 			delete(m.watchers, path)
 			if m.debugMode {
-				log.Printf("Removed idle session watcher for: %s", path)
+				logger.LogInfo("Removed idle session watcher for: %s", path)
 			}
 		}
 	}
 
 	if m.debugMode && len(toRemove) > 0 {
-		log.Printf("Cleaned up %d idle watchers", len(toRemove))
+		logger.LogInfo("Cleaned up %d idle watchers", len(toRemove))
 	}
 }
 

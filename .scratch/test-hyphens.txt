@@ -1,0 +1,5 @@
+He is a nine-years-old boy.
+This is a well-known fact.
+UTF-8 encoding
+foo-bar という名前
+2023-12-25 の日付
