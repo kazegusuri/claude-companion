@@ -11,11 +11,11 @@ import (
 
 const (
 	// MaxMainTextLines is the maximum number of lines to show for main text with placeholders
-	MaxMainTextLines = 10
+	MaxMainTextLines = 30
 	// MaxCodePreviewLines is the maximum number of lines to show in code block preview
 	MaxCodePreviewLines = 5
 	// MaxNormalTextLines is the maximum number of lines to show for normal text without code blocks
-	MaxNormalTextLines = 5
+	MaxNormalTextLines = 30
 )
 
 // EventMeta contains metadata about the event context
