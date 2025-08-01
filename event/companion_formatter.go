@@ -144,7 +144,7 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 			}
 		}
 
-		return output.String()
+		return output.String() + "\n"
 	}
 
 	// Fallback to emoji-based formatting if narrator is not available
@@ -224,7 +224,7 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 		output.WriteString(fmt.Sprintf(" (id: %s)", meta.ToolID))
 	}
 
-	return output.String()
+	return output.String() + "\n"
 }
 
 // FormatAssistantText formats assistant text content with code block extraction
@@ -257,13 +257,13 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 			}
 			if shownLines < MaxMainTextLines {
 				if shownLines == 0 {
-					output.WriteString(fmt.Sprintf("  %s", line))
+					output.WriteString(fmt.Sprintf("  %s\n", line))
 				} else {
-					output.WriteString(fmt.Sprintf("\n  %s", line))
+					output.WriteString(fmt.Sprintf("  %s\n", line))
 				}
 				shownLines++
 			} else {
-				output.WriteString("\n  ... (text continues)")
+				output.WriteString("  ... (text continues)\n")
 				break
 			}
 		}
@@ -273,19 +273,19 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 			if shownLines > 0 || i > 0 {
 				output.WriteString("\n")
 			}
-			output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):", i+1, block.Language))
-			output.WriteString("\n    ```")
+			output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):\n", i+1, block.Language))
+			output.WriteString("    ```\n")
 			// Show first few lines of code
 			codeLines := strings.Split(strings.TrimSpace(block.Content), "\n")
 			for j, line := range codeLines {
 				if j < MaxCodePreviewLines {
-					output.WriteString(fmt.Sprintf("\n    %s", line))
+					output.WriteString(fmt.Sprintf("    %s\n", line))
 				} else if j == MaxCodePreviewLines && len(codeLines) > MaxCodePreviewLines+1 {
-					output.WriteString(fmt.Sprintf("\n    ... (%d more lines)", len(codeLines)-MaxCodePreviewLines))
+					output.WriteString(fmt.Sprintf("    ... (%d more lines)\n", len(codeLines)-MaxCodePreviewLines))
 					break
 				}
 			}
-			output.WriteString("\n    ```")
+			output.WriteString("    ```\n")
 		}
 	} else {
 		// No code blocks, show text normally but truncated
@@ -295,12 +295,12 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 				if i == 0 {
 					// Use narrator to process the first line, then add 💬
 					narrated := f.narrator.NarrateText(line)
-					output.WriteString(fmt.Sprintf("  💬 %s", narrated))
+					output.WriteString(fmt.Sprintf("  💬 %s\n", narrated))
 				} else {
-					output.WriteString(fmt.Sprintf("\n  %s", line))
+					output.WriteString(fmt.Sprintf("  %s\n", line))
 				}
 			} else if i == MaxNormalTextLines && len(lines) > MaxNormalTextLines+1 {
-				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-MaxNormalTextLines))
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-MaxNormalTextLines))
 				break
 			}
 		}
@@ -316,9 +316,9 @@ func (f *CompanionFormatter) GetFileSummary() string {
 	}
 
 	var output strings.Builder
-	output.WriteString("  📁 File Operations Summary:")
+	output.WriteString("  📁 File Operations Summary:\n")
 	for _, op := range f.fileOperations {
-		output.WriteString(fmt.Sprintf("\n    - %s", op))
+		output.WriteString(fmt.Sprintf("    - %s\n", op))
 	}
 
 	return output.String()

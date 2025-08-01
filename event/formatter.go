@@ -155,10 +155,6 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	for i := range event.Message.Content {
 		content := &event.Message.Content[i]
 		hasContent = true
-		// Add newline between content items
-		if i > 0 {
-			output.WriteString("\n")
-		}
 		switch content.Type {
 		case "text":
 			formatted := f.companion.FormatAssistantText(content.Text)
@@ -200,7 +196,6 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	if hasContent {
 		summary := f.companion.GetFileSummary()
 		if summary != "" {
-			output.WriteString("\n")
 			output.WriteString(summary)
 		}
 		// Reset for next message
@@ -209,8 +204,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 
 	// Add token usage at the end if present
 	if event.Message.Usage.OutputTokens > 0 {
-		output.WriteString("\n")
-		output.WriteString(fmt.Sprintf("  💰 Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d",
+		output.WriteString(fmt.Sprintf("  💰 Tokens: input=%d, output=%d, cache_read=%d, cache_creation=%d\n",
 			event.Message.Usage.InputTokens,
 			event.Message.Usage.OutputTokens,
 			event.Message.Usage.CacheReadInputTokens,
