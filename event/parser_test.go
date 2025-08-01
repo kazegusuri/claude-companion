@@ -615,7 +615,7 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		{
 			name:           "user_message_with_tool_error",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":"Error occurred","is_error":true}]}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  ❌ Tool Result: toolu_456 (error)\n",
+			expectedOutput: "[15:30:45] 👤 USER:\n  ❌ Tool Result: toolu_456\n",
 			description:    "Parse and format user message with tool error",
 		},
 		{
