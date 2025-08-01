@@ -53,13 +53,12 @@ func (f *Formatter) Format(event Event) (string, error) {
 func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 	var output strings.Builder
 
-	// Always use enhanced formatting with emojis
-	output.WriteString(fmt.Sprintf("\n[%s] 👤 USER:", event.Timestamp.Format("15:04:05")))
-
-	// Add debug info if enabled
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] 👤 USER:", event.Timestamp.Format("15:04:05"))
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf(" [UUID: %s]", event.UUID))
+		header += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
+	output.WriteString(header + "\n")
 
 	switch content := event.Message.Content.(type) {
 	case string:
@@ -68,18 +67,18 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 		for i, line := range lines {
 			if i < 3 {
 				if i == 0 {
-					output.WriteString(fmt.Sprintf("\n  💬 %s", line))
+					output.WriteString(fmt.Sprintf("  💬 %s\n", line))
 				} else {
-					output.WriteString(fmt.Sprintf("\n  %s", line))
+					output.WriteString(fmt.Sprintf("  %s\n", line))
 				}
 			} else if i == 3 && len(lines) > 4 {
-				output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-3))
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
 				break
 			}
 		}
 		// Add full content in debug mode
 		if f.debugMode && len(lines) > 3 {
-			output.WriteString(fmt.Sprintf("\n  [DEBUG] Full content: %d lines, %d chars", len(lines), len(content)))
+			output.WriteString(fmt.Sprintf("  [DEBUG] Full content: %d lines, %d chars\n", len(lines), len(content)))
 		}
 	case []interface{}:
 		for _, item := range content {
@@ -90,21 +89,21 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 						if text, ok := contentMap["text"].(string); ok {
 							// Check for special patterns
 							if strings.Contains(text, "<command-name>") {
-								output.WriteString("\n  🎯 Command execution")
+								output.WriteString("  🎯 Command execution\n")
 							} else if strings.Contains(text, "<local-command-stdout>") {
-								output.WriteString("\n  📤 Command output")
+								output.WriteString("  📤 Command output\n")
 							} else {
 								// Normal text - truncate if needed
 								lines := strings.Split(strings.TrimSpace(text), "\n")
 								for i, line := range lines {
 									if i < 3 {
 										if i == 0 {
-											output.WriteString(fmt.Sprintf("\n  💬 %s", line))
+											output.WriteString(fmt.Sprintf("  💬 %s\n", line))
 										} else {
-											output.WriteString(fmt.Sprintf("\n  %s", line))
+											output.WriteString(fmt.Sprintf("  %s\n", line))
 										}
 									} else if i == 3 && len(lines) > 4 {
-										output.WriteString(fmt.Sprintf("\n  ... (%d more lines)", len(lines)-3))
+										output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
 										break
 									}
 								}
@@ -112,38 +111,43 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 						}
 					case "tool_result":
 						toolID := contentMap["tool_use_id"]
-						output.WriteString(fmt.Sprintf("\n  ✅ Tool Result: %v", toolID))
+						resultLine := fmt.Sprintf("  ✅ Tool Result: %v", toolID)
 						// Check if it has error
 						if isError, ok := contentMap["is_error"].(bool); ok && isError {
-							output.WriteString(" ❌ (error)")
+							resultLine += " ❌ (error)"
 						}
+						output.WriteString(resultLine + "\n")
 					}
 				}
 			}
 		}
 	default:
-		output.WriteString(fmt.Sprintf("\n  %v", event.Message.Content))
+		output.WriteString(fmt.Sprintf("  %v\n", event.Message.Content))
 		if f.debugMode {
-			output.WriteString(fmt.Sprintf("\n  [DEBUG] Unknown content type: %T", event.Message.Content))
+			output.WriteString(fmt.Sprintf("  [DEBUG] Unknown content type: %T\n", event.Message.Content))
 		}
 	}
 
-	return output.String(), nil
+	// Ensure message ends with newline
+	result := output.String()
+	if result != "" && !strings.HasSuffix(result, "\n") {
+		result += "\n"
+	}
+	return result, nil
 }
 
 func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, error) {
 	var output strings.Builder
 
-	// Always use enhanced formatting with emojis
-	output.WriteString(fmt.Sprintf("\n[%s] 🤖 ASSISTANT (%s):", event.Timestamp.Format("15:04:05"), event.Message.Model))
-
-	// Add debug info if enabled
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] 🤖 ASSISTANT (%s):", event.Timestamp.Format("15:04:05"), event.Message.Model)
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf(" [ID: %s, ReqID: %s]", event.Message.ID, event.RequestID))
+		header += fmt.Sprintf(" [ID: %s, ReqID: %s]", event.Message.ID, event.RequestID)
 		if event.Message.StopReason != nil {
-			output.WriteString(fmt.Sprintf(" [Stop: %s]", *event.Message.StopReason))
+			header += fmt.Sprintf(" [Stop: %s]", *event.Message.StopReason)
 		}
 	}
+	output.WriteString(header + "\n")
 
 	// Track if we have any content to show summary for
 	hasContent := false
@@ -151,6 +155,10 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	for i := range event.Message.Content {
 		content := &event.Message.Content[i]
 		hasContent = true
+		// Add newline between content items
+		if i > 0 {
+			output.WriteString("\n")
+		}
 		switch content.Type {
 		case "text":
 			formatted := f.companion.FormatAssistantText(content.Text)
@@ -192,6 +200,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	if hasContent {
 		summary := f.companion.GetFileSummary()
 		if summary != "" {
+			output.WriteString("\n")
 			output.WriteString(summary)
 		}
 		// Reset for next message
@@ -207,7 +216,12 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 			event.Message.Usage.CacheCreationInputTokens))
 	}
 
-	return output.String(), nil
+	// Ensure message ends with newline
+	result := output.String()
+	if result != "" && !strings.HasSuffix(result, "\n") {
+		result += "\n"
+	}
+	return result, nil
 }
 
 func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
@@ -233,9 +247,8 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 		emoji = "🐛"
 	}
 
-	output := fmt.Sprintf("\n[%s] %s SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), emoji, levelStr, event.Content)
-
-	// Add debug info if enabled
+	// Build message with optional debug info
+	message := fmt.Sprintf("[%s] %s SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), emoji, levelStr, event.Content)
 	if f.debugMode {
 		debugInfo := fmt.Sprintf(" [UUID: %s", event.UUID)
 		if event.IsMeta {
@@ -245,33 +258,28 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
 		}
 		debugInfo += "]"
-		output += debugInfo
+		message += debugInfo
 	}
 
-	return output, nil
+	return message + "\n", nil
 }
 
 func (f *Formatter) formatSummaryEvent(event *SummaryEvent) (string, error) {
-	// Always use enhanced formatting with emojis
-	output := fmt.Sprintf("\n📋 [SUMMARY] %s", event.Summary)
-
-	// Add debug info if enabled
+	// Build message with optional debug info
+	message := fmt.Sprintf("📋 [SUMMARY] %s", event.Summary)
 	if f.debugMode {
-		output += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
+		message += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
 	}
-
-	return output, nil
+	return message + "\n", nil
 }
 
 func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
-	var output strings.Builder
-	output.WriteString(fmt.Sprintf("\n[%s] %s event", event.Timestamp.Format("15:04:05"), event.TypeString))
-
+	// Build message with optional debug info
+	message := fmt.Sprintf("[%s] %s event", event.Timestamp.Format("15:04:05"), event.TypeString)
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf(" [UUID: %s]", event.UUID))
+		message += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
-
-	return output.String(), nil
+	return message + "\n", nil
 }
 
 // formatNotificationEvent formats a notification event
@@ -291,7 +299,12 @@ func (f *Formatter) formatNotificationEvent(event *NotificationEvent) (string, e
 		return "", nil
 	}
 
-	return output.String(), nil
+	// Ensure message ends with newline
+	result := output.String()
+	if result != "" && !strings.HasSuffix(result, "\n") {
+		result += "\n"
+	}
+	return result, nil
 }
 
 // formatPreCompactEvent formats PreCompact events
@@ -302,26 +315,24 @@ func (f *Formatter) formatPreCompactEvent(event *NotificationEvent) string {
 	// Use narrator to get the narration message
 	formattedMessage := f.narrator.NarrateNotification(narrator.NotificationTypeCompact)
 
-	// Format the output
-	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
-
-	// Add session info in debug mode
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
 	if f.debugMode && len(event.SessionID) >= 8 {
-		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
-
-	output.WriteString(fmt.Sprintf(": %s", formattedMessage))
+	header += fmt.Sprintf(": %s\n", formattedMessage)
+	output.WriteString(header)
 
 	// Add debug info if enabled
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Trigger: %s", event.Trigger))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Trigger: %s\n", event.Trigger))
+		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))
 	}
 
 	// Show narrator emoji
 	if formattedMessage != "" {
-		output.WriteString(fmt.Sprintf("\n  💬 %s", formattedMessage))
+		output.WriteString(fmt.Sprintf("  💬 %s\n", formattedMessage))
 	}
 
 	return output.String()
@@ -348,26 +359,24 @@ func (f *Formatter) formatSessionStartEvent(event *NotificationEvent) string {
 	}
 	formattedMessage := f.narrator.NarrateNotification(notificationType)
 
-	// Format the output
-	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
-
-	// Add session info in debug mode
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
 	if f.debugMode && len(event.SessionID) >= 8 {
-		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
-
-	output.WriteString(fmt.Sprintf(" (source: %s)", event.Source))
+	header += fmt.Sprintf(" (source: %s)\n", event.Source)
+	output.WriteString(header)
 
 	// Add debug info if enabled
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Source: %s", event.Source))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Source: %s\n", event.Source))
+		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))
 	}
 
 	// Show narrator emoji
 	if formattedMessage != "" {
-		output.WriteString(fmt.Sprintf("\n  💬 %s", formattedMessage))
+		output.WriteString(fmt.Sprintf("  💬 %s\n", formattedMessage))
 	}
 
 	return output.String()
@@ -404,21 +413,19 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 		emoji = "✅"
 	}
 
-	// Format the output
-	output.WriteString(fmt.Sprintf("\n[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName))
-
-	// Add session info in debug mode
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
 	if f.debugMode && len(event.SessionID) >= 8 {
-		output.WriteString(fmt.Sprintf(" [Session: %s]", event.SessionID[:8]))
+		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
-
-	output.WriteString(fmt.Sprintf(": %s", formattedMessage))
+	header += fmt.Sprintf(": %s\n", formattedMessage)
+	output.WriteString(header)
 
 	// Add debug info if enabled
 	if f.debugMode {
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Original: %s", event.Message))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] CWD: %s", event.CWD))
-		output.WriteString(fmt.Sprintf("\n  [DEBUG] Transcript: %s", event.TranscriptPath))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Original: %s\n", event.Message))
+		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
+		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))
 	}
 
 	// Use narrator for tool permissions
@@ -426,13 +433,13 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 		// Use NarrateToolUsePermission for permission requests
 		narration := f.narrator.NarrateToolUsePermission(displayToolName)
 		if narration != "" {
-			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications
 		narration := f.narrator.NarrateText(event.Message)
 		if narration != "" {
-			output.WriteString(fmt.Sprintf("\n  💬 %s", narration))
+			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
 	}
 

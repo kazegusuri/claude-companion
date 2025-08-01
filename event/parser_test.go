@@ -121,7 +121,7 @@ func TestFormatter_Format(t *testing.T) {
 					Content: "Hello Claude",
 				},
 			},
-			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Hello Claude",
+			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Hello Claude\n",
 			description: "Simple user message with string content",
 		},
 		{
@@ -142,7 +142,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Hello world",
+			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Hello world\n",
 			description: "User message with text in array format",
 		},
 		{
@@ -164,7 +164,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123",
+			wantOutput:  "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123\n",
 			description: "User message with tool result",
 		},
 		{
@@ -191,7 +191,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456",
+			wantOutput:  "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456\n",
 			description: "User message with tool result containing array content",
 		},
 		{
@@ -217,7 +217,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_456",
+			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_456\n",
 			description: "User message with mixed content types",
 		},
 		// Assistant Message Tests
@@ -249,7 +249,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50\n",
 			description: "Assistant message with text and token usage",
 		},
 		{
@@ -282,7 +282,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0\n",
 			description: "Assistant message with tool use",
 		},
 		{
@@ -319,7 +319,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4\n",
 			description: "Assistant message with mixed content",
 		},
 		{
@@ -350,7 +350,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi\n",
 			description: "Assistant message without token display (all zeros)",
 		},
 		{
@@ -384,7 +384,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0\n",
 			description: "Assistant message with stop_reason tool_use",
 		},
 		{
@@ -416,7 +416,7 @@ func TestFormatter_Format(t *testing.T) {
 					},
 				},
 			},
-			wantOutput:  "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0",
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0\n",
 			description: "Assistant message with stop_reason end_turn",
 		},
 		// System Message Tests
@@ -431,7 +431,7 @@ func TestFormatter_Format(t *testing.T) {
 				Content: "Tool execution completed",
 				IsMeta:  false,
 			},
-			wantOutput:  "\n[15:30:45] ℹ️ SYSTEM: Tool execution completed",
+			wantOutput:  "[15:30:45] ℹ️ SYSTEM: Tool execution completed\n",
 			description: "Simple system message",
 		},
 		{
@@ -446,7 +446,7 @@ func TestFormatter_Format(t *testing.T) {
 				IsMeta:  false,
 				Level:   "warning",
 			},
-			wantOutput:  "\n[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning",
+			wantOutput:  "[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning\n",
 			description: "System message with warning level",
 		},
 		{
@@ -461,7 +461,7 @@ func TestFormatter_Format(t *testing.T) {
 				IsMeta:    false,
 				ToolUseID: "toolu_123",
 			},
-			wantOutput:  "\n[15:30:45] ℹ️ SYSTEM: Tool execution started",
+			wantOutput:  "[15:30:45] ℹ️ SYSTEM: Tool execution started\n",
 			description: "System message with tool use ID",
 		},
 		// Summary Event Tests
@@ -472,7 +472,7 @@ func TestFormatter_Format(t *testing.T) {
 				Summary:   "Summary text",
 				LeafUUID:  "leaf_123",
 			},
-			wantOutput:  "\n📋 [SUMMARY] Summary text",
+			wantOutput:  "📋 [SUMMARY] Summary text\n",
 			description: "Summary event",
 		},
 		// Unknown Event Tests
@@ -483,7 +483,7 @@ func TestFormatter_Format(t *testing.T) {
 				Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
 				UUID:       "123",
 			},
-			wantOutput:  "\n[15:30:45] unknown event",
+			wantOutput:  "[15:30:45] unknown event\n",
 			description: "Unknown event type",
 		},
 	}
@@ -603,93 +603,93 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		{
 			name:           "user_message_simple",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello Claude"}}`,
-			expectedOutput: "\n[15:30:45] 👤 USER:\n  💬 Hello Claude",
+			expectedOutput: "[15:30:45] 👤 USER:\n  💬 Hello Claude\n",
 			description:    "Parse and format simple user message",
 		},
 		{
 			name:           "user_message_with_tool_result",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_123","content":"Success"}]}}`,
-			expectedOutput: "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123",
+			expectedOutput: "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123\n",
 			description:    "Parse and format user message with tool result",
 		},
 		{
 			name:           "user_message_with_tool_error",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":"Error occurred","is_error":true}]}}`,
-			expectedOutput: "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456 ❌ (error)",
+			expectedOutput: "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456 ❌ (error)\n",
 			description:    "Parse and format user message with tool error",
 		},
 		{
 			name:           "user_message_mixed_content",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"text","text":"Running tool..."},{"type":"tool_result","tool_use_id":"toolu_789","content":"Done"}]}}`,
-			expectedOutput: "\n[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_789",
+			expectedOutput: "[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_789\n",
 			description:    "Parse and format user message with mixed content",
 		},
 		{
 			name:           "user_message_with_tool_result_array_content",
 			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":[{"type":"text","text":"File has diagnostics:\n- Error on line 10"}]}]}}`,
-			expectedOutput: "\n[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456",
+			expectedOutput: "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456\n",
 			description:    "Parse and format user message with tool result containing array content",
 		},
 		// Assistant Message Tests
 		{
 			name:           "assistant_message_simple",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hello! How can I help?"}],"usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50\n",
 			description:    "Parse and format assistant message with tokens",
 		},
 		{
 			name:           "assistant_message_with_tool_use",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_789","name":"WebSearch","input":{"query":"weather today"}}],"usage":{"input_tokens":5,"output_tokens":15,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0\n",
 			description:    "Parse and format assistant message with tool use",
 		},
 		{
 			name:           "assistant_message_mixed_content",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Let me search for that."},{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":4}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4\n",
 			description:    "Parse and format assistant message with mixed content",
 		},
 		{
 			name:           "assistant_message_no_tokens",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hi"}],"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi\n",
 			description:    "Parse and format assistant message without token display (all zeros)",
 		},
 		{
 			name:           "assistant_message_stop_reason_tool_use",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"stop_reason":"tool_use","usage":{"input_tokens":5,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0\n",
 			description:    "Parse and format assistant message with stop_reason tool_use",
 		},
 		{
 			name:           "assistant_message_stop_reason_end_turn",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Finished."}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0\n",
 			description:    "Parse and format assistant message with stop_reason end_turn",
 		},
 		{
 			name:           "assistant_message_with_thinking",
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-opus-4-20250514","content":[{"type":"thinking","thinking":"すべてのタスクが完了しました。結果をまとめてユーザーに報告します。","signature":"xxx"}],"usage":{"input_tokens":11,"output_tokens":14,"cache_read_input_tokens":45769,"cache_creation_input_tokens":772}}}`,
-			expectedOutput: "\n[15:30:45] 🤖 ASSISTANT (claude-opus-4-20250514):\n  💬 Thinking: すべてのタスクが完了しました。結果をまとめてユーザーに報告します。\n  💰 Tokens: input=11, output=14, cache_read=45769, cache_creation=772",
+			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-opus-4-20250514):\n  💬 Thinking: すべてのタスクが完了しました。結果をまとめてユーザーに報告します。\n  💰 Tokens: input=11, output=14, cache_read=45769, cache_creation=772\n",
 			description:    "Parse and format assistant message with thinking content",
 		},
 		// System Message Tests
 		{
 			name:           "system_message_simple",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution completed","isMeta":false}`,
-			expectedOutput: "\n[15:30:45] ℹ️ SYSTEM: Tool execution completed",
+			expectedOutput: "[15:30:45] ℹ️ SYSTEM: Tool execution completed\n",
 			description:    "Parse and format simple system message",
 		},
 		{
 			name:           "system_message_with_warning",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Rate limit warning","isMeta":false,"level":"warning"}`,
-			expectedOutput: "\n[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning",
+			expectedOutput: "[15:30:45] ⚠️ SYSTEM [warning]: Rate limit warning\n",
 			description:    "Parse and format system message with warning level",
 		},
 		{
 			name:           "system_message_with_error",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"API error occurred","isMeta":false,"level":"error"}`,
-			expectedOutput: "\n[15:30:45] ❌ SYSTEM [error]: API error occurred",
+			expectedOutput: "[15:30:45] ❌ SYSTEM [error]: API error occurred\n",
 			description:    "Parse and format system message with error level",
 		},
 		{
@@ -701,14 +701,14 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		{
 			name:           "system_message_with_tooluse",
 			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution started","isMeta":false,"toolUseID":"toolu_123"}`,
-			expectedOutput: "\n[15:30:45] ℹ️ SYSTEM: Tool execution started",
+			expectedOutput: "[15:30:45] ℹ️ SYSTEM: Tool execution started\n",
 			description:    "Parse and format system message with tool use ID",
 		},
 		// Summary Event Tests
 		{
 			name:           "summary_event",
 			input:          `{"type":"summary","timestamp":"2025-01-26T15:30:45Z","uuid":"123","summary":"Summary text","leafUuid":"leaf_123"}`,
-			expectedOutput: "\n📋 [SUMMARY] Summary text",
+			expectedOutput: "📋 [SUMMARY] Summary text\n",
 			description:    "Parse and format summary event",
 		},
 	}
