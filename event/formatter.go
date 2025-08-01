@@ -230,21 +230,8 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 		levelStr = fmt.Sprintf(" [%s]", event.Level)
 	}
 
-	// Always use enhanced formatting with emojis
-	emoji := "ℹ️"
-	switch event.Level {
-	case "error":
-		emoji = "❌"
-	case "warning":
-		emoji = "⚠️"
-	case "info":
-		emoji = "ℹ️"
-	case "debug":
-		emoji = "🐛"
-	}
-
-	// Build message with optional debug info
-	message := fmt.Sprintf("[%s] %s SYSTEM%s: %s", event.Timestamp.Format("15:04:05"), emoji, levelStr, event.Content)
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] 📣 SYSTEM%s", event.Timestamp.Format("15:04:05"), levelStr)
 	if f.debugMode {
 		debugInfo := fmt.Sprintf(" [UUID: %s", event.UUID)
 		if event.IsMeta {
@@ -254,8 +241,25 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
 		}
 		debugInfo += "]"
-		message += debugInfo
+		header += debugInfo
 	}
+	header += ":\n"
+
+	// Get level emoji for content
+	contentEmoji := ""
+	switch event.Level {
+	case "error":
+		contentEmoji = "❌ "
+	case "warning":
+		contentEmoji = "⚠️ "
+	case "info":
+		contentEmoji = "ℹ️ "
+	case "debug":
+		contentEmoji = "🐛 "
+	}
+
+	// Build message with content on new line
+	message := header + fmt.Sprintf("  %s%s", contentEmoji, event.Content)
 
 	return message + "\n", nil
 }
