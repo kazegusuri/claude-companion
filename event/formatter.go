@@ -111,11 +111,14 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 						}
 					case "tool_result":
 						toolID := contentMap["tool_use_id"]
-						resultLine := fmt.Sprintf("  ✅ Tool Result: %v", toolID)
 						// Check if it has error
+						emoji := "✅"
+						errorSuffix := ""
 						if isError, ok := contentMap["is_error"].(bool); ok && isError {
-							resultLine += " ❌ (error)"
+							emoji = "❌"
+							errorSuffix = " (error)"
 						}
+						resultLine := fmt.Sprintf("  %s Tool Result: %v%s", emoji, toolID, errorSuffix)
 						output.WriteString(resultLine + "\n")
 					}
 				}
