@@ -276,11 +276,112 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			input:    map[string]interface{}{},
 			expected: "Serenaツール「unknown_operation」を実行します",
 		},
+		// Unknown MCP tool tests
+		{
+			name:     "unknown MCP tool without server rules",
+			toolName: "mcp__unknown_server__some_operation",
+			input:    map[string]interface{}{},
+			expected: "ツール「mcp__unknown_server__some_operation」を実行します",
+		},
+		{
+			name:     "completely unknown tool",
+			toolName: "UnknownTool",
+			input:    map[string]interface{}{"param": "value"},
+			expected: "ツール「UnknownTool」を実行します",
+		},
+		{
+			name:     "unknown MCP tool with parameters",
+			toolName: "mcp__newservice__process_data",
+			input:    map[string]interface{}{"data": "test", "mode": "fast"},
+			expected: "ツール「mcp__newservice__process_data」を実行します",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cn.NarrateToolUse(tt.toolName, tt.input)
+			if result != tt.expected {
+				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConfigBasedNarrator_UnknownToolsWithoutGenericMessage(t *testing.T) {
+	// Create a config without genericToolExecution message
+	// Also create an empty default config to override the global default
+	config := &NarratorConfig{
+		Rules:    make(map[string]ToolRules),
+		Messages: MessageTemplates{}, // Empty messages
+	}
+	emptyDefaultConfig := &NarratorConfig{
+		Rules:    make(map[string]ToolRules),
+		Messages: MessageTemplates{}, // Empty messages
+	}
+
+	// Create ConfigBasedNarrator with custom configs
+	cn := &ConfigBasedNarrator{
+		config:        config,
+		defaultConfig: emptyDefaultConfig,
+	}
+
+	tests := []struct {
+		name     string
+		toolName string
+		input    map[string]interface{}
+		expected string
+	}{
+		{
+			name:     "unknown tool without generic message",
+			toolName: "CompletelyNewTool",
+			input:    map[string]interface{}{},
+			expected: "CompletelyNewToolを実行中...",
+		},
+		{
+			name:     "unknown MCP tool without generic message",
+			toolName: "mcp__newserver__action",
+			input:    map[string]interface{}{},
+			expected: "mcp__newserver__actionを実行中...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := cn.NarrateToolUse(tt.toolName, tt.input)
+			if result != tt.expected {
+				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestHybridNarrator_UnknownTools(t *testing.T) {
+	// Create HybridNarrator without AI
+	hn := NewHybridNarrator("", false)
+
+	tests := []struct {
+		name     string
+		toolName string
+		input    map[string]interface{}
+		expected string
+	}{
+		{
+			name:     "unknown MCP tool",
+			toolName: "mcp__unknown__operation",
+			input:    map[string]interface{}{},
+			expected: "mcp__unknown__operationを実行中...",
+		},
+		{
+			name:     "completely unknown tool",
+			toolName: "NewUnknownTool",
+			input:    map[string]interface{}{"param": "value"},
+			expected: "NewUnknownToolを実行中...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hn.NarrateToolUse(tt.toolName, tt.input)
 			if result != tt.expected {
 				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
 			}
