@@ -109,6 +109,17 @@ func (vn *VoiceNarrator) NarrateNotification(notificationType NotificationType) 
 	return text
 }
 
+// NarrateTaskCompletion narrates task completion events with optional voice
+func (vn *VoiceNarrator) NarrateTaskCompletion(description string, subagentType string) string {
+	text := vn.narrator.NarrateTaskCompletion(description, subagentType)
+
+	if vn.enabled && text != "" {
+		vn.enqueueNarration(text, NarrationTypeNotification)
+	}
+
+	return text
+}
+
 // voiceWorker processes voice queue
 func (vn *VoiceNarrator) voiceWorker() {
 	defer vn.wg.Done()

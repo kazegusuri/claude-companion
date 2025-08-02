@@ -148,12 +148,31 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			expected: "「Go言語 エラーハンドリング」についてWeb検索します",
 		},
 
-		// Task tool test
+		// Task tool tests
 		{
-			name:     "Task",
+			name:     "Task with description only",
 			toolName: "Task",
 			input:    map[string]interface{}{"description": "バグ修正"},
 			expected: "タスク「バグ修正」を実行します",
+		},
+		{
+			name:     "Task with subagent_type and description",
+			toolName: "Task",
+			input: map[string]interface{}{
+				"description":   "データベース設計レビュー",
+				"prompt":        "新しいユーザー管理システムのテーブル構造を確認してください",
+				"subagent_type": "database-architect",
+			},
+			expected: "database-architect agentでタスク「データベース設計レビュー」を実行します",
+		},
+		{
+			name:     "Task with empty subagent_type",
+			toolName: "Task",
+			input: map[string]interface{}{
+				"description":   "ファイル検索",
+				"subagent_type": "",
+			},
+			expected: "タスク「ファイル検索」を実行します",
 		},
 
 		// TodoWrite tool test

@@ -104,27 +104,6 @@ type SystemMessage struct {
 	Level             string `json:"level,omitempty"`
 }
 
-// ToolResultContent represents a tool result content item
-type ToolResultContent struct {
-	ToolUseID string      `json:"tool_use_id"`
-	Type      string      `json:"type"`
-	Content   interface{} `json:"content"`
-	IsError   bool        `json:"is_error,omitempty"`
-}
-
-// ToolResultMessageContent represents the content of a tool result message
-type ToolResultMessageContent struct {
-	Role    string              `json:"role"`
-	Content []ToolResultContent `json:"content"`
-}
-
-// ToolResultMessage represents tool execution results
-type ToolResultMessage struct {
-	BaseEvent
-	Message       ToolResultMessageContent `json:"message"`
-	ToolUseResult interface{}              `json:"toolUseResult,omitempty"`
-}
-
 // SummaryEvent represents a session summary
 type SummaryEvent struct {
 	EventType string `json:"type"`
@@ -152,4 +131,15 @@ type NotificationEvent struct {
 // Type returns the event type
 func (e *NotificationEvent) Type() Type {
 	return Type(EventTypeNotification)
+}
+
+// TaskCompletionMessage represents the completion of a Task tool execution
+type TaskCompletionMessage struct {
+	BaseEvent
+	TaskInfo TaskInfo
+}
+
+// Type returns the event type
+func (e *TaskCompletionMessage) Type() Type {
+	return Type("task_completion")
 }

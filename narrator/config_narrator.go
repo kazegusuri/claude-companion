@@ -331,21 +331,32 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		}
 
 	case "Task":
-		if desc, ok := input["description"].(string); ok {
+		// Get basic info
+		desc, hasDesc := input["description"].(string)
+		prompt, hasPrompt := input["prompt"].(string)
+		subagentType, hasSubagentType := input["subagent_type"].(string)
+
+		// Handle slash command first
+		if hasPrompt && strings.HasPrefix(prompt, "/") {
+			cmd := strings.Fields(prompt)[0]
+			template := cn.getStringOrDefault(cn.config.Messages.GenericCommandExecution, cn.defaultConfig.Messages.GenericCommandExecution)
+			if template != "" {
+				return strings.ReplaceAll(template, "{command}", cmd)
+			}
+			// Return fallback message
+			return fmt.Sprintf("コマンド実行中: %s", cmd)
+		}
+
+		// Build message based on available info
+		if hasSubagentType && subagentType != "" && hasDesc {
+			// When subagent_type is not empty, include agent type and description
+			return fmt.Sprintf("%s agentでタスク「%s」を実行します", subagentType, desc)
+		} else if hasDesc {
+			// Just description
 			return strings.ReplaceAll(rules.Default, "{description}", desc)
 		}
-		if prompt, ok := input["prompt"].(string); ok {
-			if strings.HasPrefix(prompt, "/") {
-				// Slash command
-				cmd := strings.Fields(prompt)[0]
-				template := cn.getStringOrDefault(cn.config.Messages.GenericCommandExecution, cn.defaultConfig.Messages.GenericCommandExecution)
-				if template != "" {
-					return strings.ReplaceAll(template, "{command}", cmd)
-				}
-				// Return fallback message
-				return fmt.Sprintf("コマンド実行中: %s", cmd)
-			}
-		}
+
+		// Default message
 		msg := cn.getStringOrDefault(cn.config.Messages.ComplexTask, cn.defaultConfig.Messages.ComplexTask)
 		if msg != "" {
 			return msg
@@ -451,4 +462,15 @@ func (cn *ConfigBasedNarrator) NarrateNotification(notificationType Notification
 	default:
 		return ""
 	}
+}
+
+// NarrateTaskCompletion narrates task completion events
+func (cn *ConfigBasedNarrator) NarrateTaskCompletion(description string, subagentType string) string {
+	// Build message based on available information
+	if subagentType != "" && description != "" {
+		return fmt.Sprintf("%s agentがタスク「%s」を完了しました", subagentType, description)
+	} else if description != "" {
+		return fmt.Sprintf("タスク「%s」が完了しました", description)
+	}
+	return "タスクが完了しました"
 }

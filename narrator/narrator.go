@@ -32,6 +32,7 @@ type Narrator interface {
 	NarrateToolUsePermission(toolName string) string
 	NarrateText(text string) string
 	NarrateNotification(notificationType NotificationType) string
+	NarrateTaskCompletion(description string, subagentType string) string
 }
 
 // HybridNarrator uses rules first, then falls back to AI
@@ -176,6 +177,22 @@ func (hn *HybridNarrator) NarrateNotification(notificationType NotificationType)
 	}
 }
 
+// NarrateTaskCompletion narrates task completion events
+func (hn *HybridNarrator) NarrateTaskCompletion(description string, subagentType string) string {
+	// Check if config narrator has task completion rules
+	if hn.configNarrator != nil {
+		return hn.configNarrator.NarrateTaskCompletion(description, subagentType)
+	}
+
+	// Default fallback
+	if subagentType != "" && description != "" {
+		return fmt.Sprintf("%s agentがタスク「%s」を完了しました", subagentType, description)
+	} else if description != "" {
+		return fmt.Sprintf("タスク「%s」が完了しました", description)
+	}
+	return "タスクが完了しました"
+}
+
 // Helper function to extract domain from URL
 func extractDomain(url string) string {
 	// Simple domain extraction
@@ -295,6 +312,17 @@ func (ai *OpenAINarrator) NarrateNotification(notificationType NotificationType)
 	default:
 		return ""
 	}
+}
+
+// NarrateTaskCompletion narrates task completion events
+func (ai *OpenAINarrator) NarrateTaskCompletion(description string, subagentType string) string {
+	// Return default message
+	if subagentType != "" && description != "" {
+		return fmt.Sprintf("%s agentがタスク「%s」を完了しました", subagentType, description)
+	} else if description != "" {
+		return fmt.Sprintf("タスク「%s」が完了しました", description)
+	}
+	return "タスクが完了しました"
 }
 
 // OpenAI API structures
@@ -431,5 +459,10 @@ func (n *NoOpNarrator) NarrateText(text string) string {
 
 // NarrateNotification returns empty string
 func (n *NoOpNarrator) NarrateNotification(notificationType NotificationType) string {
+	return ""
+}
+
+// NarrateTaskCompletion returns empty string
+func (n *NoOpNarrator) NarrateTaskCompletion(description string, subagentType string) string {
 	return ""
 }
