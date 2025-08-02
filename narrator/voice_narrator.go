@@ -88,8 +88,8 @@ func (vn *VoiceNarrator) NarrateToolUsePermission(toolName string) (string, bool
 }
 
 // NarrateText narrates text with optional voice
-func (vn *VoiceNarrator) NarrateText(text string) (string, bool) {
-	result, shouldFallback := vn.narrator.NarrateText(text)
+func (vn *VoiceNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+	result, shouldFallback := vn.narrator.NarrateText(text, isThinking)
 
 	if vn.enabled && result != "" {
 		vn.enqueueNarration(result, NarrationTypeText)
@@ -137,7 +137,7 @@ func (vn *VoiceNarrator) voiceWorker() {
 		}
 
 		// Create timeout context for each TTS operation
-		ctx, cancel := context.WithTimeout(vn.ctx, 10*time.Second)
+		ctx, cancel := context.WithTimeout(vn.ctx, 15*time.Second)
 
 		// Try to synthesize and play
 		if err := vn.voiceClient.TextToSpeech(ctx, item.Text); err != nil {

@@ -19,7 +19,7 @@ const (
 type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) (string, bool)
 	NarrateToolUsePermission(toolName string) (string, bool)
-	NarrateText(text string) (string, bool)
+	NarrateText(text string, isThinking bool) (string, bool)
 	NarrateNotification(notificationType NotificationType) (string, bool)
 	NarrateTaskCompletion(description string, subagentType string) (string, bool)
 }
@@ -64,7 +64,7 @@ func (n *NoOpNarrator) NarrateToolUsePermission(toolName string) (string, bool) 
 }
 
 // NarrateText returns the text as-is
-func (n *NoOpNarrator) NarrateText(text string) (string, bool) {
+func (n *NoOpNarrator) NarrateText(text string, isThinking bool) (string, bool) {
 	return text, false
 }
 

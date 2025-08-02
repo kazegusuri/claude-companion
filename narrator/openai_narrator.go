@@ -51,7 +51,7 @@ func (ai *OpenAINarrator) NarrateToolUse(toolName string, input map[string]inter
 	prompt := ai.createToolPrompt(toolName, input)
 
 	// Call OpenAI API
-	response, err := ai.callOpenAI(ctx, prompt)
+	response, err := ai.callOpenAI(ctx, prompt, 0.3, 50)
 	if err != nil {
 		// Return empty to fallback to rule-based
 		logger.LogError("Failed to call OpenAI for tool narration: %v", err)
@@ -80,7 +80,7 @@ func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) (string, boo
 - ファイル書き込みの許可を求めています
 - コマンド実行の許可を求めています`, toolName)
 
-	response, err := ai.callOpenAI(ctx, prompt)
+	response, err := ai.callOpenAI(ctx, prompt, 0.3, 50)
 	if err != nil {
 		// Fallback to simple format
 		logger.LogError("Failed to call OpenAI for tool permission narration: %v", err)
@@ -91,8 +91,64 @@ func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) (string, boo
 }
 
 // NarrateText returns the text as-is
-func (ai *OpenAINarrator) NarrateText(text string) (string, bool) {
-	return text, false
+func (ai *OpenAINarrator) NarrateText(text string, isThinking bool) (string, bool) {
+	// If text is a single line without newlines, return as-is
+	if !strings.Contains(text, "\n") {
+		return text, false
+	}
+
+	// For permission requests, we can use a simpler prompt
+	ctx, cancel := context.WithTimeout(context.Background(), ai.timeout)
+	defer cancel()
+
+	// Determine max sentences based on text size (4KB = 4096 bytes)
+	maxSentences := 3
+	maxTokens := 150
+	if len(text) > 4096 {
+		maxSentences = 4
+		maxTokens = 200
+	}
+
+	prompt := fmt.Sprintf(`以下の点に注意して与えられた文章を要約して簡潔な文章にしてください。
+
+- 最大でも%d文で終わるようにすること
+- 復数文になる場合でも改行を含めない
+- 読み上げ(Text To Speach)に利用するため、読み上げやすい日本語を使用
+- URLやファイルのパスなどは含まない
+- 「私は」などの主語は省略すること
+- 1行目の文章をもとに提案なのか報告なのか確認なのかを意識すること
+- 1行目の文章から行ったことであれば「〜しました」、これから行うことであれば「〜します」という形式にすること
+- 文章が長い場合は、特に重要なポイントを中心に要約すること
+
+以下の文章を要約してください:
+%s
+`, maxSentences, text)
+
+	if isThinking {
+		prompt = fmt.Sprintf(`あなたは質問や課題を与えられて思考中です。与えられた文章をこれからあなたが行う行動として簡潔に要約してください。
+
+- 最大でも%d文で終わるようにすること
+- 復数文になる場合でも改行を含めない
+- 読み上げ(Text To Speach)に利用するため、読み上げやすい日本語を使用
+- URLやファイルのパスなどは含まない
+- 「私は」などの主語は省略すること
+- 「〜します」のような一人称での表現にすること
+- これからの行うことをとくに意識して、行動を説明する
+
+以下の文章を要約してください:
+%s
+`, maxSentences, text)
+	}
+
+	// Use higher token limit for text narration
+	response, err := ai.callOpenAI(ctx, prompt, 0.8, maxTokens)
+	if err != nil {
+		// Fallback to simple format
+		logger.LogError("Failed to call OpenAI for tool permission narration: %v", err)
+		return text, true
+	}
+
+	return response, false
 }
 
 // NarrateNotification narrates notification events
@@ -159,7 +215,7 @@ func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]int
 }
 
 // callOpenAI makes the actual API call to OpenAI
-func (ai *OpenAINarrator) callOpenAI(ctx context.Context, prompt string) (string, error) {
+func (ai *OpenAINarrator) callOpenAI(ctx context.Context, prompt string, temperature float64, maxTokens int) (string, error) {
 	request := openAIRequest{
 		Model: ai.model,
 		Messages: []openAIMessage{
@@ -172,8 +228,8 @@ func (ai *OpenAINarrator) callOpenAI(ctx context.Context, prompt string) (string
 				Content: prompt,
 			},
 		},
-		Temperature: 0.3,
-		MaxTokens:   50,
+		Temperature: temperature,
+		MaxTokens:   maxTokens,
 	}
 
 	jsonData, err := json.Marshal(request)

@@ -169,10 +169,10 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		hasContent = true
 		switch content.Type {
 		case "text":
-			formatted := f.FormatAssistantText(content.Text)
+			formatted := f.FormatAssistantText(content.Text, false)
 			output.WriteString(formatted)
 		case "thinking":
-			formatted := f.FormatAssistantText("Thinking: " + content.Thinking)
+			formatted := f.FormatAssistantText(content.Thinking, true)
 			output.WriteString(formatted)
 		case "tool_use":
 			// Convert input to map[string]interface{} for formatter
@@ -448,7 +448,7 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications
-		narration, _ := f.narrator.NarrateText(event.Message)
+		narration, _ := f.narrator.NarrateText(event.Message, false)
 		if narration != "" {
 			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
@@ -774,15 +774,16 @@ func (f *Formatter) FormatToolUse(toolName string, meta EventMeta, input map[str
 }
 
 // FormatAssistantText formats assistant text content with code block extraction
-func (f *Formatter) FormatAssistantText(text string) string {
+func (f *Formatter) FormatAssistantText(text string, isThinking bool) string {
 	var output strings.Builder
 
 	// Extract code blocks
 	codeBlocks := f.ExtractCodeBlocks(text)
 
+	// Prepare text for narration
+	processedText := strings.TrimSpace(text)
 	if len(codeBlocks) > 0 {
-		// Replace code blocks with placeholders to show structure
-		processedText := text
+		// Replace code blocks with placeholders
 		for i, block := range codeBlocks {
 			placeholder := fmt.Sprintf("[CODE BLOCK %d: %s]", i+1, block.Language)
 			// Find and replace the original code block
@@ -792,31 +793,47 @@ func (f *Formatter) FormatAssistantText(text string) string {
 			}
 			processedText = strings.Replace(processedText, original, placeholder, 1)
 		}
+	}
 
-		// Show the main text without code block placeholders
-		lines := strings.Split(strings.TrimSpace(processedText), "\n")
-		shownLines := 0
+	// Narrate the text
+	narrated, _ := f.narrator.NarrateText(processedText, isThinking)
+	output.WriteString(fmt.Sprintf("  💬 %s\n", narrated))
+
+	// Show the main text (only if multiple lines)
+	lines := strings.Split(strings.TrimSpace(processedText), "\n")
+
+	// Filter out code block placeholders if any
+	var displayLines []string
+	if len(codeBlocks) > 0 {
 		for _, line := range lines {
-			// Skip lines that are just code block placeholders
-			if strings.HasPrefix(strings.TrimSpace(line), "[CODE BLOCK") && strings.HasSuffix(strings.TrimSpace(line), "]") {
-				continue
+			if !strings.HasPrefix(strings.TrimSpace(line), "[CODE BLOCK") || !strings.HasSuffix(strings.TrimSpace(line), "]") {
+				displayLines = append(displayLines, line)
 			}
-			if shownLines < MaxMainTextLines {
-				if shownLines == 0 {
-					output.WriteString(fmt.Sprintf("  %s\n", line))
+		}
+	} else {
+		displayLines = lines
+	}
+
+	// Display text lines with 📝 emoji (only if multiple lines)
+	if len(displayLines) > 1 {
+		for i, line := range displayLines {
+			if i < MaxNormalTextLines {
+				if i == 0 {
+					output.WriteString(fmt.Sprintf("  📝 %s\n", line))
 				} else {
 					output.WriteString(fmt.Sprintf("  %s\n", line))
 				}
-				shownLines++
-			} else {
-				output.WriteString("  ... (text continues)\n")
+			} else if i == MaxNormalTextLines && len(displayLines) > MaxNormalTextLines+1 {
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(displayLines)-MaxNormalTextLines))
 				break
 			}
 		}
+	}
 
-		// Show code blocks separately
+	// Show code blocks separately if any
+	if len(codeBlocks) > 0 {
 		for i, block := range codeBlocks {
-			if shownLines > 0 || i > 0 {
+			if len(displayLines) > 0 || i > 0 {
 				output.WriteString("\n")
 			}
 			output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):\n", i+1, block.Language))
@@ -832,23 +849,6 @@ func (f *Formatter) FormatAssistantText(text string) string {
 				}
 			}
 			output.WriteString("    ```\n")
-		}
-	} else {
-		// No code blocks, show text normally but truncated
-		lines := strings.Split(strings.TrimSpace(text), "\n")
-		for i, line := range lines {
-			if i < MaxNormalTextLines {
-				if i == 0 {
-					// Use narrator to process the first line, then add 💬
-					narrated, _ := f.narrator.NarrateText(line)
-					output.WriteString(fmt.Sprintf("  💬 %s\n", narrated))
-				} else {
-					output.WriteString(fmt.Sprintf("  %s\n", line))
-				}
-			} else if i == MaxNormalTextLines && len(lines) > MaxNormalTextLines+1 {
-				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-MaxNormalTextLines))
-				break
-			}
 		}
 	}
 

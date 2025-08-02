@@ -2,6 +2,7 @@ package narrator
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -114,16 +115,23 @@ func (hn *HybridNarrator) NarrateToolUsePermission(toolName string) (string, boo
 }
 
 // NarrateText returns the text as-is
-func (hn *HybridNarrator) NarrateText(text string) (string, bool) {
-	// Try each narrator in sequence
+func (hn *HybridNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+	// Try each narrator in sequence with first line only
 	for _, narrator := range hn.narrators {
-		narration, shouldFallback := narrator.NarrateText(text)
+		narration, shouldFallback := narrator.NarrateText(text, isThinking)
 		if !shouldFallback {
 			return narration, false
 		}
 	}
-	// Default behavior - return text as-is
-	return text, false
+
+	// Extract first line for narration
+	firstLine := text
+	if idx := strings.IndexByte(text, '\n'); idx != -1 {
+		firstLine = text[:idx]
+	}
+
+	// Default behavior - return first line as-is
+	return firstLine, false
 }
 
 // NarrateNotification narrates notification events
