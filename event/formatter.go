@@ -315,7 +315,7 @@ func (f *Formatter) formatPreCompactEvent(event *NotificationEvent) string {
 	emoji := "🗜️"
 
 	// Use narrator to get the narration message
-	formattedMessage := f.narrator.NarrateNotification(narrator.NotificationTypeCompact)
+	formattedMessage, _ := f.narrator.NarrateNotification(narrator.NotificationTypeCompact)
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
@@ -359,7 +359,7 @@ func (f *Formatter) formatSessionStartEvent(event *NotificationEvent) string {
 	default:
 		notificationType = narrator.NotificationTypeSessionStartStartup
 	}
-	formattedMessage := f.narrator.NarrateNotification(notificationType)
+	formattedMessage, _ := f.narrator.NarrateNotification(notificationType)
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
@@ -433,13 +433,13 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 	// Use narrator for tool permissions
 	if isPermission && displayToolName != "" {
 		// Use NarrateToolUsePermission for permission requests
-		narration := f.narrator.NarrateToolUsePermission(displayToolName)
+		narration, _ := f.narrator.NarrateToolUsePermission(displayToolName)
 		if narration != "" {
 			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications
-		narration := f.narrator.NarrateText(event.Message)
+		narration, _ := f.narrator.NarrateText(event.Message)
 		if narration != "" {
 			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
@@ -551,7 +551,7 @@ func (f *Formatter) formatTaskCompletionMessage(event *TaskCompletionMessage) (s
 	var output strings.Builder
 
 	// Use narrator to build and narrate the task completion message
-	narration := f.narrator.NarrateTaskCompletion(
+	narration, _ := f.narrator.NarrateTaskCompletion(
 		event.TaskInfo.Description,
 		event.TaskInfo.SubagentType,
 	)

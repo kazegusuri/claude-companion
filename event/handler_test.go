@@ -13,29 +13,29 @@ import (
 // mockNarrator is a simple test narrator
 type mockNarrator struct{}
 
-func (m *mockNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
-	return "mock-narrate-" + toolName
+func (m *mockNarrator) NarrateToolUse(toolName string, input map[string]interface{}) (string, bool) {
+	return "mock-narrate-" + toolName, false
 }
 
-func (m *mockNarrator) NarrateToolUsePermission(toolName string) string {
-	return "mock-permission-" + toolName
+func (m *mockNarrator) NarrateToolUsePermission(toolName string) (string, bool) {
+	return "mock-permission-" + toolName, false
 }
 
-func (m *mockNarrator) NarrateText(text string) string {
-	return text
+func (m *mockNarrator) NarrateText(text string) (string, bool) {
+	return text, false
 }
 
-func (m *mockNarrator) NarrateNotification(notificationType narrator.NotificationType) string {
-	return "mock-notification"
+func (m *mockNarrator) NarrateNotification(notificationType narrator.NotificationType) (string, bool) {
+	return "mock-notification", false
 }
 
-func (m *mockNarrator) NarrateTaskCompletion(description string, subagentType string) string {
+func (m *mockNarrator) NarrateTaskCompletion(description string, subagentType string) (string, bool) {
 	if subagentType != "" && description != "" {
-		return subagentType + " agentがタスク「" + description + "」を完了しました"
+		return subagentType + " agentがタスク「" + description + "」を完了しました", false
 	} else if description != "" {
-		return "タスク「" + description + "」が完了しました"
+		return "タスク「" + description + "」が完了しました", false
 	}
-	return "タスクが完了しました"
+	return "タスクが完了しました", false
 }
 
 // captureOutput captures printed output during test

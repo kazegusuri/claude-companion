@@ -6,22 +6,22 @@ import (
 	"strings"
 )
 
-// ConfigBasedNarrator uses configuration file for narrative rules
-type ConfigBasedNarrator struct {
+// RuleBasedNarrator uses configuration file for narrative rules
+type RuleBasedNarrator struct {
 	config        *NarratorConfig
 	defaultConfig *NarratorConfig
 }
 
-// NewConfigBasedNarrator creates a new config-based narrator
-func NewConfigBasedNarrator(config *NarratorConfig) *ConfigBasedNarrator {
-	return &ConfigBasedNarrator{
+// NewRuleBasedNarrator creates a new rule-based narrator
+func NewRuleBasedNarrator(config *NarratorConfig) *RuleBasedNarrator {
+	return &RuleBasedNarrator{
 		config:        config,
 		defaultConfig: GetDefaultNarratorConfig(),
 	}
 }
 
 // getFileTypeName returns the file type name for a given extension
-func (cn *ConfigBasedNarrator) getFileTypeName(ext string) string {
+func (cn *RuleBasedNarrator) getFileTypeName(ext string) string {
 	// First check user config
 	if cn.config.FileTypeNames != nil {
 		if name, ok := cn.config.FileTypeNames[ext]; ok {
@@ -59,7 +59,7 @@ func parseMCPToolName(toolName string) (server string, operation string, isMCP b
 }
 
 // getStringOrDefault returns the value from config if not empty, otherwise from defaultConfig
-func (cn *ConfigBasedNarrator) getStringOrDefault(configValue, defaultValue string) string {
+func (cn *RuleBasedNarrator) getStringOrDefault(configValue, defaultValue string) string {
 	if configValue != "" {
 		return configValue
 	}
@@ -67,7 +67,7 @@ func (cn *ConfigBasedNarrator) getStringOrDefault(configValue, defaultValue stri
 }
 
 // applyCaptures applies capture rules to a template string using input values
-func (cn *ConfigBasedNarrator) applyCaptures(template string, captures []CaptureRule, input map[string]interface{}) string {
+func (cn *RuleBasedNarrator) applyCaptures(template string, captures []CaptureRule, input map[string]interface{}) string {
 	result := template
 	for _, capture := range captures {
 		if value, exists := input[capture.InputKey]; exists {
@@ -113,7 +113,7 @@ func (cn *ConfigBasedNarrator) applyCaptures(template string, captures []Capture
 }
 
 // processDefaultWithCaptures processes a default message with capture rules if available
-func (cn *ConfigBasedNarrator) processDefaultWithCaptures(rules ToolRules, input map[string]interface{}) string {
+func (cn *RuleBasedNarrator) processDefaultWithCaptures(rules ToolRules, input map[string]interface{}) string {
 	if rules.Default == "" {
 		return ""
 	}
@@ -128,7 +128,7 @@ func (cn *ConfigBasedNarrator) processDefaultWithCaptures(rules ToolRules, input
 }
 
 // handleGenericMCPTool handles MCP tools using configuration-driven approach
-func (cn *ConfigBasedNarrator) handleGenericMCPTool(toolName string, rules ToolRules, input map[string]interface{}) string {
+func (cn *RuleBasedNarrator) handleGenericMCPTool(toolName string, rules ToolRules, input map[string]interface{}) string {
 	// First try patterns if available
 	for _, pattern := range rules.Patterns {
 		for _, value := range input {
@@ -154,7 +154,7 @@ func (cn *ConfigBasedNarrator) handleGenericMCPTool(toolName string, rules ToolR
 }
 
 // NarrateToolUse converts tool usage to natural Japanese using config rules
-func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
+func (cn *RuleBasedNarrator) NarrateToolUse(toolName string, input map[string]interface{}) (string, bool) {
 	// Handle MCP tools first with new MCPRules structure
 	if server, operation, isMCP := parseMCPToolName(toolName); isMCP {
 		// Check if we have MCPRules for this server
@@ -175,16 +175,19 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// Check if we have specific rules for this operation
 			if operationRules, ok := mcpRules.Rules[operation]; ok {
 				if len(operationRules.Captures) > 0 {
-					return cn.applyCaptures(operationRules.Default, operationRules.Captures, input)
+					return cn.applyCaptures(operationRules.Default, operationRules.Captures, input), false
 				}
-				return operationRules.Default
+				return operationRules.Default, false
 			}
 
 			// Use server default
 			if mcpRules.Default != "" {
-				return strings.ReplaceAll(mcpRules.Default, "{operation}", operation)
+				return strings.ReplaceAll(mcpRules.Default, "{operation}", operation), false
 			}
 		}
+
+		// MCP tool but no rules found - return empty string for fallback
+		return "", true
 	}
 
 	rules, ok := cn.config.Rules[toolName]
@@ -196,10 +199,10 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// No rules for this tool in both configs
 			template := cn.getStringOrDefault(cn.config.Messages.GenericToolExecution, cn.defaultConfig.Messages.GenericToolExecution)
 			if template != "" {
-				return strings.ReplaceAll(template, "{tool}", toolName)
+				return strings.ReplaceAll(template, "{tool}", toolName), false
 			}
-			// Return a fallback message instead of panic
-			return fmt.Sprintf("%sを実行中...", toolName)
+			// Return empty string for fallback
+			return "", true
 		}
 	}
 
@@ -210,7 +213,7 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// Check prefixes
 			for _, prefix := range rules.Prefixes {
 				if strings.HasPrefix(cmd, prefix.Prefix) {
-					return prefix.Message
+					return prefix.Message, false
 				}
 			}
 
@@ -219,11 +222,11 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 				// Extract first word as command name
 				cmdParts := strings.Fields(cmd)
 				if len(cmdParts) > 0 {
-					return strings.ReplaceAll(rules.Default, "{command}", cmdParts[0])
+					return strings.ReplaceAll(rules.Default, "{command}", cmdParts[0]), false
 				}
 			}
 		}
-		return ""
+		return "", true
 
 	case "Read", "Write", "Edit", "NotebookRead", "NotebookEdit":
 		var filePath string
@@ -244,7 +247,7 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			inputWithFilename["filename"] = fileName
 
 			// Always use applyCaptures
-			return cn.applyCaptures(rules.Default, rules.Captures, inputWithFilename)
+			return cn.applyCaptures(rules.Default, rules.Captures, inputWithFilename), false
 		}
 
 	case "MultiEdit":
@@ -254,9 +257,9 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 				count := len(edits)
 				msg := strings.ReplaceAll(rules.Default, "{filename}", fileName)
 				msg = strings.ReplaceAll(msg, "{count}", fmt.Sprintf("%d", count))
-				return msg
+				return msg, false
 			}
-			return strings.ReplaceAll(rules.Default, "{filename}", fileName)
+			return strings.ReplaceAll(rules.Default, "{filename}", fileName), false
 		}
 
 	case "Grep":
@@ -270,12 +273,12 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 		if _, hasPath := modifiedInput["path"]; !hasPath {
 			modifiedInput["path"] = "プロジェクト全体"
 		}
-		return cn.handleGenericMCPTool(toolName, rules, modifiedInput)
+		return cn.handleGenericMCPTool(toolName, rules, modifiedInput), false
 
 	case "Glob":
 		// Use configuration-driven approach if captures are configured
 		if len(rules.Captures) > 0 {
-			return cn.handleGenericMCPTool(toolName, rules, input)
+			return cn.handleGenericMCPTool(toolName, rules, input), false
 		}
 
 		// Fallback to hardcoded logic
@@ -283,12 +286,12 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			// Check patterns
 			for _, rule := range rules.Patterns {
 				if strings.Contains(pattern, rule.Contains) {
-					return rule.Message
+					return rule.Message, false
 				}
 			}
 
 			// Use default
-			return strings.ReplaceAll(rules.Default, "{pattern}", pattern)
+			return strings.ReplaceAll(rules.Default, "{pattern}", pattern), false
 		}
 
 	case "LS":
@@ -297,37 +300,37 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			if dirName == "." || dirName == "/" {
 				msg := cn.getStringOrDefault(cn.config.Messages.CurrentDirectory, cn.defaultConfig.Messages.CurrentDirectory)
 				if msg != "" {
-					return msg
+					return msg, false
 				}
-				// Return fallback message
-				return fmt.Sprintf("現在のディレクトリ: %s", dirName)
+				// Return empty string for fallback
+				return "", true
 			}
-			return strings.ReplaceAll(rules.Default, "{dirname}", dirName)
+			return strings.ReplaceAll(rules.Default, "{dirname}", dirName), false
 		}
 		msg := cn.getStringOrDefault(cn.config.Messages.DirectoryContents, cn.defaultConfig.Messages.DirectoryContents)
 		if msg != "" {
-			return msg
+			return msg, false
 		}
-		// Return fallback message
-		return "ディレクトリの内容を確認中..."
+		// Return empty string for fallback
+		return "", true
 
 	case "WebFetch":
 		if url, ok := input["url"].(string); ok {
 			// Check patterns
 			for _, rule := range rules.Patterns {
 				if strings.Contains(url, rule.Contains) {
-					return rule.Message
+					return rule.Message, false
 				}
 			}
 
 			// Use default
 			domain := extractDomain(url)
-			return strings.ReplaceAll(rules.Default, "{domain}", domain)
+			return strings.ReplaceAll(rules.Default, "{domain}", domain), false
 		}
 
 	case "WebSearch":
 		if query, ok := input["query"].(string); ok {
-			return strings.ReplaceAll(rules.Default, "{query}", query)
+			return strings.ReplaceAll(rules.Default, "{query}", query), false
 		}
 
 	case "Task":
@@ -341,28 +344,28 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			cmd := strings.Fields(prompt)[0]
 			template := cn.getStringOrDefault(cn.config.Messages.GenericCommandExecution, cn.defaultConfig.Messages.GenericCommandExecution)
 			if template != "" {
-				return strings.ReplaceAll(template, "{command}", cmd)
+				return strings.ReplaceAll(template, "{command}", cmd), false
 			}
-			// Return fallback message
-			return fmt.Sprintf("コマンド実行中: %s", cmd)
+			// Return empty string for fallback
+			return "", true
 		}
 
 		// Build message based on available info
 		if hasSubagentType && subagentType != "" && hasDesc {
 			// When subagent_type is not empty, include agent type and description
-			return fmt.Sprintf("%s agentでタスク「%s」を実行します", subagentType, desc)
+			return fmt.Sprintf("%s agentでタスク「%s」を実行します", subagentType, desc), false
 		} else if hasDesc {
 			// Just description
-			return strings.ReplaceAll(rules.Default, "{description}", desc)
+			return strings.ReplaceAll(rules.Default, "{description}", desc), false
 		}
 
 		// Default message
 		msg := cn.getStringOrDefault(cn.config.Messages.ComplexTask, cn.defaultConfig.Messages.ComplexTask)
 		if msg != "" {
-			return msg
+			return msg, false
 		}
-		// Return fallback message
-		return "エージェントを起動してタスクを実行中..."
+		// Return empty string for fallback
+		return "", true
 
 	case "TodoWrite":
 		if todos, ok := input["todos"].([]interface{}); ok {
@@ -386,91 +389,91 @@ func (cn *ConfigBasedNarrator) NarrateToolUse(toolName string, input map[string]
 			}
 			msg := strings.ReplaceAll(rules.Default, "{completed}", fmt.Sprintf("%d", completed))
 			msg = strings.ReplaceAll(msg, "{in_progress}", fmt.Sprintf("%d", inProgress))
-			return msg
+			return msg, false
 		}
 		msg := cn.getStringOrDefault(cn.config.Messages.TodoListUpdate, cn.defaultConfig.Messages.TodoListUpdate)
 		if msg != "" {
-			return msg
+			return msg, false
 		}
-		// Return fallback message
-		return "TODOリストを更新中..."
+		// Return empty string for fallback
+		return "", true
 	}
 
 	// Handle tools with simple default messages
 	if rules.Default != "" {
 		// Check if captures are configured
 		if len(rules.Captures) > 0 {
-			return cn.applyCaptures(rules.Default, rules.Captures, input)
+			return cn.applyCaptures(rules.Default, rules.Captures, input), false
 		}
-		return rules.Default
+		return rules.Default, false
 	}
 
 	// Generic fallback
 	template := cn.getStringOrDefault(cn.config.Messages.GenericToolExecution, cn.defaultConfig.Messages.GenericToolExecution)
 	if template != "" {
-		return strings.ReplaceAll(template, "{tool}", toolName)
+		return strings.ReplaceAll(template, "{tool}", toolName), false
 	}
-	// Return fallback message
-	return fmt.Sprintf("%sを実行中...", toolName)
+	// Return empty string for fallback
+	return "", true
 }
 
 // NarrateToolUsePermission narrates a tool permission request using config rules
-func (cn *ConfigBasedNarrator) NarrateToolUsePermission(toolName string) string {
+func (cn *RuleBasedNarrator) NarrateToolUsePermission(toolName string) (string, bool) {
 	// Check if there's a specific permission message for this tool
 	if rules, ok := cn.config.Rules[toolName]; ok {
 		if rules.PermissionMessage != "" {
-			return rules.PermissionMessage
+			return rules.PermissionMessage, false
 		}
 	}
 
 	// Check default config
 	if rules, ok := cn.defaultConfig.Rules[toolName]; ok {
 		if rules.PermissionMessage != "" {
-			return rules.PermissionMessage
+			return rules.PermissionMessage, false
 		}
 	}
 
 	// Use generic permission message
 	template := cn.getStringOrDefault(cn.config.Messages.GenericToolPermission, cn.defaultConfig.Messages.GenericToolPermission)
 	if template != "" {
-		return strings.ReplaceAll(template, "{tool}", toolName)
+		return strings.ReplaceAll(template, "{tool}", toolName), false
 	}
 
 	// Final fallback
-	return fmt.Sprintf("%sの使用許可を求めています", toolName)
+	return fmt.Sprintf("%sの使用許可を求めています", toolName), true
 }
 
 // NarrateText returns the text as-is
-func (cn *ConfigBasedNarrator) NarrateText(text string) string {
-	return text
+func (cn *RuleBasedNarrator) NarrateText(text string) (string, bool) {
+	return text, false
 }
 
 // NarrateNotification narrates notification events
-func (cn *ConfigBasedNarrator) NarrateNotification(notificationType NotificationType) string {
+func (cn *RuleBasedNarrator) NarrateNotification(notificationType NotificationType) (string, bool) {
 	// Return messages based on notification type
 	switch notificationType {
 	case NotificationTypeCompact:
-		return "コンテキストを圧縮しています"
+		return "コンテキストを圧縮しています", false
 	case NotificationTypeSessionStartStartup:
-		return "こんにちは！何かお手伝いできることはありますか？"
+		return "こんにちは！何かお手伝いできることはありますか？", false
 	case NotificationTypeSessionStartClear:
-		return "何かお手伝いできることはありますか？"
+		return "何かお手伝いできることはありますか？", false
 	case NotificationTypeSessionStartResume:
-		return "前回の作業を続けましょう。どこから再開しますか？"
+		return "前回の作業を続けましょう。どこから再開しますか？", false
 	case NotificationTypeSessionStartCompact:
-		return "セッションを再開しました"
+		return "セッションを再開しました", false
 	default:
-		return ""
+		return "", true
 	}
 }
 
 // NarrateTaskCompletion narrates task completion events
-func (cn *ConfigBasedNarrator) NarrateTaskCompletion(description string, subagentType string) string {
+func (cn *RuleBasedNarrator) NarrateTaskCompletion(description string, subagentType string) (string, bool) {
 	// Build message based on available information
 	if subagentType != "" && description != "" {
-		return fmt.Sprintf("%s agentがタスク「%s」を完了しました", subagentType, description)
+		return fmt.Sprintf("%s agentがタスク「%s」を完了しました", subagentType, description), false
 	} else if description != "" {
-		return fmt.Sprintf("タスク「%s」が完了しました", description)
+		return fmt.Sprintf("タスク「%s」が完了しました", description), false
 	}
-	return "タスクが完了しました"
+	return "タスクが完了しました", false
 }

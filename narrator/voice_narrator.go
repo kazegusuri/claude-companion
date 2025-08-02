@@ -61,8 +61,8 @@ func NewVoiceNarratorWithTranslator(narrator Narrator, voiceClient *VoiceVoxClie
 }
 
 // NarrateToolUse narrates tool usage with optional voice
-func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interface{}) string {
-	text := vn.narrator.NarrateToolUse(toolName, input)
+func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interface{}) (string, bool) {
+	text, shouldFallback := vn.narrator.NarrateToolUse(toolName, input)
 
 	if vn.enabled && text != "" {
 		narType := NarrationTypeToolUse
@@ -73,51 +73,51 @@ func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interf
 		vn.enqueueNarration(text, narType)
 	}
 
-	return text
+	return text, shouldFallback
 }
 
 // NarrateToolUsePermission narrates tool permission request with optional voice
-func (vn *VoiceNarrator) NarrateToolUsePermission(toolName string) string {
-	text := vn.narrator.NarrateToolUsePermission(toolName)
+func (vn *VoiceNarrator) NarrateToolUsePermission(toolName string) (string, bool) {
+	text, shouldFallback := vn.narrator.NarrateToolUsePermission(toolName)
 
 	if vn.enabled && text != "" {
 		vn.enqueueNarration(text, NarrationTypeToolUsePermission)
 	}
 
-	return text
+	return text, shouldFallback
 }
 
 // NarrateText narrates text with optional voice
-func (vn *VoiceNarrator) NarrateText(text string) string {
-	result := vn.narrator.NarrateText(text)
+func (vn *VoiceNarrator) NarrateText(text string) (string, bool) {
+	result, shouldFallback := vn.narrator.NarrateText(text)
 
 	if vn.enabled && result != "" {
 		vn.enqueueNarration(result, NarrationTypeText)
 	}
 
-	return result
+	return result, shouldFallback
 }
 
 // NarrateNotification narrates notification events with optional voice
-func (vn *VoiceNarrator) NarrateNotification(notificationType NotificationType) string {
-	text := vn.narrator.NarrateNotification(notificationType)
+func (vn *VoiceNarrator) NarrateNotification(notificationType NotificationType) (string, bool) {
+	text, shouldFallback := vn.narrator.NarrateNotification(notificationType)
 
 	if vn.enabled && text != "" {
 		vn.enqueueNarration(text, NarrationTypeNotification)
 	}
 
-	return text
+	return text, shouldFallback
 }
 
 // NarrateTaskCompletion narrates task completion events with optional voice
-func (vn *VoiceNarrator) NarrateTaskCompletion(description string, subagentType string) string {
-	text := vn.narrator.NarrateTaskCompletion(description, subagentType)
+func (vn *VoiceNarrator) NarrateTaskCompletion(description string, subagentType string) (string, bool) {
+	text, shouldFallback := vn.narrator.NarrateTaskCompletion(description, subagentType)
 
 	if vn.enabled && text != "" {
 		vn.enqueueNarration(text, NarrationTypeNotification)
 	}
 
-	return text
+	return text, shouldFallback
 }
 
 // voiceWorker processes voice queue

@@ -106,7 +106,7 @@ func (f *CompanionFormatter) FormatToolUse(toolName string, meta EventMeta, inpu
 	}
 
 	// Use narrator with potentially modified input
-	narration := f.narrator.NarrateToolUse(toolName, modifiedInput)
+	narration, _ := f.narrator.NarrateToolUse(toolName, modifiedInput)
 	if narration != "" {
 		output.WriteString(fmt.Sprintf("  💬 %s", narration))
 		// Track file operations for summary
@@ -294,7 +294,7 @@ func (f *CompanionFormatter) FormatAssistantText(text string) string {
 			if i < MaxNormalTextLines {
 				if i == 0 {
 					// Use narrator to process the first line, then add 💬
-					narrated := f.narrator.NarrateText(line)
+					narrated, _ := f.narrator.NarrateText(line)
 					output.WriteString(fmt.Sprintf("  💬 %s\n", narrated))
 				} else {
 					output.WriteString(fmt.Sprintf("  %s\n", line))

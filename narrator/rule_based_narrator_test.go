@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
+func TestRuleBasedNarrator_NarrateToolUse(t *testing.T) {
 	// Load default configuration
 	config := GetDefaultNarratorConfig()
-	cn := NewConfigBasedNarrator(config)
+	cn := NewRuleBasedNarrator(config)
 
 	tests := []struct {
 		name     string
@@ -300,7 +300,7 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			name:     "unknown MCP tool without server rules",
 			toolName: "mcp__unknown_server__some_operation",
 			input:    map[string]interface{}{},
-			expected: "ツール「mcp__unknown_server__some_operation」を実行します",
+			expected: "",
 		},
 		{
 			name:     "completely unknown tool",
@@ -312,13 +312,13 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 			name:     "unknown MCP tool with parameters",
 			toolName: "mcp__newservice__process_data",
 			input:    map[string]interface{}{"data": "test", "mode": "fast"},
-			expected: "ツール「mcp__newservice__process_data」を実行します",
+			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cn.NarrateToolUse(tt.toolName, tt.input)
+			result, _ := cn.NarrateToolUse(tt.toolName, tt.input)
 			if result != tt.expected {
 				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
 			}
@@ -326,7 +326,7 @@ func TestConfigBasedNarrator_NarrateToolUse(t *testing.T) {
 	}
 }
 
-func TestConfigBasedNarrator_UnknownToolsWithoutGenericMessage(t *testing.T) {
+func TestRuleBasedNarrator_UnknownToolsWithoutGenericMessage(t *testing.T) {
 	// Create a config without genericToolExecution message
 	// Also create an empty default config to override the global default
 	config := &NarratorConfig{
@@ -338,8 +338,8 @@ func TestConfigBasedNarrator_UnknownToolsWithoutGenericMessage(t *testing.T) {
 		Messages: MessageTemplates{}, // Empty messages
 	}
 
-	// Create ConfigBasedNarrator with custom configs
-	cn := &ConfigBasedNarrator{
+	// Create RuleBasedNarrator with custom configs
+	cn := &RuleBasedNarrator{
 		config:        config,
 		defaultConfig: emptyDefaultConfig,
 	}
@@ -354,19 +354,19 @@ func TestConfigBasedNarrator_UnknownToolsWithoutGenericMessage(t *testing.T) {
 			name:     "unknown tool without generic message",
 			toolName: "CompletelyNewTool",
 			input:    map[string]interface{}{},
-			expected: "CompletelyNewToolを実行中...",
+			expected: "",
 		},
 		{
 			name:     "unknown MCP tool without generic message",
 			toolName: "mcp__newserver__action",
 			input:    map[string]interface{}{},
-			expected: "mcp__newserver__actionを実行中...",
+			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cn.NarrateToolUse(tt.toolName, tt.input)
+			result, _ := cn.NarrateToolUse(tt.toolName, tt.input)
 			if result != tt.expected {
 				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
 			}
@@ -388,19 +388,19 @@ func TestHybridNarrator_UnknownTools(t *testing.T) {
 			name:     "unknown MCP tool",
 			toolName: "mcp__unknown__operation",
 			input:    map[string]interface{}{},
-			expected: "mcp__unknown__operationを実行中...",
+			expected: "mcp__unknown__operationを実行中...", // HybridNarrator fallback for unknown MCP
 		},
 		{
 			name:     "completely unknown tool",
 			toolName: "NewUnknownTool",
 			input:    map[string]interface{}{"param": "value"},
-			expected: "NewUnknownToolを実行中...",
+			expected: "ツール「NewUnknownTool」を実行します", // ConfigNarrator generic message
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hn.NarrateToolUse(tt.toolName, tt.input)
+			result, _ := hn.NarrateToolUse(tt.toolName, tt.input)
 			if result != tt.expected {
 				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
 			}
@@ -408,9 +408,9 @@ func TestHybridNarrator_UnknownTools(t *testing.T) {
 	}
 }
 
-func TestConfigBasedNarrator_FileTypeMapping(t *testing.T) {
+func TestRuleBasedNarrator_FileTypeMapping(t *testing.T) {
 	config := GetDefaultNarratorConfig()
-	cn := NewConfigBasedNarrator(config)
+	cn := NewRuleBasedNarrator(config)
 
 	// Test file type name mapping
 	tests := []struct {
@@ -442,7 +442,7 @@ func TestConfigBasedNarrator_FileTypeMapping(t *testing.T) {
 	}
 }
 
-func TestConfigBasedNarrator_CaptureRules(t *testing.T) {
+func TestRuleBasedNarrator_CaptureRules(t *testing.T) {
 	// Create a test configuration with captures
 	config := &NarratorConfig{
 		Rules: map[string]ToolRules{
@@ -469,7 +469,7 @@ func TestConfigBasedNarrator_CaptureRules(t *testing.T) {
 		},
 	}
 	// Create narrator with test config but no default config
-	cn := &ConfigBasedNarrator{
+	cn := &RuleBasedNarrator{
 		config:        config,
 		defaultConfig: &NarratorConfig{}, // Empty default config
 	}
@@ -509,7 +509,7 @@ func TestConfigBasedNarrator_CaptureRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := cn.NarrateToolUse(tt.toolName, tt.input)
+			result, _ := cn.NarrateToolUse(tt.toolName, tt.input)
 			if result != tt.expected {
 				t.Errorf("NarrateToolUse(%s, %v) = %q, want %q", tt.toolName, tt.input, result, tt.expected)
 			}
