@@ -146,8 +146,13 @@ func (v *VoiceVoxClient) playAudio(audioData []byte) error {
 
 	switch runtime.GOOS {
 	case "darwin":
-		// macOS: use afplay
-		cmd = exec.Command("afplay", "-")
+		// macOS: try ffplay first (supports stdin), then fall back to afplay with temp file
+		if _, err := exec.LookPath("ffplay"); err == nil {
+			cmd = exec.Command("ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-")
+		} else {
+			// ffplay not found, use temp file approach for afplay
+			return v.playAudioMacOS(audioData)
+		}
 	case "linux":
 		// Linux: try aplay first, then paplay
 		if _, err := exec.LookPath("aplay"); err == nil {
@@ -166,6 +171,27 @@ func (v *VoiceVoxClient) playAudio(audioData []byte) error {
 	}
 
 	cmd.Stdin = bytes.NewReader(audioData)
+	return cmd.Run()
+}
+
+// playAudioMacOS handles macOS-specific audio playback using temp file
+func (v *VoiceVoxClient) playAudioMacOS(audioData []byte) error {
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "voicevox_*.wav")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write audio data
+	if _, err := tmpFile.Write(audioData); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	tmpFile.Close()
+
+	// Play using afplay
+	cmd := exec.Command("afplay", tmpFile.Name())
 	return cmd.Run()
 }
 
