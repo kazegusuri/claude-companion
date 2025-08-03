@@ -11,12 +11,12 @@ func TestFormatAssistantText(t *testing.T) {
 	formatter := NewFormatter(narrator.NewNoOpNarrator())
 
 	tests := []struct {
-		name        string
-		text        string
-		isThinking  bool
-		wantContain []string
+		name           string
+		text           string
+		isThinking     bool
+		wantContain    []string
 		wantNotContain []string
-		description string
+		description    string
 	}{
 		{
 			name:       "single_line_text",
@@ -35,10 +35,10 @@ func TestFormatAssistantText(t *testing.T) {
 			text:       "Line 1\nLine 2\nLine 3",
 			isThinking: false,
 			wantContain: []string{
-				"💬 Line 1",      // Narration shows first line
-				"📝 Line 1",      // First line with emoji
-				"Line 2",         // Second line without emoji
-				"Line 3",         // Third line without emoji
+				"💬 Line 1", // Narration shows first line
+				"📝 Line 1", // First line with emoji
+				"Line 2",   // Second line without emoji
+				"Line 3",   // Third line without emoji
 			},
 			description: "Multi-line text should show narration and all lines with 📝 on first",
 		},
@@ -47,12 +47,12 @@ func TestFormatAssistantText(t *testing.T) {
 			text:       "Here is some code:\n```python\ndef hello():\n    print('Hello')\n```\nEnd of code",
 			isThinking: false,
 			wantContain: []string{
-				"💬 Here is some code:",              // Narration (with placeholder in actual text)
-				"📝 Here is some code:",              // First line with emoji
-				"End of code",                        // Text after code block
-				"📝 Code Block 1 (python):",          // Code block header
-				"def hello():",                       // Code content
-				"print('Hello')",                     // Code content
+				"💬 Here is some code:",     // Narration (with placeholder in actual text)
+				"📝 Here is some code:",     // First line with emoji
+				"End of code",              // Text after code block
+				"📝 Code Block 1 (python):", // Code block header
+				"def hello():",             // Code content
+				"print('Hello')",           // Code content
 			},
 			wantNotContain: []string{
 				"📝 [CODE BLOCK", // Placeholder line should not have 📝 emoji
@@ -64,8 +64,8 @@ func TestFormatAssistantText(t *testing.T) {
 			text:       "```go\nfmt.Println(\"test\")\n```",
 			isThinking: false,
 			wantContain: []string{
-				"💬 [CODE BLOCK 1: go]", // Narration with placeholder
-				"📝 Code Block 1 (go):", // Code block header
+				"💬 [CODE BLOCK 1: go]",  // Narration with placeholder
+				"📝 Code Block 1 (go):",  // Code block header
 				"fmt.Println(\"test\")", // Code content
 			},
 			wantNotContain: []string{
@@ -78,13 +78,13 @@ func TestFormatAssistantText(t *testing.T) {
 			text:       "First block:\n```js\nconsole.log('1');\n```\nSecond block:\n```py\nprint('2')\n```",
 			isThinking: false,
 			wantContain: []string{
-				"💬 First block:",         // Narration
-				"📝 First block:",         // First line with emoji
-				"Second block:",           // Text between blocks
-				"📝 Code Block 1 (js):",   // First code block
-				"console.log('1');",       // JS code
-				"📝 Code Block 2 (py):",   // Second code block
-				"print('2')",              // Python code
+				"💬 First block:",       // Narration
+				"📝 First block:",       // First line with emoji
+				"Second block:",        // Text between blocks
+				"📝 Code Block 1 (js):", // First code block
+				"console.log('1');",    // JS code
+				"📝 Code Block 2 (py):", // Second code block
+				"print('2')",           // Python code
 			},
 			description: "Multiple code blocks should be shown separately",
 		},
@@ -95,7 +95,7 @@ func TestFormatAssistantText(t *testing.T) {
 			wantContain: []string{
 				"💬 Analyzing the problem", // Narration
 				"📝 Analyzing the problem", // First line with emoji
-				"Considering options",      // Second line
+				"Considering options",     // Second line
 			},
 			description: "Thinking mode should work the same way",
 		},
@@ -106,10 +106,10 @@ func TestFormatAssistantText(t *testing.T) {
 			wantContain: []string{
 				"💬 Output:",              // Narration (NoOpNarrator returns with placeholder)
 				"📝 Code Block 1 (text):", // Default language
-				"plain text output",       // Code content
+				"plain text output",      // Code content
 			},
 			wantNotContain: []string{
-				"📝 Output:",              // Single line after filtering placeholders
+				"📝 Output:", // Single line after filtering placeholders
 			},
 			description: "Code block without language should default to 'text'",
 		},
@@ -148,36 +148,36 @@ func TestExtractCodeBlocks(t *testing.T) {
 		description  string
 	}{
 		{
-			name: "single_code_block",
-			text: "```python\ndef hello():\n    pass\n```",
-			wantBlocks: 1,
+			name:         "single_code_block",
+			text:         "```python\ndef hello():\n    pass\n```",
+			wantBlocks:   1,
 			wantLanguage: []string{"python"},
-			wantContent: []string{"def hello():\n    pass\n"},
-			description: "Should extract single code block",
+			wantContent:  []string{"def hello():\n    pass\n"},
+			description:  "Should extract single code block",
 		},
 		{
-			name: "multiple_code_blocks",
-			text: "```js\nconst x = 1;\n```\nSome text\n```go\nfmt.Println()\n```",
-			wantBlocks: 2,
+			name:         "multiple_code_blocks",
+			text:         "```js\nconst x = 1;\n```\nSome text\n```go\nfmt.Println()\n```",
+			wantBlocks:   2,
 			wantLanguage: []string{"js", "go"},
-			wantContent: []string{"const x = 1;\n", "fmt.Println()\n"},
-			description: "Should extract multiple code blocks",
+			wantContent:  []string{"const x = 1;\n", "fmt.Println()\n"},
+			description:  "Should extract multiple code blocks",
 		},
 		{
-			name: "code_block_no_language",
-			text: "```\nplain text\n```",
-			wantBlocks: 1,
+			name:         "code_block_no_language",
+			text:         "```\nplain text\n```",
+			wantBlocks:   1,
 			wantLanguage: []string{"text"},
-			wantContent: []string{"plain text\n"},
-			description: "Should handle code block without language",
+			wantContent:  []string{"plain text\n"},
+			description:  "Should handle code block without language",
 		},
 		{
-			name: "no_code_blocks",
-			text: "Just regular text without code",
-			wantBlocks: 0,
+			name:         "no_code_blocks",
+			text:         "Just regular text without code",
+			wantBlocks:   0,
 			wantLanguage: []string{},
-			wantContent: []string{},
-			description: "Should return empty for text without code blocks",
+			wantContent:  []string{},
+			description:  "Should return empty for text without code blocks",
 		},
 	}
 
@@ -204,4 +204,3 @@ func TestExtractCodeBlocks(t *testing.T) {
 		})
 	}
 }
-
