@@ -3,20 +3,39 @@ package event
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
+// BufferInfo holds information about buffered events for a session
+type BufferInfo struct {
+	events      []Event
+	timer       *time.Timer
+	sessionName string
+	startTime   time.Time
+}
+
+// FormatterInterface defines the interface for event formatters
+type FormatterInterface interface {
+	Format(event Event) (string, error)
+	SetDebugMode(debug bool)
+}
+
 // Handler processes events from multiple sources
 type Handler struct {
 	narrator    narrator.Narrator
-	formatter   *Formatter
+	formatter   FormatterInterface
 	debugMode   bool
 	eventChan   chan Event
 	wg          sync.WaitGroup
 	done        chan struct{}
 	taskTracker *TaskTracker
+
+	// Buffering support
+	bufferMutex sync.Mutex
+	buffers     map[string]*BufferInfo // key: session name
 }
 
 // NewHandler creates a new event handler
@@ -32,6 +51,7 @@ func NewHandler(narrator narrator.Narrator, debugMode bool) *Handler {
 		eventChan:   make(chan Event, 100),
 		done:        make(chan struct{}),
 		taskTracker: taskTracker,
+		buffers:     make(map[string]*BufferInfo),
 	}
 }
 
@@ -87,6 +107,11 @@ func (h *Handler) processEvents() {
 
 // processEvent processes a single event based on its type
 func (h *Handler) processEvent(event Event) {
+	// Check if event should be buffered or if it releases buffered events
+	if h.handleBuffering(event) {
+		return // Event was buffered or handled
+	}
+
 	// Check if the event should be ignored (sidechain events)
 	switch e := event.(type) {
 	case *UserMessage:
@@ -249,4 +274,111 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 		}
 	}
 	return nil
+}
+
+// handleBuffering checks if an event should be buffered or if it releases buffered events
+// Returns true if the event was handled (buffered or triggered release)
+func (h *Handler) handleBuffering(event Event) bool {
+	// Extract BaseEvent from different event types
+	var baseEvent *BaseEvent
+	var sessionName string
+
+	switch e := event.(type) {
+	case *UserMessage:
+		baseEvent = &e.BaseEvent
+	case *AssistantMessage:
+		baseEvent = &e.BaseEvent
+	case *SystemMessage:
+		baseEvent = &e.BaseEvent
+	case *HookEvent:
+		baseEvent = &e.BaseEvent
+		// Check if this is a SessionStart:resume event FIRST before buffering check
+		if e.HookEventType == "SessionStart:resume" && baseEvent.Session != nil {
+			sessionName = baseEvent.Session.Session
+			h.releaseBuffer(sessionName, "SessionStart:resume received")
+			// Process this event normally after releasing buffer
+			return false
+		}
+	case *BaseEvent:
+		baseEvent = e
+	case *TaskCompletionMessage:
+		baseEvent = &e.BaseEvent
+	default:
+		// Event doesn't have BaseEvent (e.g., NotificationEvent, SummaryEvent)
+		return false
+	}
+
+	// Get session name if we have it
+	if baseEvent != nil && baseEvent.Session != nil {
+		sessionName = baseEvent.Session.Session
+	}
+
+	// Check if we need to buffer this event
+	if baseEvent != nil && !baseEvent.IsSidechain && baseEvent.Session != nil && baseEvent.ParentUUID == nil {
+		h.bufferMutex.Lock()
+		defer h.bufferMutex.Unlock()
+
+		if h.debugMode {
+			logger.LogInfo("Buffering event (ParentUUID==nil) for session: %s, type: %T", sessionName, event)
+		}
+
+		// Check if we already have a buffer for this session
+		if buffer, exists := h.buffers[sessionName]; exists {
+			// Add to existing buffer
+			buffer.events = append(buffer.events, event)
+			return true
+		}
+
+		// Create new buffer for this session
+		buffer := &BufferInfo{
+			events:      []Event{event},
+			sessionName: sessionName,
+			startTime:   time.Now(),
+			timer: time.AfterFunc(1*time.Second, func() {
+				h.releaseBuffer(sessionName, "timeout")
+			}),
+		}
+		h.buffers[sessionName] = buffer
+		return true
+	}
+
+	// Check if this event is for a buffered session
+	if sessionName != "" {
+		h.bufferMutex.Lock()
+		if buffer, exists := h.buffers[sessionName]; exists {
+			// Add to buffer
+			buffer.events = append(buffer.events, event)
+			h.bufferMutex.Unlock()
+			return true
+		}
+		h.bufferMutex.Unlock()
+	}
+
+	return false
+}
+
+// releaseBuffer releases buffered events for a session
+func (h *Handler) releaseBuffer(sessionName string, reason string) {
+	h.bufferMutex.Lock()
+	defer h.bufferMutex.Unlock()
+
+	buffer, exists := h.buffers[sessionName]
+	if !exists {
+		return
+	}
+
+	// Stop the timer if it's still running
+	if buffer.timer != nil {
+		buffer.timer.Stop()
+	}
+
+	if h.debugMode {
+		logger.LogInfo("Releasing buffer for session %s: %s (events: %d, duration: %v)",
+			sessionName, reason, len(buffer.events), time.Since(buffer.startTime))
+	}
+
+	// Remove buffer and discard buffered events
+	delete(h.buffers, sessionName)
+
+	// Buffered events are discarded (not re-enqueued)
 }
