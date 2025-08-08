@@ -435,7 +435,7 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 
 	// Check that event was buffered (not processed)
 	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Event with ParentUUID==nil should be buffered, but %d events were processed", 
+		t.Errorf("Event with ParentUUID==nil should be buffered, but %d events were processed",
 			mockFormatter.getProcessedCount())
 	}
 

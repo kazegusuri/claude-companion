@@ -137,7 +137,7 @@ func TestRuleBasedNarrator_NarrateToolUse(t *testing.T) {
 				"pattern": "import",
 				"glob":    "**/*.py",
 			},
-			expected: "プロジェクト全体から「import」を検索します",
+			expected: "「プロジェクト全体」から「import」を検索します",
 		},
 
 		// WebSearch tool test

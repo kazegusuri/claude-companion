@@ -54,8 +54,8 @@ type PatternRule struct {
 
 // CaptureRule represents a configurable input capture and replacement rule
 type CaptureRule struct {
-	InputKey      string `json:"inputKey"`      // The key in the input map to capture from (placeholder will be {inputKey})
-	ParseFileType bool   `json:"parseFileType"` // If true, parse the value as a file path and add {filetype} replacement
+	InputKey      string `json:"inputKey"`       // The key in the input map to capture from (placeholder will be {inputKey})
+	ParseFileType bool   `json:"parseFileType"`  // If true, parse the value as a file path and add {filetype} replacement
 	Type          string `json:"type,omitempty"` // Optional type: "file" to use filepath.Base on the value
 }
 

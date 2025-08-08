@@ -1,18 +1,44 @@
 package narrator
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 )
 
 // TextNormalizer normalizes text for better TTS pronunciation
 type TextNormalizer struct {
-	replacements map[string]string
+	replacements       map[string]string
+	domainReplacements map[string]string
 }
 
 // NewTextNormalizer creates a new text normalizer
 func NewTextNormalizer() *TextNormalizer {
 	return &TextNormalizer{
+		domainReplacements: map[string]string{
+			"github.com":        "ギットハブ",
+			"google.com":        "グーグル",
+			"youtube.com":       "ユーチューブ",
+			"twitter.com":       "ツイッター",
+			"x.com":             "エックス",
+			"facebook.com":      "フェイスブック",
+			"instagram.com":     "インスタグラム",
+			"linkedin.com":      "リンクトイン",
+			"reddit.com":        "レディット",
+			"stackoverflow.com": "スタックオーバーフロー",
+			"amazon.com":        "アマゾン",
+			"wikipedia.org":     "ウィキペディア",
+			"openai.com":        "オープンエーアイ",
+			"anthropic.com":     "アンソロピック",
+			"microsoft.com":     "マイクロソフト",
+			"apple.com":         "アップル",
+			"golang.org":        "ゴーラング",
+			"nodejs.org":        "ノードジェーエス",
+			"python.org":        "パイソン",
+			"npmjs.com":         "エヌピーエム",
+			"docker.com":        "ドッカー",
+			"kubernetes.io":     "クバネティス",
+		},
 		replacements: map[string]string{
 			// Common file extensions
 			"README.md": "リードミー",
@@ -98,44 +124,58 @@ func (n *TextNormalizer) Normalize(text string) string {
 			// Apply all normalizations to ASCII part
 			normalized := asciiPart
 
-			// First, handle specific full matches like "README.md"
-			for old, new := range n.replacements {
-				if strings.Contains(old, ".") && len(old) > 3 {
-					// Full filename replacements
-					normalized = strings.ReplaceAll(normalized, old, new)
+			// Check if the ASCII part is a URL with a matching domain
+			skipNormalProcessing := false
+			if parsedURL, err := url.Parse(asciiPart); err == nil && parsedURL.Host != "" {
+				// It's a URL with a host
+				if replacement, ok := n.domainReplacements[parsedURL.Host]; ok {
+					// Replace the entire URL with the domain-specific replacement
+					normalized = replacement
+					skipNormalProcessing = true
 				}
 			}
 
-			// Handle abbreviations and terms before dots
-			normalized = n.replaceAbbreviations(normalized)
-
-			// Replace dots (after abbreviation handling)
-			normalized = n.replaceDots(normalized)
-
-			// Handle file extensions after dots have been replaced
-			// This will replace patterns like "ドットgo" with "ドットゴー"
-			for old, new := range n.replacements {
-				if strings.HasPrefix(old, ".") {
-					// Convert ".go" to "ドットgo" pattern for matching
-					dotPattern := "ドット" + old[1:]
-					normalized = strings.ReplaceAll(normalized, dotPattern, new)
+			// Apply normal replacements if not skipped
+			if !skipNormalProcessing {
+				// First, handle specific full matches like "README.md"
+				for old, new := range n.replacements {
+					if strings.Contains(old, ".") && len(old) > 3 {
+						// Full filename replacements
+						normalized = strings.ReplaceAll(normalized, old, new)
+					}
 				}
+
+				// Handle abbreviations and terms before dots
+				normalized = n.replaceAbbreviations(normalized)
+
+				// Replace dots (after abbreviation handling)
+				normalized = n.replaceDots(normalized)
+
+				// Handle file extensions after dots have been replaced
+				// This will replace patterns like "ドットgo" with "ドットゴー"
+				for old, new := range n.replacements {
+					if strings.HasPrefix(old, ".") {
+						// Convert ".go" to "ドットgo" pattern for matching
+						dotPattern := "ドット" + old[1:]
+						normalized = strings.ReplaceAll(normalized, dotPattern, new)
+					}
+				}
+
+				// Replace hyphens in hyphenated English words
+				normalized = n.replaceHyphens(normalized)
+
+				// Replace :// with , (before slash replacement)
+				normalized = strings.ReplaceAll(normalized, "://", ",")
+
+				// Replace slashes with "スラ"
+				normalized = n.replaceSlashes(normalized)
+
+				// Replace underscores with spaces
+				normalized = strings.ReplaceAll(normalized, "_", " ")
+
+				// Split long numbers (4+ digits) into groups of 4
+				normalized = n.splitLongNumbers(normalized)
 			}
-
-			// Replace hyphens in hyphenated English words
-			normalized = n.replaceHyphens(normalized)
-
-			// Replace :// with , (before slash replacement)
-			normalized = strings.ReplaceAll(normalized, "://", ",")
-
-			// Replace slashes with "スラ"
-			normalized = n.replaceSlashes(normalized)
-
-			// Replace underscores with spaces
-			normalized = strings.ReplaceAll(normalized, "_", " ")
-
-			// Split long numbers (4+ digits) into groups of 4
-			normalized = n.splitLongNumbers(normalized)
 
 			result += normalized
 		} else {

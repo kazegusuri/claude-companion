@@ -150,7 +150,7 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 		{
 			name:     "Domain with protocol",
 			input:    "https://github.com",
-			expected: "エイチティーティーピーエス,ギットハブドットcom",
+			expected: "ギットハブ",
 		},
 		{
 			name:     "Domain with path",
