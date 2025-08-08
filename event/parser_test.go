@@ -778,3 +778,102 @@ func mustParseTime(s string) time.Time {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestExtractSessionFromPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		wantProj string
+		wantSess string
+	}{
+		{
+			name:     "standard_claude_path",
+			path:     "/home/user/.claude/projects/myproject/session123.jsonl",
+			wantProj: "myproject",
+			wantSess: "session123",
+		},
+		{
+			name:     "with_tilde",
+			path:     "~/.claude/projects/test-project/my-session.jsonl",
+			wantProj: "test-project",
+			wantSess: "my-session",
+		},
+		{
+			name:     "complex_session_name",
+			path:     "/Users/john/.claude/projects/web-app/2025-01-26-feature-branch.jsonl",
+			wantProj: "web-app",
+			wantSess: "2025-01-26-feature-branch",
+		},
+		{
+			name:     "non_claude_path",
+			path:     "/var/log/something.jsonl",
+			wantProj: "log",
+			wantSess: "something",
+		},
+		{
+			name:     "without_jsonl_extension",
+			path:     "/home/user/.claude/projects/myproject/session123.txt",
+			wantProj: "myproject",
+			wantSess: "session123.txt",
+		},
+		{
+			name:     "simple_path",
+			path:     "project/session.jsonl",
+			wantProj: "project",
+			wantSess: "session",
+		},
+		{
+			name:     "custom_directory",
+			path:     "/custom/dir/my-project/my-session.jsonl",
+			wantProj: "my-project",
+			wantSess: "my-session",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session := extractSessionFromPath(tt.path)
+
+			if session == nil {
+				t.Fatal("extractSessionFromPath() returned nil, want non-nil")
+			}
+			if session.Project != tt.wantProj {
+				t.Errorf("extractSessionFromPath() Project = %v, want %v", session.Project, tt.wantProj)
+			}
+			if session.Session != tt.wantSess {
+				t.Errorf("extractSessionFromPath() Session = %v, want %v", session.Session, tt.wantSess)
+			}
+		})
+	}
+}
+
+func TestParserWithPath(t *testing.T) {
+	logPath := "/home/user/.claude/projects/test-project/test-session.jsonl"
+	parser := NewParserWithPath(logPath)
+
+	// Parse a simple user message
+	input := `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello"}}`
+
+	event, err := parser.Parse(input)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	userMsg, ok := event.(*UserMessage)
+	if !ok {
+		t.Fatalf("Parse() returned wrong type: %T", event)
+	}
+
+	// Check if Session was set correctly
+	if userMsg.Session == nil {
+		t.Fatal("Session should not be nil")
+	}
+
+	if userMsg.Session.Project != "test-project" {
+		t.Errorf("Session.Project = %v, want test-project", userMsg.Session.Project)
+	}
+
+	if userMsg.Session.Session != "test-session" {
+		t.Errorf("Session.Session = %v, want test-session", userMsg.Session.Session)
+	}
+}

@@ -23,7 +23,7 @@ func NewSessionWatcher(filePath string, eventHandler *Handler) *SessionWatcher {
 	return &SessionWatcher{
 		filePath:     filePath,
 		eventHandler: eventHandler,
-		parser:       NewParser(),
+		parser:       NewParserWithPath(filePath),
 		done:         make(chan struct{}),
 	}
 }

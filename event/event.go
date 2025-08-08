@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -29,6 +30,12 @@ const (
 	EventTypeNotification = "notification"
 )
 
+// Session represents the project and session information extracted from the log file path
+type Session struct {
+	Project string `json:"project"`
+	Session string `json:"session"`
+}
+
 // BaseEvent contains common fields for all event types
 type BaseEvent struct {
 	ParentUUID  *string   `json:"parentUuid"`
@@ -36,6 +43,7 @@ type BaseEvent struct {
 	UserType    string    `json:"userType"`
 	CWD         string    `json:"cwd"`
 	SessionID   string    `json:"sessionId"`
+	Session     *Session  `json:"session,omitempty"`
 	Version     string    `json:"version"`
 	GitBranch   string    `json:"gitBranch"`
 	UUID        string    `json:"uuid"`
@@ -195,4 +203,29 @@ func (h *HookEvent) ParseHookContent() error {
 func stripANSI(str string) string {
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	return ansiRegex.ReplaceAllString(str, "")
+}
+
+// extractSessionFromPath extracts project and session information from a log file path
+// Expected format: {project}/{session}.jsonl
+func extractSessionFromPath(path string) *Session {
+	// Clean the path
+	cleanPath := filepath.Clean(path)
+
+	// Extract the directory and filename
+	dir := filepath.Dir(cleanPath)
+	filename := filepath.Base(cleanPath)
+
+	// Remove .jsonl extension if present
+	if strings.HasSuffix(filename, ".jsonl") {
+		filename = strings.TrimSuffix(filename, ".jsonl")
+	}
+
+	// Extract project name from the parent directory
+	projectDir := filepath.Base(dir)
+
+	// Return session info from parent directory and filename
+	return &Session{
+		Project: projectDir,
+		Session: filename,
+	}
 }

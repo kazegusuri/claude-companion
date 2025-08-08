@@ -6,11 +6,22 @@ import (
 )
 
 // Parser handles parsing of JSONL events
-type Parser struct{}
+type Parser struct {
+	logPath string
+	session *Session
+}
 
 // NewParser creates a new Parser instance
 func NewParser() *Parser {
 	return &Parser{}
+}
+
+// NewParserWithPath creates a new Parser instance with a log file path
+func NewParserWithPath(logPath string) *Parser {
+	return &Parser{
+		logPath: logPath,
+		session: extractSessionFromPath(logPath),
+	}
 }
 
 // Parse parses a JSON line and returns the appropriate event type
@@ -28,12 +39,14 @@ func (p *Parser) Parse(line string) (Event, error) {
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse user message: %w", err)
 		}
+		event.Session = p.session
 		return &event, nil
 	case EventTypeAssistant:
 		var event AssistantMessage
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse assistant message: %w", err)
 		}
+		event.Session = p.session
 		return &event, nil
 	case EventTypeSystem:
 		// Check if it's a hook event by looking for hook-specific fields
@@ -49,6 +62,7 @@ func (p *Parser) Parse(line string) (Event, error) {
 				if err := json.Unmarshal([]byte(line), &hookEvent); err == nil {
 					// Try to parse the hook content
 					if err := hookEvent.ParseHookContent(); err == nil {
+						hookEvent.Session = p.session
 						return &hookEvent, nil
 					}
 				}
@@ -60,15 +74,18 @@ func (p *Parser) Parse(line string) (Event, error) {
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse system message: %w", err)
 		}
+		event.Session = p.session
 		return &event, nil
 	case EventTypeSummary:
 		var event SummaryEvent
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse summary event: %w", err)
 		}
+		// SummaryEvent doesn't have BaseEvent, so we don't set Session
 		return &event, nil
 	default:
 		// Return base event for unknown types
+		baseEvent.Session = p.session
 		return &baseEvent, nil
 	}
 }
