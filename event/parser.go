@@ -36,6 +36,26 @@ func (p *Parser) Parse(line string) (Event, error) {
 		}
 		return &event, nil
 	case EventTypeSystem:
+		// Check if it's a hook event by looking for hook-specific fields
+		var checkHook struct {
+			Content   string `json:"content"`
+			ToolUseID string `json:"toolUseID"`
+			Level     string `json:"level"`
+		}
+		if err := json.Unmarshal([]byte(line), &checkHook); err == nil {
+			// If it has ToolUseID and Level, and content matches hook pattern, it's likely a HookEvent
+			if checkHook.ToolUseID != "" && checkHook.Level != "" && checkHook.Content != "" {
+				var hookEvent HookEvent
+				if err := json.Unmarshal([]byte(line), &hookEvent); err == nil {
+					// Try to parse the hook content
+					if err := hookEvent.ParseHookContent(); err == nil {
+						return &hookEvent, nil
+					}
+				}
+			}
+		}
+
+		// Otherwise, parse as regular SystemMessage
 		var event SystemMessage
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse system message: %w", err)

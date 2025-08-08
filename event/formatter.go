@@ -48,6 +48,8 @@ func (f *Formatter) Format(event Event) (string, error) {
 		return f.formatAssistantMessage(e)
 	case *SystemMessage:
 		return f.formatSystemMessage(e)
+	case *HookEvent:
+		return f.formatHookEvent(e)
 	case *SummaryEvent:
 		return f.formatSummaryEvent(e)
 	case *NotificationEvent:
@@ -229,6 +231,35 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		result += "\n"
 	}
 	return result, nil
+}
+
+func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
+	if event.IsMeta && !f.debugMode {
+		return "", nil // Skip meta messages unless in debug mode
+	}
+
+	var output strings.Builder
+
+	// Build header
+	header := fmt.Sprintf("[%s] 🪝 HOOK [%s]", event.Timestamp.Format("15:04:05"), event.HookEventType)
+	if f.debugMode {
+		debugInfo := fmt.Sprintf(" [UUID: %s, Tool: %s]", event.UUID, event.ToolUseID)
+		header += debugInfo
+	}
+	output.WriteString(header + "\n")
+
+	// Show hook details
+	output.WriteString(fmt.Sprintf("  📟 Command: %s\n", event.HookCommand))
+	output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", event.HookStatus))
+
+	// Add debug info
+	if f.debugMode {
+		output.WriteString(fmt.Sprintf("  🏷️  Level: %s\n", event.Level))
+		output.WriteString(fmt.Sprintf("  📂 CWD: %s\n", event.CWD))
+		output.WriteString(fmt.Sprintf("  🌳 Branch: %s\n", event.GitBranch))
+	}
+
+	return output.String(), nil
 }
 
 func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {

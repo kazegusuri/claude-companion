@@ -1,6 +1,11 @@
 package event
 
-import "time"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+)
 
 // Type represents the type of event
 type Type string
@@ -142,4 +147,52 @@ type TaskCompletionMessage struct {
 // Type returns the event type
 func (e *TaskCompletionMessage) Type() Type {
 	return Type("task_completion")
+}
+
+// HookEvent represents a hook execution event from Claude
+type HookEvent struct {
+	BaseEvent
+	Content   string `json:"content"`
+	IsMeta    bool   `json:"isMeta"`
+	ToolUseID string `json:"toolUseID"`
+	Level     string `json:"level"`
+
+	// Parsed fields from content
+	HookName      string
+	HookCommand   string
+	HookStatus    string
+	HookEventType string // SessionStart:resume, Stop, etc.
+}
+
+// ParseHookContent parses the content field to extract hook information
+func (h *HookEvent) ParseHookContent() error {
+	// Remove ANSI escape codes
+	cleanContent := stripANSI(h.Content)
+
+	// Pattern 1: "SessionStart:resume [/usr/local/bin/claude-notification.sh] completed successfully"
+	// Pattern 2: "Stop [/usr/local/bin/claude-notification.sh] completed successfully"
+	pattern := regexp.MustCompile(`^(\w+(?::\w+)?)\s+\[([^\]]+)\]\s+(.+)$`)
+	matches := pattern.FindStringSubmatch(cleanContent)
+
+	if len(matches) == 4 {
+		h.HookEventType = matches[1]
+		h.HookCommand = matches[2]
+		h.HookStatus = matches[3]
+
+		// Extract hook name from command path
+		parts := strings.Split(h.HookCommand, "/")
+		if len(parts) > 0 {
+			h.HookName = parts[len(parts)-1]
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("unable to parse hook content: %s", cleanContent)
+}
+
+// stripANSI removes ANSI escape codes from a string
+func stripANSI(str string) string {
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return ansiRegex.ReplaceAllString(str, "")
 }

@@ -43,6 +43,18 @@ func TestParser_Parse(t *testing.T) {
 			description: "Parse system message",
 		},
 		{
+			name:        "hook_event_stop",
+			input:       `{"parentUuid":"c55f08ec-93cc-4e4e-9bfe-3be0035464f3","isSidechain":false,"userType":"external","cwd":"/tmp/test/project","sessionId":"78f17a9d-d4da-4d94-ba71-18a48aac42a3","version":"1.0.64","gitBranch":"main","type":"system","content":"\u001b[1mStop\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully","isMeta":false,"timestamp":"2025-07-31T15:42:02.113Z","uuid":"ef16ec60-d3f6-4d59-bd99-d903bcddd8da","toolUseID":"5a59f1ad-02af-4ddf-b129-3af63d9d0049","level":"info"}`,
+			wantType:    "HookEvent",
+			description: "Parse hook event with Stop",
+		},
+		{
+			name:        "hook_event_session_start",
+			input:       `{"parentUuid":"ef16ec60-d3f6-4d59-bd99-d903bcddd8da","isSidechain":false,"userType":"external","cwd":"/tmp/test/project","sessionId":"d99240fe-3539-438d-85c6-c51f5eb51902","version":"1.0.67","gitBranch":"feature/test","type":"system","content":"\u001b[1mSessionStart:resume\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully","isMeta":false,"timestamp":"2025-08-03T13:09:46.461Z","uuid":"aa1fc221-60fc-4756-a892-93ffecbd47b9","toolUseID":"e51379a0-afd9-4434-bb3b-40cd178a0dc6","level":"info"}`,
+			wantType:    "HookEvent",
+			description: "Parse hook event with SessionStart:resume",
+		},
+		{
 			name:        "summary_event",
 			input:       `{"type":"summary","timestamp":"2025-01-26T15:30:45Z","uuid":"123","summary":"Summary text","leafUuid":"leaf_123"}`,
 			wantType:    "SummaryEvent",
@@ -82,6 +94,8 @@ func TestParser_Parse(t *testing.T) {
 				gotType = "AssistantMessage"
 			case *SystemMessage:
 				gotType = "SystemMessage"
+			case *HookEvent:
+				gotType = "HookEvent"
 			case *SummaryEvent:
 				gotType = "SummaryEvent"
 			case *BaseEvent:
@@ -92,6 +106,23 @@ func TestParser_Parse(t *testing.T) {
 
 			if gotType != tt.wantType {
 				t.Errorf("Parse() returned type = %v, want %v", gotType, tt.wantType)
+			}
+
+			// Additional validation for HookEvent
+			if hookEvent, ok := event.(*HookEvent); ok && tt.wantType == "HookEvent" {
+				// Verify that hook content was parsed
+				if hookEvent.HookEventType == "" {
+					t.Error("HookEvent.HookEventType should not be empty")
+				}
+				if hookEvent.HookCommand == "" {
+					t.Error("HookEvent.HookCommand should not be empty")
+				}
+				if hookEvent.HookStatus == "" {
+					t.Error("HookEvent.HookStatus should not be empty")
+				}
+				if hookEvent.HookName == "" {
+					t.Error("HookEvent.HookName should not be empty")
+				}
 			}
 		})
 	}

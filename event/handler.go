@@ -110,6 +110,13 @@ func (h *Handler) processEvent(event Event) {
 			}
 			return
 		}
+	case *HookEvent:
+		if e.IsSidechain {
+			if h.debugMode {
+				logger.LogInfo("Ignoring sidechain HookEvent")
+			}
+			return
+		}
 	case *BaseEvent:
 		if e.IsSidechain {
 			if h.debugMode {
@@ -162,7 +169,7 @@ func (h *Handler) processEvent(event Event) {
 		if output != "" {
 			fmt.Print(output)
 		}
-	case *SystemMessage, *SummaryEvent, *BaseEvent, *TaskCompletionMessage:
+	case *SystemMessage, *HookEvent, *SummaryEvent, *BaseEvent, *TaskCompletionMessage:
 		// Format and display parsed events
 		output, err := h.formatter.Format(e)
 		if err != nil {
