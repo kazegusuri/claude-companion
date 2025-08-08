@@ -205,11 +205,14 @@ func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]int
 - 技術的な詳細は省略
 - 自然で分かりやすい日本語を使用
 - ファイル名やパスは「」で囲む
+- パスはファイル名のみにする
+- regexp や 正規表現のパターンなどがあれば 正規表現 という表現を使う
 
 例:
 - ファイル「main.go」を読み込みます
 - テストを実行します
-- 変更をコミットします`, toolName, string(inputJSON))
+- 変更をコミットします
+- 正規表現を使って検索します`, toolName, string(inputJSON))
 
 	return prompt
 }

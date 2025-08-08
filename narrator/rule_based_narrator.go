@@ -94,6 +94,13 @@ func (cn *RuleBasedNarrator) applyCaptures(template string, captures []CaptureRu
 			default:
 				strValue = fmt.Sprintf("%v", v)
 			}
+			
+			// Apply Type transformation if specified
+			if capture.Type == "file" && strValue != "" {
+				// Use filepath.Base to get just the filename
+				strValue = filepath.Base(strValue)
+			}
+			
 			// Automatically generate placeholder from inputKey
 			placeholder := fmt.Sprintf("{%s}", capture.InputKey)
 			result = strings.ReplaceAll(result, placeholder, strValue)

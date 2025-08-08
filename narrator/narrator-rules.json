@@ -513,6 +513,7 @@
       "captures": [
         {
           "inputKey": "file_path",
+          "type": "file",
           "parseFileType": true
         },
         {
@@ -526,6 +527,7 @@
       "captures": [
         {
           "inputKey": "file_path",
+          "type": "file",
           "parseFileType": true
         },
         {
@@ -539,6 +541,7 @@
       "captures": [
         {
           "inputKey": "file_path",
+          "type": "file",
           "parseFileType": true
         },
         {
@@ -572,7 +575,7 @@
           "message": "{path}からエラー処理を検索します"
         }
       ],
-      "default": "{path}から「{pattern}」を検索します",
+      "default": "「{path}」から「{pattern}」を検索します",
       "captures": [
         {
           "inputKey": "pattern"
@@ -733,6 +736,51 @@
     ".ipynb": "Jupyterノートブック"
   },
   "mcpRules": {
+    "gopls": {
+      "default": "Go言語サポートツール「{operation}」を実行します",
+      "rules": {
+        "go_workspace": {
+          "default": "Goワークスペースの構造を確認します"
+        },
+        "go_diagnostics": {
+          "default": "Goコードの診断を実行します"
+        },
+        "go_file_context": {
+          "default": "Goファイル「{file}」のコンテキストを取得します",
+          "captures": [
+            {
+              "inputKey": "file",
+              "type": "file",
+              "parseFileType": true
+            }
+          ]
+        },
+        "go_package_api": {
+          "default": "GoパッケージのAPI情報を取得します"
+        },
+        "go_search": {
+          "default": "Goワークスペースからシンボル「{query}」を検索します",
+          "captures": [
+            {
+              "inputKey": "query"
+            }
+          ]
+        },
+        "go_symbol_references": {
+          "default": "Goワークスペースからシンボル「{symbol}」の参照を検索します",
+          "captures": [
+            {
+              "inputKey": "symbol"
+            },
+            {
+              "inputKey": "file",
+              "type": "file",
+              "parseFileType": true
+            }
+          ]
+        }
+      }
+    },
     "serena": {
       "default": "Serenaツール「{operation}」を実行します",
       "rules": {
@@ -896,7 +944,8 @@
           "default": "「{file_path}」の{start_line}行目から{end_line}行目を削除します",
           "captures": [
             {
-              "inputKey": "file_path"
+              "inputKey": "file_path",
+              "type": "file"
             },
             {
               "inputKey": "start_line"
@@ -954,7 +1003,8 @@
           "default": "「{file_path}」の{line}行目に挿入します",
           "captures": [
             {
-              "inputKey": "file_path"
+              "inputKey": "file_path",
+              "type": "file"
             },
             {
               "inputKey": "line"
@@ -977,6 +1027,7 @@
           "captures": [
             {
               "inputKey": "file_path",
+              "type": "file",
               "parseFileType": true
             }
           ]
@@ -985,7 +1036,8 @@
           "default": "「{file_path}」の{start_line}行目から{end_line}行目を置換します",
           "captures": [
             {
-              "inputKey": "file_path"
+              "inputKey": "file_path",
+              "type": "file"
             },
             {
               "inputKey": "start_line"
@@ -1029,3 +1081,4 @@
     }
   }
 }
+

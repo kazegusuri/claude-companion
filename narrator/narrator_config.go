@@ -56,6 +56,7 @@ type PatternRule struct {
 type CaptureRule struct {
 	InputKey      string `json:"inputKey"`      // The key in the input map to capture from (placeholder will be {inputKey})
 	ParseFileType bool   `json:"parseFileType"` // If true, parse the value as a file path and add {filetype} replacement
+	Type          string `json:"type,omitempty"` // Optional type: "file" to use filepath.Base on the value
 }
 
 // MCPRules represents rules for a specific MCP server
