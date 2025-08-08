@@ -174,6 +174,11 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 			input:    "/usr/local/bin/npm",
 			expected: "スラusrスラlocalスラbinスラエヌピーエム",
 		},
+		{
+			name:     "Long Full Path should be abbreviated",
+			input:    "/home/user/go/src/github.com/foo/bar/documents/README.md",
+			expected: "スラhomeスラなんとか,スラbarスラdocumentsスラリードミー",
+		},
 
 		// Relative path patterns
 		{
@@ -201,7 +206,7 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 		{
 			name:     "Long snake case filename",
 			input:    "get_user_profile_by_email_address.js",
-			expected: "get user profile by email addressドットジェーエス",
+			expected: "get user なんとか, by email addressドットジェーエス",
 		},
 		{
 			name:     "Snake case with numbers",
@@ -218,7 +223,7 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 		{
 			name:     "Long kebab case filename",
 			input:    "get-user-profile-by-email-address.html",
-			expected: "get user profile by email addressドットエイチティーエムエル",
+			expected: "get user なんとか, by email addressドットエイチティーエムエル",
 		},
 		{
 			name:     "Kebab case with numbers",
@@ -252,7 +257,7 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 		{
 			name:     "URL with kebab case path",
 			input:    "https://api.github.com/user-profile/settings",
-			expected: "エイチティーティーピーエス,エーピーアイドットギットハブドットcomスラuser profileスラsettings",
+			expected: "ギットハブAPI",
 		},
 		{
 			name:     "Complex path with mixed cases",
@@ -365,6 +370,93 @@ func TestTextNormalizer_Normalize(t *testing.T) {
 			name:     "gRPC in path",
 			input:    "/api/grpc/service",
 			expected: "スラエーピーアイスラジーアールピーシースラservice",
+		},
+		{
+			name:     "URL with unmatched domain",
+			input:    "https://foo.bar.com/aaa/bbb",
+			expected: "foo.bar.com ドメイン",
+		},
+		{
+			name:     "Long path with more than 3 parts",
+			input:    "aaa/bbb/ccc/ddd.txt",
+			expected: "aaaスラbbbスラcccスラdddドットテキスト",
+		},
+		{
+			name:     "Very long path",
+			input:    "aaa/bbb/ccc/ddd/eee/foo.txt",
+			expected: "aaaスラなんとか,スラdddスラeeeスラfooドットテキスト",
+		},
+		{
+			name:     "Path with 3 parts",
+			input:    "aaa/bbb/foo.txt",
+			expected: "aaaスラbbbスラfooドットテキスト",
+		},
+		{
+			name:     "Path with 2 parts",
+			input:    "aaa/foo.txt",
+			expected: "aaaスラfooドットテキスト",
+		},
+		{
+			name:     "Single filename",
+			input:    "foo.txt",
+			expected: "fooドットテキスト",
+		},
+		{
+			name:     "Path with ./ prefix",
+			input:    "./aaa/bbb/ccc/ddd/eee.txt",
+			expected: "aaaスラなんとか,スラcccスラdddスラeeeドットテキスト",
+		},
+		{
+			name:     "Absolute path",
+			input:    "/aaa/bbb/ccc/ddd/eee/fff.txt",
+			expected: "スラaaaスラなんとか,スラdddスラeeeスラfffドットテキスト",
+		},
+
+		// Long filename patterns
+		{
+			name:     "Long snake_case filename",
+			input:    "aaa_bbb_ccc_ddd_eee_fff_ggg_hhh_iii.json",
+			expected: "aaa bbb なんとか, ggg hhh iiiドットジェイソン",
+		},
+		{
+			name:     "Long snake_case filename with directory",
+			input:    "foo/bar/aaa_bbb_ccc_ddd_eee_fff_ggg_hhh_iii.json",
+			expected: "fooスラbarスラaaa bbb なんとか, ggg hhh iiiドットジェイソン",
+		},
+		{
+			name:     "Long snake_case filename with long directory",
+			input:    "foo/bar/baz/zoo/aaa_bbb_ccc_ddd_eee_fff_ggg_hhh_iii.json",
+			expected: "fooスラなんとか,スラbazスラzooスラaaa bbb なんとか, ggg hhh iiiドットジェイソン",
+		},
+		{
+			name:     "Long kebab-case filename",
+			input:    "get-user-profile-by-email-address-with-validation.html",
+			expected: "get user なんとか, address with validationドットエイチティーエムエル",
+		},
+		{
+			name:     "Long CamelCase filename",
+			input:    "GetUserProfileByEmailAddressWithValidation.java",
+			expected: "Get User なんとか, Address With Validationドットjava",
+		},
+		{
+			name:     "Mixed case long filename",
+			input:    "get_user_profile_by_email_address_controller.rb",
+			expected: "get user なんとか, email address controllerドットrb",
+		},
+		{
+			name:     "Short snake_case filename (not abbreviated)",
+			input:    "get_user_profile.py",
+			expected: "get user profileドットパイ",
+		},
+		{
+			name:     "Exactly 5 words snake_case",
+			input:    "aaa_bbb_ccc_ddd_eee.txt",
+			expected: "aaa bbb ccc ddd eeeドットテキスト",
+		},
+		{
+			name:     "6 words snake_case (should abbreviate)",
+			input:    "aaa_bbb_ccc_ddd_eee_fff.txt",
+			expected: "aaa bbb なんとか, ddd eee fffドットテキスト",
 		},
 	}
 
