@@ -60,8 +60,8 @@ func main() {
 
 	// Create narrator
 	if useAINarrator && openaiAPIKey == "" {
-		logger.LogWarning("AI narrator requires OpenAI API key. Using rule-based narrator.")
-		useAINarrator = false
+		logger.LogError("AI narrator requires OpenAI API key. Please set OPENAI_API_KEY environment variable or use --openai-key flag.")
+		os.Exit(1)
 	}
 
 	var n narrator.Narrator
@@ -75,6 +75,12 @@ func main() {
 	var voiceNarrator *narrator.VoiceNarrator
 	if enableVoice {
 		voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
+		// Check if VOICEVOX is available
+		if !voiceClient.IsAvailable() {
+			logger.LogError("VOICEVOX server is not available at %s. Please make sure VOICEVOX is running.", voicevoxURL)
+			logger.LogError("You can start VOICEVOX with: docker run -d --rm -it -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:cpu-latest")
+			os.Exit(1)
+		}
 		voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
 		n = voiceNarrator
 		defer voiceNarrator.Close()
