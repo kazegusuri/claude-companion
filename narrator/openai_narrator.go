@@ -190,14 +190,21 @@ type openAIError struct {
 
 // createToolPrompt creates a prompt for the AI to narrate tool usage
 func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]interface{}) string {
-	// Convert input to a readable format
-	inputJSON, _ := json.MarshalIndent(input, "", "  ")
+	// Extract only the keys from input parameters
+	keys := make([]string, 0, len(input))
+	for key := range input {
+		keys = append(keys, key)
+	}
+
+	keysStr := ""
+	if len(keys) > 0 {
+		keysStr = strings.Join(keys, ", ")
+	}
 
 	prompt := fmt.Sprintf(`あなたはAIアシスタントの行動を簡潔に説明するロボットです。以下のツール実行を、まるでロボットが喋っているかのように短い日本語で説明してください。
 
 ツール: %s
-入力パラメータ:
-%s
+入力パラメータのキー: %s
 
 以下の点に注意してください：
 - 10-20文字程度の短い文で説明
@@ -212,7 +219,7 @@ func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]int
 - ファイル「main.go」を読み込みます
 - テストを実行します
 - 変更をコミットします
-- 正規表現を使って検索します`, toolName, string(inputJSON))
+- 正規表現を使って検索します`, toolName, keysStr)
 
 	return prompt
 }

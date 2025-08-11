@@ -2,6 +2,7 @@ package narrator
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -53,8 +54,18 @@ func NewHybridNarratorWithConfig(apiKey string, useAI bool, configPath *string) 
 
 // NarrateToolUse converts tool usage to natural Japanese
 func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]interface{}) (string, bool) {
+	// Create cache key using tool name and sorted input keys
+	keys := make([]string, 0, len(input))
+	for key := range input {
+		keys = append(keys, key)
+	}
+	// Sort keys for consistent cache key
+	if len(keys) > 1 {
+		sort.Strings(keys)
+	}
+	cacheKey := fmt.Sprintf("%s:%s", toolName, strings.Join(keys, ","))
+
 	// Check cache first
-	cacheKey := fmt.Sprintf("%s:%v", toolName, input)
 	hn.cacheMu.RLock()
 	if cached, ok := hn.cache[cacheKey]; ok {
 		if cacheTime, ok := hn.cacheTime[cacheKey]; ok {
