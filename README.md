@@ -1,45 +1,47 @@
 # Claude Companion
 
-A real-time parser and viewer for Claude's JSONL log files. This tool helps you monitor and analyze Claude sessions by parsing structured log events and displaying them in a human-readable format with voice narration support.
+ClaudeのJSONLログファイルをリアルタイムで解析・表示するツールです。構造化されたログイベントを解析し、人間が読みやすい形式で表示し、音声ナレーション機能も提供します。
 
-**Note**: This is a hobby project. The interface and functionality may change without notice.
+**注意**: これは趣味のプロジェクトです。インターフェースや機能は予告なく変更される可能性があります。
 
-## Features
+[English README](README.en.md)
 
-- **Real-time monitoring**: Tail Claude's JSONL log files and display new events as they appear
-- **Project-wide watching**: Monitor all sessions across projects with smart filtering
-- **Notification integration**: Capture and display Claude hook notifications in real-time
-- **Voice narration**: Speak tool actions using VOICEVOX text-to-speech engine
-- **AI-powered narrator**: Natural language descriptions of tool actions using OpenAI
-- **Human-readable output**: Display events with timestamps and formatted content
+## 機能
 
-## Installation
+- **リアルタイム監視**: ClaudeのJSONLログファイルを監視し、新しいイベントが発生すると即座に表示
+- **プロジェクト全体の監視**: スマートフィルタリングによる全プロジェクトのセッション監視
+- **通知統合**: Claudeフック通知のリアルタイムキャプチャと表示
+- **音声ナレーション**: VOICEVOXテキスト読み上げエンジンを使用したツールアクションの音声出力
+- **AIナレーター**: OpenAIを使用したツールアクションの自然言語による説明
+- **読みやすい出力**: タイムスタンプとフォーマットされたコンテンツによるイベント表示
+
+## インストール
 
 ```bash
-# Clone the repository
+# リポジトリをクローン
 git clone https://github.com/kazegusuri/claude-companion.git
 cd claude-companion
 
-# Build the binary
+# バイナリをビルド
 make build
 ```
 
-### Setting up Claude Hooks
+### Claudeフックの設定
 
-Claude Companion can capture notification events from Claude through hooks:
+Claude Companionはフックを通じてClaudeから通知イベントをキャプチャできます：
 
-1. **Install the notification script**:
+1. **通知スクリプトのインストール**:
    ```bash
-   # Copy the notification script to /usr/local/bin
+   # 通知スクリプトを/usr/local/binにコピー
    sudo cp script/claude-notification.sh /usr/local/bin/
    sudo chmod +x /usr/local/bin/claude-notification.sh
    
-   # Create log file with appropriate permissions
+   # 適切な権限でログファイルを作成
    sudo touch /var/log/claude-notification.log
    sudo chmod 666 /var/log/claude-notification.log
    ```
 
-2. **Configure Claude hooks** in `~/.claude/settings.json`:
+2. **Claudeフックの設定** (`~/.claude/settings.json`):
    ```json
    {
      "hooks": {
@@ -80,143 +82,148 @@ Claude Companion can capture notification events from Claude through hooks:
    }
    ```
 
-## Usage
+## 使い方
 
-### Quick Start
+### クイックスタート
 
 ```bash
-# Watch all projects with voice and AI narration (recommended)
+# 音声とAIナレーション付きで全プロジェクトを監視（推奨）
 ./claude-companion --voice --ai
 
-# Watch all projects without voice narration
+# 音声ナレーションなしで全プロジェクトを監視
 ./claude-companion
 
-# Watch specific project
+# 特定のプロジェクトを監視
 ./claude-companion -p myproject
 
-# Read a specific file directly
+# 特定のファイルを直接読み込み
 ./claude-companion -f /path/to/session.jsonl
 ```
 
-### Command Line Options
+### コマンドラインオプション
 
-#### Core Options
-- `-p, --project`: Filter to specific project name
-- `-s, --session`: Filter to specific session name
-- `-f, --file`: Direct path to a session file
-- `--head`: Read entire file from beginning to end instead of tailing
-- `-d, --debug`: Enable debug mode with detailed information
+#### コアオプション
+- `-p, --project`: 特定のプロジェクト名でフィルタリング
+- `-s, --session`: 特定のセッション名でフィルタリング
+- `-f, --file`: セッションファイルへの直接パス
+- `--head`: tailingの代わりに最初から最後までファイル全体を読み込み
+- `-d, --debug`: 詳細情報を含むデバッグモードを有効化
 
-#### Narrator Options
-- `--ai`: Use AI narrator (requires OpenAI API key)
-- `--openai-key`: OpenAI API key (can also use OPENAI_API_KEY env var)
-- `--narrator-config`: Path to custom narrator configuration file
+#### ナレーターオプション
+- `--ai`: AIナレーターを使用（OpenAI APIキーが必要）
+- `--openai-key`: OpenAI APIキー（OPENAI_API_KEY環境変数も使用可能）
+- `--narrator-config`: カスタムナレーター設定ファイルへのパス
 
-#### Voice Options
-- `--voice`: Enable voice output using VOICEVOX
-- `--voicevox-url`: VOICEVOX server URL (default: http://localhost:50021)
-- `--voice-speaker`: VOICEVOX speaker ID (default: 1)
+#### 音声オプション
+- `--voice`: VOICEVOXを使用した音声出力を有効化
+- `--voicevox-url`: VOICEVOXサーバーURL（デフォルト: http://localhost:50021）
+- `--voice-speaker`: VOICEVOXスピーカーID（デフォルト: 1）
 
-#### Other Options
-- `--notification-log`: Path to notification log file (default: /var/log/claude-notification.log)
-- `--projects-root`: Root directory for projects (default: ~/.claude/projects)
+#### その他のオプション
+- `--notification-log`: 通知ログファイルへのパス（デフォルト: /var/log/claude-notification.log）
+- `--projects-root`: プロジェクトのルートディレクトリ（デフォルト: ~/.claude/projects）
 
-## Operating Modes
+## 動作モード
 
-### Watch Mode (Default)
+### 監視モード（デフォルト）
 
-By default, Claude Companion watches all projects under `~/.claude/projects`. You can filter what to watch:
+デフォルトでは、Claude Companionは`~/.claude/projects`以下の全プロジェクトを監視します。監視対象をフィルタリングできます：
 
 ```bash
-# Watch all projects and sessions
+# 全プロジェクトとセッションを監視
 ./claude-companion
 
-# Watch only "myproject"
+# "myproject"のみを監視
 ./claude-companion -p myproject
 
-# Watch only sessions named "coding" across all projects
+# 全プロジェクトの"coding"という名前のセッションのみを監視
 ./claude-companion -s coding
 
-# Watch only "coding" sessions in "myproject"
+# "myproject"の"coding"セッションのみを監視
 ./claude-companion -p myproject -s coding
 ```
 
-The watcher automatically:
-- Detects new projects and sessions
-- Handles file creation and deletion
-- Manages multiple session watchers efficiently
-- Cleans up idle watchers automatically
+ウォッチャーは自動的に：
+- 新しいプロジェクトとセッションを検出
+- ファイルの作成と削除を処理
+- 複数のセッションウォッチャーを効率的に管理
+- アイドル状態のウォッチャーを自動的にクリーンアップ
 
-### Direct File Mode
+### 直接ファイルモード
 
-For monitoring a specific file:
+特定のファイルを監視する場合：
 
 ```bash
-# Tail a specific file
+# 特定のファイルをtail
 ./claude-companion -f /path/to/session.jsonl
 
-# Read entire file
+# ファイル全体を読み込み
 ./claude-companion -f /path/to/session.jsonl --head
 ```
 
-### Notification Monitoring
+### 通知監視
 
-The tool automatically monitors `/var/log/claude-notification.log` if it exists:
-- Waits for file creation if it doesn't exist
-- Handles permission errors gracefully
-- Resumes watching when permissions are granted
+ツールは`/var/log/claude-notification.log`が存在する場合、自動的に監視します：
+- ファイルが存在しない場合は作成を待機
+- 権限エラーを適切に処理
+- 権限が付与されると監視を再開
 
-**Note**: Notification monitoring requires Claude hooks to be configured. See the "Setting up Claude Hooks" section above for instructions on configuring the notification script and Claude's `settings.json`.
+**注意**: 通知監視にはClaudeフックの設定が必要です。通知スクリプトとClaudeの`settings.json`の設定方法については、上記の「Claudeフックの設定」セクションを参照してください。
 
-## Voice Narration
+## 音声ナレーション
 
-### Prerequisites
+### 前提条件
 
-1. **Install VOICEVOX** (choose one):
-   - **Docker (quickest method)**:
+1. **VOICEVOXのインストール**（いずれか1つを選択）:
+   - **Docker（最速の方法）**:
      ```bash
      docker run -d --rm -it -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:cpu-latest
      ```
-   - **Manual installation**:
-     - Download from: https://github.com/VOICEVOX/voicevox_engine
-     - Run the engine: `./run` (or `run.exe` on Windows)
+   - **手動インストール**:
+     - ダウンロード: https://github.com/VOICEVOX/voicevox_engine
+     - エンジンを実行: `./run`（Windowsでは`run.exe`）
 
-2. **Audio playback support**:
-   - macOS: `afplay` (built-in)
-   - Linux: `aplay` or `paplay`
-   - Windows: PowerShell (built-in)
+2. **音声再生サポート**:
+   - macOS: `afplay`（組み込み）
+   - Linux: `aplay`または`paplay`
+   - Windows: PowerShell（組み込み）
 
-### Usage
+3. **AIナレーター（オプション）**:
+   - `--ai`オプションを使用する場合は`OPENAI_API_KEY`環境変数の設定が必要
+   - `--ai`オプションがない場合、英語の文章のナレーションがうまく動作しない可能性があります
+   - `--ai`オプションを使用すると、テキストが日本語に翻訳されて読み上げられます
+
+### 使用方法
 
 ```bash
-# Enable voice narration
+# 音声ナレーションを有効化
 ./claude-companion --voice
 
-# Use specific speaker
+# 特定のスピーカーを使用
 ./claude-companion --voice --voice-speaker 3
 
-# With AI narrator for more natural descriptions
+# より自然な説明のためのAIナレーター付き
 ./claude-companion --voice --ai
 ```
 
-The voice system features:
-- Priority-based queue for important messages
-- Non-blocking audio playback
-- Graceful error handling
-- Support for multiple speakers
+音声システムの機能：
+- 重要なメッセージのための優先度ベースのキュー
+- ノンブロッキング音声再生
+- 適切なエラー処理
+- 複数のスピーカーのサポート
 
-## Event Types
+## イベントタイプ
 
-### 1. User Events
+### 1. ユーザーイベント
 ```
 [15:04:05] 👤 USER:
   💬 Hello, Claude!
 ```
 
-### 2. Assistant Events
+### 2. アシスタントイベント
 ```
 [15:04:06] 🤖 ASSISTANT (claude-3-sonnet):
-  I'll help you with that task.
+  そのタスクをお手伝いします。
   
   💬 ファイル「main.go」を読み込みます
   📄 Reading: main.go
@@ -225,22 +232,22 @@ The voice system features:
   🏃 Running: make test
 ```
 
-### 3. System Events
+### 3. システムイベント
 ```
-[15:04:07] ℹ️ SYSTEM [info]: Tool execution completed
-[15:04:08] ⚠️ SYSTEM [warning]: Rate limit approaching
+[15:04:07] ℹ️ SYSTEM [info]: ツールの実行が完了しました
+[15:04:08] ⚠️ SYSTEM [warning]: レート制限に近づいています
 ```
 
-### 4. Notification Events
+### 4. 通知イベント
 ```
 [15:04:09] 🔔 NOTIFICATION [SessionStart]:
   Project: myproject
   Session: coding-session
 ```
 
-## Narrator Configuration
+## ナレーター設定
 
-Create a custom narrator configuration file:
+カスタムナレーター設定ファイルを作成：
 
 ```json
 {
@@ -257,56 +264,15 @@ Create a custom narrator configuration file:
 }
 ```
 
-Use it with:
+使用方法：
 ```bash
 ./claude-companion --narrator-config=/path/to/config.json
 ```
 
-## Development
+## 開発
 
-### Prerequisites
-- Go 1.19 or higher
-- Make
+[DEVELOPMENT.md](DEVELOPMENT.md)で開発手順を参照してください。
 
-### Building
-```bash
-make build    # Build the binary
-make test     # Run tests
-make fmt      # Format code
-make clean    # Clean build artifacts
-```
-
-### Project Structure
-```
-.
-├── main.go                      # Main application and CLI
-├── event/
-│   ├── event.go                # Event type definitions
-│   ├── parser.go               # Event parsing logic
-│   ├── formatter.go            # Event formatting
-│   ├── handler.go              # Event handling and routing
-│   ├── session_watcher.go      # Individual session file watcher
-│   ├── projects_watcher.go     # Projects directory watcher
-│   ├── notification_watcher.go # Notification log watcher
-│   └── session_file_manager.go # Session watcher lifecycle management
-├── narrator/
-│   ├── narrator.go             # Narrator interface and base implementation
-│   ├── config_narrator.go      # Configuration-based narrator
-│   ├── voice_narrator.go       # Voice output implementation
-│   ├── priority_queue.go       # Priority queue for voice messages
-│   └── voicevox.go            # VOICEVOX client
-├── Makefile                    # Build automation
-├── CLAUDE.md                   # Instructions for Claude
-└── README.md                   # This file
-```
-
-## Contributing
-
-1. Follow the coding standards in CLAUDE.md
-2. Run `make fmt` before committing
-3. Ensure all tests pass with `make test`
-4. Write clear commit messages
-
-## License
+## ライセンス
 
 MIT License
