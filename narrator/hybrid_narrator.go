@@ -54,16 +54,26 @@ func NewHybridNarratorWithConfig(apiKey string, useAI bool, configPath *string) 
 
 // NarrateToolUse converts tool usage to natural Japanese
 func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]interface{}) (string, bool) {
-	// Create cache key using tool name and sorted input keys
-	keys := make([]string, 0, len(input))
-	for key := range input {
-		keys = append(keys, key)
+	// Create cache key - for Bash tool, use command; otherwise use sorted input keys
+	var cacheKey string
+	if toolName == "Bash" {
+		if command, ok := input["command"].(string); ok {
+			cacheKey = fmt.Sprintf("%s:%s", toolName, command)
+		} else {
+			cacheKey = fmt.Sprintf("%s:no-command", toolName)
+		}
+	} else {
+		// Create cache key using tool name and sorted input keys
+		keys := make([]string, 0, len(input))
+		for key := range input {
+			keys = append(keys, key)
+		}
+		// Sort keys for consistent cache key
+		if len(keys) > 1 {
+			sort.Strings(keys)
+		}
+		cacheKey = fmt.Sprintf("%s:%s", toolName, strings.Join(keys, ","))
 	}
-	// Sort keys for consistent cache key
-	if len(keys) > 1 {
-		sort.Strings(keys)
-	}
-	cacheKey := fmt.Sprintf("%s:%s", toolName, strings.Join(keys, ","))
 
 	// Check cache first
 	hn.cacheMu.RLock()

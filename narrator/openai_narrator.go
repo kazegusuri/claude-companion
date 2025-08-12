@@ -190,18 +190,45 @@ type openAIError struct {
 
 // createToolPrompt creates a prompt for the AI to narrate tool usage
 func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]interface{}) string {
-	// Extract only the keys from input parameters
-	keys := make([]string, 0, len(input))
-	for key := range input {
-		keys = append(keys, key)
-	}
-
+	// For Bash tool, use command field if available
 	keysStr := ""
-	if len(keys) > 0 {
-		keysStr = strings.Join(keys, ", ")
+	if toolName == "Bash" {
+		if command, ok := input["command"].(string); ok {
+			keysStr = command
+		}
+	} else {
+		// Extract only the keys from input parameters
+		keys := make([]string, 0, len(input))
+		for key := range input {
+			keys = append(keys, key)
+		}
+		if len(keys) > 0 {
+			keysStr = strings.Join(keys, ", ")
+		}
 	}
 
-	prompt := fmt.Sprintf(`あなたはAIアシスタントの行動を簡潔に説明するロボットです。以下のツール実行を、まるでロボットが喋っているかのように短い日本語で説明してください。
+	// Adjust prompt based on tool type
+	var promptTemplate string
+	if toolName == "Bash" {
+		promptTemplate = `あなたはAIアシスタントの行動を簡潔に説明するロボットです。以下のコマンド実行を、まるでロボットが喋っているかのように短い日本語で説明してください。
+
+ツール: %s
+コマンド: %s
+
+以下の点に注意してください：
+- 10-20文字程度の短い文で説明
+- 「〜します」の形式で終わる
+- 技術的な詳細は省略
+- 自然で分かりやすい日本語を使用
+- コマンド名から何をするかを判断する
+
+例:
+- テストを実行します
+- パッケージをインストールします
+- ビルドを実行します
+- コードをフォーマットします`
+	} else {
+		promptTemplate = `あなたはAIアシスタントの行動を簡潔に説明するロボットです。以下のツール実行を、まるでロボットが喋っているかのように短い日本語で説明してください。
 
 ツール: %s
 入力パラメータのキー: %s
@@ -219,8 +246,10 @@ func (ai *OpenAINarrator) createToolPrompt(toolName string, input map[string]int
 - ファイル「main.go」を読み込みます
 - テストを実行します
 - 変更をコミットします
-- 正規表現を使って検索します`, toolName, keysStr)
+- 正規表現を使って検索します`
+	}
 
+	prompt := fmt.Sprintf(promptTemplate, toolName, keysStr)
 	return prompt
 }
 
