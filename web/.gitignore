@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# Test results
+playwright-report/
+test-results/
+coverage/
+
+# Cache
+.cache/
+.playwright/
+
+# Live2D files
+# Cubism Core ライブラリ（ライセンスの関係でコミットしない）
+public/live2d/core/live2dcubismcore.min.js
+
+# Live2D モデルファイル（著作権の関係でコミットしない）
+public/live2d/models/

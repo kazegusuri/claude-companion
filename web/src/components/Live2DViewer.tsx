@@ -150,8 +150,8 @@ export function Live2DViewer() {
         button.endFill();
         button.x = 400;
         button.y = 720;
-        button.eventMode = 'static';
-        button.cursor = 'pointer';
+        button.eventMode = "static";
+        button.cursor = "pointer";
 
         const buttonText = new PIXI.Text("Play Motion", {
           fontFamily: "Arial",

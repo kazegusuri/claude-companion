@@ -10,7 +10,9 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "preview": "bunx --bun vite preview"
+    "preview": "bunx --bun vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "pixi-live2d-display-lipsyncpatch": "^0.5.0-ls-8",

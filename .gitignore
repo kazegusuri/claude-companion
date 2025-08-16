@@ -1,7 +1,8 @@
+# Build outputs
 claude-companion
+/bin/
 
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -11,15 +12,7 @@ lerna-debug.log*
 
 # Dependencies
 node_modules/
-web/node_modules/
-
-# Build outputs
-web/dist
-web/dist-ssr
-
-# Vite
 .vite/
-web/.vite/
 
 # env
 *.local
@@ -32,15 +25,4 @@ web/.vite/
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
-
-# Live2D files
-# Cubism Core ライブラリ（ライセンスの関係でコミットしない）
-web/public/live2d/core/live2dcubismcore.min.js
-
-# Live2D モデルファイル（著作権の関係でコミットしない）
-web/public/live2d/models/
