@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/speech"
 )
 
 func main() {
@@ -23,19 +24,20 @@ func main() {
 	)
 	flag.Parse()
 
-	// Create VoiceVox client
-	client := narrator.NewVoiceVoxClient(*baseURL, *speakerID)
-	client.SetVoiceParameters(*speed, *pitch, *volume, *intonation)
+	// Create VoiceVox synthesizer and audio player
+	synthesizer := speech.NewVoiceVox(*baseURL, *speakerID)
+	synthesizer.SetVoiceParameters(*speed, *pitch, *volume, *intonation)
+	player := speech.NewNativePlayer()
 
 	// Check if VoiceVox is available
-	if !client.IsAvailable() {
+	if !synthesizer.IsAvailable() {
 		log.Fatalf("VoiceVox server is not available at %s", *baseURL)
 	}
 
 	// List speakers if requested
 	if *listSpeakers {
 		ctx := context.Background()
-		speakers, err := client.GetSpeakers(ctx)
+		speakers, err := synthesizer.GetSpeakers(ctx)
 		if err != nil {
 			log.Fatalf("Failed to get speakers: %v", err)
 		}
@@ -69,8 +71,30 @@ func main() {
 
 		fmt.Printf("Original: %s\n", text)
 		fmt.Printf("Speaking: %s\n", normalizedText)
-		if err := client.TextToSpeech(ctx, normalizedText); err != nil {
-			log.Printf("Error: %v", err)
+
+		// Synthesize and play
+		audioData, err := synthesizer.Synthesize(ctx, normalizedText)
+		if err != nil {
+			log.Printf("Error synthesizing: %v", err)
+			continue
+		}
+
+		// Create metadata
+		meta := &speech.AudioMeta{
+			OriginalText:   text,
+			NormalizedText: normalizedText,
+		}
+
+		// Parse audio duration
+		if duration, err := speech.ParseWAVDuration(audioData); err == nil {
+			meta.Duration = duration
+			fmt.Printf("Duration: %v\n", duration)
+		} else {
+			log.Printf("Warning: Failed to parse WAV duration: %v", err)
+		}
+
+		if err := player.Play(audioData, meta); err != nil {
+			log.Printf("Error playing: %v", err)
 		}
 	}
 

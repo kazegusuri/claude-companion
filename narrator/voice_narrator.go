@@ -8,12 +8,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/speech"
 )
 
 // VoiceNarrator wraps a narrator and adds voice output
 type VoiceNarrator struct {
 	narrator    Narrator
-	voiceClient *VoiceVoxClient
+	synthesizer speech.Synthesizer
+	player      speech.Player
 	enabled     bool
 	queue       *PriorityQueue
 	wg          sync.WaitGroup
@@ -25,17 +27,18 @@ type VoiceNarrator struct {
 }
 
 // NewVoiceNarrator creates a new voice narrator
-func NewVoiceNarrator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bool) *VoiceNarrator {
-	return NewVoiceNarratorWithTranslator(narrator, voiceClient, enabled, "", false)
+func NewVoiceNarrator(narrator Narrator, synthesizer speech.Synthesizer, player speech.Player, enabled bool) *VoiceNarrator {
+	return NewVoiceNarratorWithTranslator(narrator, synthesizer, player, enabled, "", false)
 }
 
 // NewVoiceNarratorWithTranslator creates a new voice narrator with OpenAI translation support
-func NewVoiceNarratorWithTranslator(narrator Narrator, voiceClient *VoiceVoxClient, enabled bool, openaiAPIKey string, useOpenAI bool) *VoiceNarrator {
+func NewVoiceNarratorWithTranslator(narrator Narrator, synthesizer speech.Synthesizer, player speech.Player, enabled bool, openaiAPIKey string, useOpenAI bool) *VoiceNarrator {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	vn := &VoiceNarrator{
 		narrator:    narrator,
-		voiceClient: voiceClient,
+		synthesizer: synthesizer,
+		player:      player,
 		enabled:     enabled,
 		queue:       NewPriorityQueue(),
 		ctx:         ctx,
@@ -45,10 +48,10 @@ func NewVoiceNarratorWithTranslator(narrator Narrator, voiceClient *VoiceVoxClie
 		metrics:     NewNarrationMetrics(),
 	}
 
-	if enabled && voiceClient != nil {
-		// Check if VOICEVOX is available
-		if !voiceClient.IsAvailable() {
-			logger.LogWarning("VOICEVOX server is not available at %s", voiceClient.baseURL)
+	if enabled && synthesizer != nil && player != nil {
+		// Check if synthesizer is available
+		if !synthesizer.IsAvailable() {
+			logger.LogWarning("Speech synthesizer is not available")
 			vn.enabled = false
 		} else {
 			// Start voice worker
@@ -139,26 +142,38 @@ func (vn *VoiceNarrator) voiceWorker() {
 		// Create timeout context for each TTS operation
 		ctx, cancel := context.WithTimeout(vn.ctx, 15*time.Second)
 
-		// Try to synthesize and play
-		if err := vn.voiceClient.TextToSpeech(ctx, item.Text); err != nil {
+		// Try to synthesize
+		audioData, err := vn.synthesizer.Synthesize(ctx, item.Text)
+		cancel()
+
+		if err != nil {
 			vn.metrics.IncrementErrors()
-			logger.LogError("Failed to play text to speech: %v", err)
+			logger.LogError("Failed to synthesize speech: %v", err)
+			continue
+		}
+
+		// Create audio metadata
+		meta := &speech.AudioMeta{
+			OriginalText:   item.OriginalText,
+			NormalizedText: item.Text,
+		}
+
+		// Parse audio duration
+		if duration, err := speech.ParseWAVDuration(audioData); err == nil {
+			meta.Duration = duration
+		} else {
+			// Log error but continue processing
+			logger.LogWarning("Failed to parse WAV duration: %v", err)
+		}
+
+		// Play audio with metadata
+		if err := vn.player.Play(audioData, meta); err != nil {
+			vn.metrics.IncrementErrors()
+			logger.LogError("Failed to play audio: %v", err)
 		} else {
 			vn.metrics.IncrementPlayed()
 		}
-
-		cancel()
 	}
-}
-
-// SetEnabled enables or disables voice output
-func (vn *VoiceNarrator) SetEnabled(enabled bool) {
-	vn.enabled = enabled
-}
-
-// IsEnabled returns whether voice output is enabled
-func (vn *VoiceNarrator) IsEnabled() bool {
-	return vn.enabled
 }
 
 // Close stops the voice worker
@@ -166,13 +181,6 @@ func (vn *VoiceNarrator) Close() {
 	vn.cancel()
 	vn.queue.Close()
 	vn.wg.Wait()
-}
-
-// Speak adds text to voice queue without returning it
-func (vn *VoiceNarrator) Speak(text string) {
-	if vn.enabled && text != "" {
-		vn.enqueueNarration(text, NarrationTypeText)
-	}
 }
 
 // enqueueNarration processes and enqueues a narration item
@@ -186,11 +194,12 @@ func (vn *VoiceNarrator) enqueueNarration(text string, narType NarrationType) {
 	normalizedText := vn.normalizer.Normalize(translatedText)
 
 	item := NarrationItem{
-		Text:      normalizedText,
-		Type:      narType,
-		Priority:  priorityMap[narType],
-		Timestamp: time.Now(),
-		ID:        uuid.New().String(),
+		Text:         normalizedText,
+		OriginalText: translatedText, // Use translated text as original
+		Type:         narType,
+		Priority:     priorityMap[narType],
+		Timestamp:    time.Now(),
+		ID:           uuid.New().String(),
 	}
 
 	if vn.queue.Enqueue(item) {

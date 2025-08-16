@@ -29,11 +29,12 @@ var priorityMap = map[NarrationType]int{
 
 // NarrationItem represents an item in the narration queue
 type NarrationItem struct {
-	Text      string
-	Type      NarrationType
-	Priority  int
-	Timestamp time.Time
-	ID        string
+	Text         string // Normalized text for TTS
+	OriginalText string // Original text before normalization
+	Type         NarrationType
+	Priority     int
+	Timestamp    time.Time
+	ID           string
 }
 
 // PriorityQueue manages narration items with priority-based skipping
