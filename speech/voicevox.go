@@ -1,4 +1,4 @@
-package narrator
+package speech
 
 import (
 	"bytes"
@@ -8,14 +8,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"os/exec"
-	"runtime"
 	"time"
 )
 
-// VoiceVoxClient handles text-to-speech using VOICEVOX engine
-type VoiceVoxClient struct {
+// VoiceVox handles text-to-speech using VOICEVOX engine
+type VoiceVox struct {
 	baseURL    string
 	speakerID  int
 	httpClient *http.Client
@@ -25,13 +22,13 @@ type VoiceVoxClient struct {
 	intonation float64
 }
 
-// NewVoiceVoxClient creates a new VOICEVOX client
-func NewVoiceVoxClient(baseURL string, speakerID int) *VoiceVoxClient {
+// NewVoiceVox creates a new VOICEVOX synthesizer
+func NewVoiceVox(baseURL string, speakerID int) *VoiceVox {
 	if baseURL == "" {
 		baseURL = "http://localhost:50021"
 	}
 
-	return &VoiceVoxClient{
+	return &VoiceVox{
 		baseURL:   baseURL,
 		speakerID: speakerID,
 		httpClient: &http.Client{
@@ -45,33 +42,32 @@ func NewVoiceVoxClient(baseURL string, speakerID int) *VoiceVoxClient {
 }
 
 // SetVoiceParameters sets voice parameters
-func (v *VoiceVoxClient) SetVoiceParameters(speed, pitch, volume, intonation float64) {
+func (v *VoiceVox) SetVoiceParameters(speed, pitch, volume, intonation float64) {
 	v.speed = speed
 	v.pitch = pitch
 	v.volume = volume
 	v.intonation = intonation
 }
 
-// TextToSpeech converts text to speech and plays it
-func (v *VoiceVoxClient) TextToSpeech(ctx context.Context, text string) error {
+// Synthesize converts text to audio data (WAV format)
+func (v *VoiceVox) Synthesize(ctx context.Context, text string) ([]byte, error) {
 	// Generate audio query
 	query, err := v.generateAudioQuery(ctx, text)
 	if err != nil {
-		return fmt.Errorf("failed to generate audio query: %w", err)
+		return nil, fmt.Errorf("failed to generate audio query: %w", err)
 	}
 
 	// Generate audio
 	audioData, err := v.generateAudio(ctx, query)
 	if err != nil {
-		return fmt.Errorf("failed to generate audio: %w", err)
+		return nil, fmt.Errorf("failed to generate audio: %w", err)
 	}
 
-	// Play audio
-	return v.playAudio(audioData)
+	return audioData, nil
 }
 
 // generateAudioQuery generates audio query from text
-func (v *VoiceVoxClient) generateAudioQuery(ctx context.Context, text string) ([]byte, error) {
+func (v *VoiceVox) generateAudioQuery(ctx context.Context, text string) ([]byte, error) {
 	params := url.Values{}
 	params.Add("text", text)
 	params.Add("speaker", fmt.Sprintf("%d", v.speakerID))
@@ -114,7 +110,7 @@ func (v *VoiceVoxClient) generateAudioQuery(ctx context.Context, text string) ([
 }
 
 // generateAudio generates audio from query
-func (v *VoiceVoxClient) generateAudio(ctx context.Context, query []byte) ([]byte, error) {
+func (v *VoiceVox) generateAudio(ctx context.Context, query []byte) ([]byte, error) {
 	params := url.Values{}
 	params.Add("speaker", fmt.Sprintf("%d", v.speakerID))
 
@@ -140,85 +136,8 @@ func (v *VoiceVoxClient) generateAudio(ctx context.Context, query []byte) ([]byt
 	return io.ReadAll(resp.Body)
 }
 
-// playAudio plays audio data using system command
-func (v *VoiceVoxClient) playAudio(audioData []byte) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "darwin":
-		// macOS: try ffplay first (supports stdin), then fall back to afplay with temp file
-		if _, err := exec.LookPath("ffplay"); err == nil {
-			cmd = exec.Command("ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-")
-		} else {
-			// ffplay not found, use temp file approach for afplay
-			return v.playAudioMacOS(audioData)
-		}
-	case "linux":
-		// Linux: try aplay first, then paplay
-		if _, err := exec.LookPath("aplay"); err == nil {
-			cmd = exec.Command("aplay", "-q", "-")
-		} else if _, err := exec.LookPath("paplay"); err == nil {
-			cmd = exec.Command("paplay")
-		} else {
-			return fmt.Errorf("no audio player found (tried aplay, paplay)")
-		}
-	case "windows":
-		// Windows: use PowerShell
-		// This creates a temporary file approach since piping binary data to PowerShell is complex
-		return v.playAudioWindows(audioData)
-	default:
-		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
-
-	cmd.Stdin = bytes.NewReader(audioData)
-	return cmd.Run()
-}
-
-// playAudioMacOS handles macOS-specific audio playback using temp file
-func (v *VoiceVoxClient) playAudioMacOS(audioData []byte) error {
-	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "voicevox_*.wav")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	// Write audio data
-	if _, err := tmpFile.Write(audioData); err != nil {
-		tmpFile.Close()
-		return err
-	}
-	tmpFile.Close()
-
-	// Play using afplay
-	cmd := exec.Command("afplay", tmpFile.Name())
-	return cmd.Run()
-}
-
-// playAudioWindows handles Windows-specific audio playback
-func (v *VoiceVoxClient) playAudioWindows(audioData []byte) error {
-	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "voicevox_*.wav")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	// Write audio data
-	if _, err := tmpFile.Write(audioData); err != nil {
-		tmpFile.Close()
-		return err
-	}
-	tmpFile.Close()
-
-	// Play using PowerShell
-	cmd := exec.Command("powershell", "-Command",
-		fmt.Sprintf("(New-Object Media.SoundPlayer '%s').PlaySync()", tmpFile.Name()))
-	return cmd.Run()
-}
-
 // IsAvailable checks if VOICEVOX server is available
-func (v *VoiceVoxClient) IsAvailable() bool {
+func (v *VoiceVox) IsAvailable() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -237,7 +156,7 @@ func (v *VoiceVoxClient) IsAvailable() bool {
 }
 
 // GetSpeakers returns available speakers
-func (v *VoiceVoxClient) GetSpeakers(ctx context.Context) ([]Speaker, error) {
+func (v *VoiceVox) GetSpeakers(ctx context.Context) ([]Speaker, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", v.baseURL+"/speakers", nil)
 	if err != nil {
 		return nil, err
