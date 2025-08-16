@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,6 +9,8 @@ import (
 	"github.com/kazegusuri/claude-companion/event"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/speech"
+	"github.com/kazegusuri/claude-companion/websocket"
 	"github.com/spf13/pflag"
 )
 
@@ -23,6 +26,8 @@ func main() {
 	var notificationLog string
 	var watchProjects bool
 	var projectsRoot string
+	var enableServer bool
+	var serverPort string
 
 	pflag.StringVarP(&project, "project", "p", "", "Project name")
 	pflag.StringVarP(&session, "session", "s", "", "Session name")
@@ -36,6 +41,8 @@ func main() {
 	pflag.BoolVar(&enableVoice, "voice", false, "Enable voice output using VOICEVOX")
 	pflag.StringVar(&voicevoxURL, "voicevox-url", "http://localhost:50021", "VOICEVOX server URL")
 	pflag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
+	pflag.BoolVar(&enableServer, "server", false, "Enable WebSocket server for audio streaming")
+	pflag.StringVar(&serverPort, "server-port", ":8080", "WebSocket server port (default: :8080)")
 	// watchProjects is now the default behavior
 	pflag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects")
 	pflag.Parse()
@@ -73,15 +80,43 @@ func main() {
 
 	// Wrap with voice narrator if enabled
 	var voiceNarrator *narrator.VoiceNarrator
+	var wsServer *websocket.Server
+
 	if enableVoice {
-		voiceClient := narrator.NewVoiceVoxClient(voicevoxURL, voiceSpeakerID)
+		// Create synthesizer
+		synthesizer := speech.NewVoiceVox(voicevoxURL, voiceSpeakerID)
 		// Check if VOICEVOX is available
-		if !voiceClient.IsAvailable() {
+		if !synthesizer.IsAvailable() {
 			logger.LogError("VOICEVOX server is not available at %s. Please make sure VOICEVOX is running.", voicevoxURL)
 			logger.LogError("You can start VOICEVOX with: docker run -d --rm -it -p '127.0.0.1:50021:50021' voicevox/voicevox_engine:cpu-latest")
 			os.Exit(1)
 		}
-		voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, voiceClient, true, openaiAPIKey, useAINarrator)
+
+		// Create player based on server option
+		var player speech.Player
+		if enableServer {
+			// Create WebSocket server
+			wsServer = websocket.NewServer()
+			go wsServer.Run()
+
+			// Use WebSocket player
+			player = speech.NewWebSocketPlayer(wsServer)
+
+			// Start HTTP server for WebSocket connections
+			go func() {
+				http.HandleFunc("/ws/audio", wsServer.HandleWebSocket)
+				logger.LogInfo("WebSocket server listening on %s", serverPort)
+				logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
+				if err := http.ListenAndServe(serverPort, nil); err != nil {
+					logger.LogError("Failed to start WebSocket server: %v", err)
+				}
+			}()
+		} else {
+			// Use native player
+			player = speech.NewNativePlayer()
+		}
+
+		voiceNarrator = narrator.NewVoiceNarratorWithTranslator(n, synthesizer, player, true, openaiAPIKey, useAINarrator)
 		n = voiceNarrator
 		defer voiceNarrator.Close()
 	}
