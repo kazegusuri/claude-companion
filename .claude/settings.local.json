@@ -8,7 +8,13 @@
       "Bash(go test:*)",
       "Bash(go doc:*)",
       "Bash(grep:*)",
-      "Bash(./claude-companion:*)"
+      "Bash(./claude-companion:*)",
+      "Bash(bun run:*)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_close"
     ],
     "deny": []
   }

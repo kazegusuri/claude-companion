@@ -269,6 +269,126 @@ Claude Companionはフックを通じてClaudeから通知イベントをキャ�
 ./claude-companion --narrator-config=/path/to/config.json
 ```
 
+## Web フロントエンド (Live2D)
+
+Claude CompanionにはBun + Vite + React + TypeScript を使用した Live2D のデモアプリケーションが含まれています。
+
+### Web 必要要件
+
+- [Bun](https://bun.sh/) v1.0 以上
+- Live2D Cubism Core (Live2D表示用)
+
+### Web セットアップ
+
+#### 1. 依存関係のインストール
+
+```bash
+bun install
+```
+
+#### 2. Live2D Cubism Core のセットアップ
+
+Live2D モデルを表示するには、Live2D Cubism Core が必要です。
+
+1. [Live2D Cubism SDK for Web](https://www.live2d.com/download/cubism-sdk/download-web/) から Cubism SDK for Web をダウンロード
+2. ダウンロードしたファイルから `Core/live2dcubismcore.min.js` を取得
+3. `/public/live2d/core/` ディレクトリに `live2dcubismcore.min.js` を配置
+
+```
+public/
+└── live2d/
+    └── core/
+        └── live2dcubismcore.min.js  ← ここに配置
+```
+
+#### 3. Live2D モデルファイルの配置
+
+Live2D モデルは `/public/live2d/models/` ディレクトリに配置します。
+
+```
+public/
+└── live2d/
+    └── models/
+        └── [モデル名]/
+            ├── [モデル名].model3.json    # モデル設定ファイル
+            ├── [モデル名].moc3           # モデルファイル
+            ├── [テクスチャ].png          # テクスチャファイル
+            ├── [モデル名].physics3.json  # 物理演算設定（オプション）
+            └── motions/                  # モーションファイル（オプション）
+                └── [モーション名].motion3.json
+```
+
+##### サンプルモデルの入手先
+
+- [Live2D サンプルモデル](https://www.live2d.com/download/sample-data/)
+- [nizima](https://nizima.com/) - Live2D モデルマーケットプレイス
+
+#### 4. モデルの設定
+
+環境変数でモデル名を指定できます。`.env` ファイルを作成して設定してください：
+
+```bash
+# .env.example をコピー
+cp .env.example .env
+```
+
+`.env` ファイルで使用するモデル名を設定：
+
+```env
+# デフォルト値は "default"
+VITE_LIVE2D_MODEL_NAME=default
+```
+
+モデルファイルは以下の規則で配置してください：
+- `/public/live2d/models/{モデル名}/{モデル名}.model3.json`
+- 例: `/public/live2d/models/default/default.model3.json`
+
+### Web アプリケーションの起動
+
+#### 開発サーバー
+
+```bash
+bun run dev
+```
+
+ブラウザで http://localhost:3000 を開きます。
+
+#### ビルド
+
+```bash
+bun run build
+```
+
+#### リント & フォーマット
+
+```bash
+# リントチェック
+bun run lint
+
+# フォーマット
+bun run format
+
+# リント & フォーマットチェック
+bun run check
+```
+
+### Web 機能
+
+#### Live2D デモ
+- Live2D モデルの表示
+- モデルとのインタラクション
+- モーション再生
+
+### Web トラブルシューティング
+
+#### Live2D モデルが表示されない
+
+1. `live2dcubismcore.min.js` が正しく配置されているか確認
+2. ブラウザのコンソールでエラーを確認
+3. モデルファイルのパスが正しいか確認
+4. model3.json 内のファイルパスが相対パスになっているか確認
+
+
 ## 開発
 
 [DEVELOPMENT.md](DEVELOPMENT.md)で開発手順を参照してください。
@@ -276,3 +396,5 @@ Claude Companionはフックを通じてClaudeから通知イベントをキャ�
 ## ライセンス
 
 MIT License
+
+Live2D Cubism Core の使用には [Live2D のライセンス](https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html) が適用されます。

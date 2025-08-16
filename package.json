@@ -1,0 +1,24 @@
+{
+  "name": "claude-companion",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev": "bun run --filter claude-companion-web dev",
+    "build": "bun run --filter claude-companion-web build",
+    "lint": "bun run --filter claude-companion-web lint",
+    "format": "bun run --filter claude-companion-web format",
+    "check": "bun run --filter claude-companion-web check",
+    "preview": "bun run --filter claude-companion-web preview",
+    "web:dev": "bun run --filter claude-companion-web dev",
+    "web:build": "bun run --filter claude-companion-web build",
+    "web:install": "bun install --cwd web",
+    "backend:build": "make build",
+    "backend:run": "make run",
+    "backend:test": "make test",
+    "backend:fmt": "make fmt"
+  },
+  "devDependencies": {}
+}
