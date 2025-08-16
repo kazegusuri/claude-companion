@@ -1,48 +1,13 @@
-.app {
-  text-align: center;
-  padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
+/* App Shell adjustments */
+.mantine-AppShell-main {
+  height: calc(100vh - 60px);
+  overflow: hidden;
+  min-height: calc(100vh - 60px);
 }
 
-h1 {
-  color: white;
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.tab-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.tab-buttons button {
-  padding: 10px 20px;
-  font-size: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-  backdrop-filter: blur(10px);
-}
-
-.tab-buttons button:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.tab-buttons button.active {
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
-  border-color: white;
-}
-
-.content {
-  min-height: 500px;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Layout stability */
+.main-layout {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }

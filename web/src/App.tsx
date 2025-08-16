@@ -1,32 +1,39 @@
 import { useState } from "react";
+import { MantineProvider, createTheme, AppShell } from "@mantine/core";
+import "@mantine/core/styles.css";
 import { Live2DViewer } from "@components/Live2DViewer";
 import { AudioNarrator } from "@components/AudioNarrator";
+import { Dashboard } from "./pages/Dashboard";
+import { AppHeader } from "./components/AppHeader";
 import "./App.css";
 
+const theme = createTheme({});
+
 function App() {
-  const [showAudioNarrator, setShowAudioNarrator] = useState(true);
+  const [currentView, setCurrentView] = useState<"dashboard" | "narrator" | "live2d">("dashboard");
 
   return (
-    <div className="app">
-      <h1>Claude Companion Web</h1>
+    <MantineProvider theme={theme} defaultColorScheme="dark">
+      <AppShell
+        header={{ height: 60 }}
+        padding={0}
+        styles={{
+          main: {
+            backgroundColor: '#0a0a0a',
+          },
+        }}
+      >
+        <AppShell.Header>
+          <AppHeader currentView={currentView} onViewChange={setCurrentView} />
+        </AppShell.Header>
 
-      <div className="tab-buttons">
-        <button
-          className={showAudioNarrator ? "active" : ""}
-          onClick={() => setShowAudioNarrator(true)}
-        >
-          Audio Narrator
-        </button>
-        <button
-          className={!showAudioNarrator ? "active" : ""}
-          onClick={() => setShowAudioNarrator(false)}
-        >
-          Live2D Viewer
-        </button>
-      </div>
-
-      <div className="content">{showAudioNarrator ? <AudioNarrator /> : <Live2DViewer />}</div>
-    </div>
+        <AppShell.Main>
+          {currentView === "dashboard" && <Dashboard />}
+          {currentView === "narrator" && <AudioNarrator />}
+          {currentView === "live2d" && <Live2DViewer />}
+        </AppShell.Main>
+      </AppShell>
+    </MantineProvider>
   );
 }
 
