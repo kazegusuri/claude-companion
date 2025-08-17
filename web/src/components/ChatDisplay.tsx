@@ -23,9 +23,9 @@ export const ChatDisplay: React.FC = () => {
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
   const audioPlayer = useRef<AudioPlayer | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null); // ScrollAreaのviewport参照
   const isProcessingQueue = useRef(false);
-  
+
   // Configuration
   const MAX_MESSAGES = 100;
 
@@ -41,39 +41,46 @@ export const ChatDisplay: React.FC = () => {
     }
 
     const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
-    wsClient.current = new WebSocketAudioClient(wsUrl, (message: AudioMessage) => {
-      console.log("Received WebSocket message:", message);
-      
-      // Add to message history with max limit
-      setMessages((prev) => {
-        if (prev.some((msg) => msg.id === message.id)) {
-          return prev;
-        }
+    wsClient.current = new WebSocketAudioClient(
+      wsUrl,
+      (message: AudioMessage) => {
+        console.log("Received WebSocket message:", message);
 
-        const historyItem: MessageHistory = {
-          id: message.id,
-          text: message.text,
-          timestamp: new Date(message.timestamp),
-          metadata: message.metadata,
-        };
+        // Add to message history with max limit
+        setMessages((prev) => {
+          if (prev.some((msg) => msg.id === message.id)) {
+            return prev;
+          }
 
-        // Add new message and limit to MAX_MESSAGES (keep only the latest 100)
-        const newMessages = [...prev, historyItem];
-        if (newMessages.length > MAX_MESSAGES) {
-          // Remove oldest messages to maintain the limit
-          return newMessages.slice(newMessages.length - MAX_MESSAGES);
-        }
-        return newMessages;
-      });
+          const historyItem: MessageHistory = {
+            id: message.id,
+            text: message.text,
+            timestamp: new Date(message.timestamp),
+            metadata: message.metadata,
+          };
 
-      // Store the last received message for audio processing
-      setLastReceivedMessage(message);
+          // Add new message and limit to MAX_MESSAGES (keep only the latest 100)
+          const newMessages = [...prev, historyItem];
+          if (newMessages.length > MAX_MESSAGES) {
+            // Remove oldest messages to maintain the limit
+            return newMessages.slice(newMessages.length - MAX_MESSAGES);
+          }
+          return newMessages;
+        });
 
-      // Auto-scroll to bottom
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }, setConnectionStatus);
+        // Store the last received message for audio processing
+        setLastReceivedMessage(message);
+
+        // Auto-scroll to bottom using viewportRef
+        setTimeout(() => {
+          if (viewportRef.current) {
+            // ScrollAreaのviewportを最下部までスクロール
+            viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+          }
+        }, 100);
+      },
+      setConnectionStatus,
+    );
     wsClient.current.connect();
 
     return () => {
@@ -90,7 +97,12 @@ export const ChatDisplay: React.FC = () => {
 
   // Handle new message for audio queue
   useEffect(() => {
-    if (lastReceivedMessage && isAudioEnabled && lastReceivedMessage.type === "audio" && lastReceivedMessage.audioData) {
+    if (
+      lastReceivedMessage &&
+      isAudioEnabled &&
+      lastReceivedMessage.type === "audio" &&
+      lastReceivedMessage.audioData
+    ) {
       console.log("Adding audio to queue from lastReceivedMessage");
       setAudioQueue((prev) => {
         if (prev.some((msg) => msg.id === lastReceivedMessage.id)) {
@@ -131,7 +143,7 @@ export const ChatDisplay: React.FC = () => {
         audioPlayer.current = new AudioPlayer();
         audioPlayer.current.setVolume(0.8); // Set default volume
       }
-      
+
       setCurrentMessageId(message.id);
       setIsPlaying(true);
       setMessages((prev) =>
@@ -162,7 +174,7 @@ export const ChatDisplay: React.FC = () => {
             isProcessingQueue.current = false;
             setIsPlaying(false);
             setCurrentMessageId(null);
-            
+
             if (audioQueue.length > 1) {
               setTimeout(processNextInQueue, 100);
             }
@@ -188,13 +200,13 @@ export const ChatDisplay: React.FC = () => {
           audioPlayer.current = new AudioPlayer();
         }
         await audioPlayer.current.ensureInitialized();
-        
+
         if (audioPlayer.current.isContextSuspended()) {
           console.warn("AudioContext is suspended - cannot enable audio");
           alert("音声を有効にできません。ページをリロードしてからもう一度お試しください。");
           return;
         }
-        
+
         setIsAudioEnabled(true);
         console.log("Audio enabled successfully");
       } catch (error) {
@@ -265,17 +277,48 @@ export const ChatDisplay: React.FC = () => {
     }
   };
 
+  // 追従の閾値
+  const NEAR_BOTTOM_PX = 16;
+
+  const handleScrollPosChange = ({ y }: { x: number; y: number }) => {
+    const v = viewportRef.current;
+    if (!v) return;
+    const atBottom = v.scrollHeight - (y + v.clientHeight) <= NEAR_BOTTOM_PX;
+    setFollow(atBottom);
+  };
+
   return (
-    <Box style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Connection Status */}
-      <Group gap="xs" justify="space-between" pb="xs" style={{ flexShrink: 0 }}>
+    <Box
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+        overflow: "hidden",
+      }}
+    >
+      <Group
+        gap="xs"
+        justify="space-between"
+        p="xs"
+        style={{
+          flex: "0 0 auto", // 固定高さ
+          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
         <Group gap="xs">
           <Badge color={getStatusColor()} variant="filled" size="sm">
-            {connectionStatus === "connected" ? "接続中" :
-             connectionStatus === "connecting" ? "接続中..." :
-             connectionStatus === "disconnected" ? "切断" :
-             connectionStatus === "error" ? "エラー" :
-             connectionStatus === "failed" ? "接続失敗" : connectionStatus}
+            {connectionStatus === "connected"
+              ? "接続中"
+              : connectionStatus === "connecting"
+                ? "接続中..."
+                : connectionStatus === "disconnected"
+                  ? "切断"
+                  : connectionStatus === "error"
+                    ? "エラー"
+                    : connectionStatus === "failed"
+                      ? "接続失敗"
+                      : connectionStatus}
           </Badge>
           {audioQueue.length > 0 && (
             <Badge color="blue" variant="light" size="sm">
@@ -313,25 +356,29 @@ export const ChatDisplay: React.FC = () => {
         </Group>
       </Group>
 
-      {/* Messages */}
-      <ScrollArea.Autosize 
-        className="chat-scroll-container" 
+      {/* メッセージ一覧：中段だけをスクロールさせる */}
+      <ScrollArea
+        style={{
+          flex: 1, // 残りの高さを全て使用
+          minHeight: 0, // スクロール領域の高さ計算を正しく行う
+        }}
+        className="chat-scroll-container"
         data-testid="chat-scroll-area"
-        mah="100%"
-        mih={300}
-        offsetScrollbars 
+        viewportRef={viewportRef} // viewportRefで直接制御
+        onScrollPositionChange={handleScrollPosChange}
+        offsetScrollbars
         scrollbarSize={8}
-        style={{ flex: 1 }}
       >
-        <Stack gap="xs" p="xs">
+        <Stack gap="xs" p="sm">
           {messages.map((message) => (
             <Paper
               key={message.id}
               p="sm"
               style={{
-                background: message.id === currentMessageId
-                  ? "rgba(255, 255, 255, 0.25)"
-                  : "rgba(255, 255, 255, 0.2)",
+                background:
+                  message.id === currentMessageId
+                    ? "rgba(255, 255, 255, 0.25)"
+                    : "rgba(255, 255, 255, 0.2)",
                 transition: "background 0.3s",
               }}
             >
@@ -363,9 +410,14 @@ export const ChatDisplay: React.FC = () => {
               </Text>
             </Paper>
           ))}
-          <div ref={messagesEndRef} />
         </Stack>
-      </ScrollArea.Autosize>
+      </ScrollArea>
+
+      {/* 将来的に入力欄を追加する場合はここに */}
+      {/* <Group p="xs" gap="xs" style={{ flex: "0 0 auto" }}>
+        <TextInput style={{ flex: 1 }} placeholder="Type message..." />
+        <Button>Send</Button>
+      </Group> */}
     </Box>
   );
 };

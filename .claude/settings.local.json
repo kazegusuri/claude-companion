@@ -17,7 +17,9 @@
       "mcp__playwright__browser_close",
       "Bash(gh api:*)",
       "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_wait_for"
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_evaluate",
+      "Bash(npm run test:e2e:*)"
     ],
     "deny": []
   }

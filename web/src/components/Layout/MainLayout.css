@@ -1,19 +1,18 @@
-/* Main Layout Container */
 .main-layout {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   overflow: hidden;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 /* Frame Base Styles */
 .layout-frame {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
-  border-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Frame Title */
@@ -21,11 +20,12 @@
   color: white;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  margin-bottom: 12px !important;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
 }
 
 /* Frame Content */
@@ -34,97 +34,67 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-/* Model Frame Specific */
 .model-frame .frame-title {
   display: none;
 }
 
-/* Schedule Frame Specific */
-.schedule-frame {
-  flex-shrink: 0;
-}
-
-/* Text Frame Specific */
-.text-frame {
-  display: flex;
-  flex-direction: column;
+.scroll-content {
+  flex: 1;
 }
 
 .text-frame .frame-content {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 1;
 }
 
 /* Chat Frame Specific */
 .chat-frame {
-  display: flex;
-  flex-direction: column;
+  flex: 1;
 }
 
-.chat-scroll-container {
+.chat-content {
   flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+}
+
+/* Custom scrollbar for Mantine ScrollArea */
+.mantine-ScrollArea-scrollbar {
+  background: transparent;
+}
+
+.mantine-ScrollArea-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.mantine-ScrollArea-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* スクロール連鎖の遮断 - スクロールが親に伝播しない */
+.chat-scroll-container > .mantine-ScrollArea-viewport,
+.schedule-frame .mantine-ScrollArea-viewport {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges; /* スクロールバー出現時の揺れ軽減 */
 }
 
 /* Responsive adjustments for smaller screens */
 @media (max-width: 1200px) {
   .frame-title {
-    font-size: 12px !important;
+    font-size: 12px;
   }
-}
 
-/* Custom scrollbar for Mantine ScrollArea */
-.mantine-ScrollArea-scrollbar {
-  background: transparent !important;
-}
-
-.mantine-ScrollArea-thumb {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border-radius: 4px !important;
-}
-
-.mantine-ScrollArea-thumb:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-}
-
-/* Force main Grid columns to use same height */
-.main-layout .mantine-Grid-root > .mantine-Grid-col {
-  align-self: flex-start;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Target Mantine Grid columns directly with highest specificity */
-.main-layout .mantine-Grid-root > .mantine-Grid-col.m_96bdd299 {
-  height: 796px !important;
-  min-height: 796px !important;
-  max-height: 796px !important;
-}
-
-/* Specific targeting for the 900px width column (right side) */
-.main-layout .mantine-Grid-root > .mantine-Grid-col[style*="width: 900px"].m_96bdd299 {
-  height: 796px !important;
-  min-height: 796px !important;
-  max-height: 796px !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Specific targeting for the 600px width column (left side) */
-.main-layout .mantine-Grid-root > .mantine-Grid-col[style*="width: 600px"].m_96bdd299 {
-  height: 796px !important;
-  min-height: 796px !important;
-  max-height: 796px !important;
-}
-
-.main-layout .chat-frame {
-  /* Chat frame fills the column with matching visual structure */
-  height: calc(100% - 16px) !important; /* Full height minus margin */
-  margin: 8px !important; /* Visual padding equivalent to column padding */
-  padding: 8px !important; /* Internal padding to match left side frames */
-  display: flex !important;
-  flex-direction: column !important;
+  .grid-container {
+    width: 100%;
+    max-width: 1500px;
+    max-height: 1000px;
+  }
 }

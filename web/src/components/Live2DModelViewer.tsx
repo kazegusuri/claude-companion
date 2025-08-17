@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
+import { Box } from "@mantine/core";
 
 // Window型を拡張してLive2D関連の型を追加
 declare global {
@@ -9,7 +10,12 @@ declare global {
   }
 }
 
-export function Live2DViewer() {
+interface Live2DModelViewerProps {
+  width?: number;
+  height?: number;
+}
+
+export function Live2DModelViewer({ width, height }: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
 
@@ -22,13 +28,21 @@ export function Live2DViewer() {
     let app: PIXI.Application | null = null;
     let model: Live2DModel | null = null;
 
-    (async () => {
+    // Wait for container to have dimensions
+    const initTimeout = setTimeout(async () => {
+      if (!canvasRef.current) return;
+
       try {
+        // Get actual container dimensions
+        const containerWidth = width || canvasRef.current.clientWidth || 400;
+        const containerHeight = height || canvasRef.current.clientHeight || 400;
+
         // PixiJSアプリケーションを作成 (PIXI v7用)
         app = new PIXI.Application({
-          width: 1000,
-          height: 800,
-          backgroundColor: 0xffffff,
+          width: containerWidth,
+          height: containerHeight,
+          backgroundColor: 0x000000,
+          backgroundAlpha: 0,
           antialias: true,
         });
 
@@ -39,42 +53,7 @@ export function Live2DViewer() {
 
         appRef.current = app;
 
-        // 背景を作成 (PIXI v7用)
-        const background = new PIXI.Graphics();
-        background.beginFill(0xf0f0f0);
-        background.drawRect(0, 0, 1000, 800);
-        background.endFill();
-        app.stage.addChild(background);
-
-        // 説明テキスト (PIXI v7用)
-        const infoText = new PIXI.Text("Live2D Model Viewer", {
-          fontFamily: "Arial",
-          fontSize: 24,
-          fill: 0x333333,
-        });
-        infoText.x = 500;
-        infoText.y = 30;
-        infoText.anchor.set(0.5);
-        app.stage.addChild(infoText);
-
-        // Live2Dモデル読み込みの説明 (PIXI v7用)
-        const instructionText = new PIXI.Text(
-          "Place your Live2D model files in:\n/public/live2d/models/[model_name]/\n\nRequired files:\n- model3.json (or model.json)\n- *.moc3 file\n- texture files\n- *.physics3.json (optional)\n- *.motion3.json files (optional)",
-          {
-            fontFamily: "Arial",
-            fontSize: 14,
-            fill: 0x666666,
-            align: "center",
-            lineHeight: 20,
-          },
-        );
-        instructionText.x = 500;
-        instructionText.y = 400;
-        instructionText.anchor.set(0.5);
-        app.stage.addChild(instructionText);
-
         // サンプルモデルを読み込む（モデルファイルが存在する場合）
-        // 環境変数からモデル名を取得（デフォルト: default）
         try {
           const modelName = import.meta.env.VITE_LIVE2D_MODEL_NAME || "default";
           const modelPath = `/live2d/models/${modelName}/${modelName}.model3.json`;
@@ -94,14 +73,10 @@ export function Live2DViewer() {
             const modelWidth = bounds.width;
             const modelHeight = bounds.height;
 
-            // キャンバスサイズ
-            const canvasWidth = 1000;
-            const canvasHeight = 800;
-
-            // アスペクト比を保持しながらスケールを計算（キャンバスの70%に収める）
-            const targetSize = 0.7; // 70%
-            const scaleX = (canvasWidth * targetSize) / modelWidth;
-            const scaleY = (canvasHeight * targetSize) / modelHeight;
+            // アスペクト比を保持しながらスケールを計算（コンテナの90%に収める）
+            const targetSize = 0.9; // 90%
+            const scaleX = (containerWidth * targetSize) / modelWidth;
+            const scaleY = (containerHeight * targetSize) / modelHeight;
             const scale = Math.min(scaleX, scaleY); // アスペクト比を保持
 
             // スケールを適用
@@ -112,11 +87,12 @@ export function Live2DViewer() {
             const scaledHeight = modelHeight * scale;
 
             // モデルの中心をキャンバスの中心に配置
-            // Live2Dモデルは左上が原点なので、中心に配置するために調整
-            model.x = (canvasWidth - scaledWidth) / 2;
-            model.y = (canvasHeight - scaledHeight) / 2;
+            model.x = (containerWidth - scaledWidth) / 2;
+            model.y = (containerHeight - scaledHeight) / 2;
 
             console.log("Model dimensions:", {
+              containerWidth,
+              containerHeight,
               originalWidth: modelWidth,
               originalHeight: modelHeight,
               scaledWidth,
@@ -135,49 +111,21 @@ export function Live2DViewer() {
               }
             });
 
-            // 説明テキストを更新
-            instructionText.text = "Model loaded successfully!\nClick on the model to interact.";
+            // アイドルモーションを開始
+            model.motion("Idle");
           }
         } catch (error) {
           console.log("No model found or error loading model:", error);
-          // モデルが見つからない場合は説明テキストのままにする
+          // モデルが見つからない場合は何も表示しない
         }
-
-        // デバッグ用のボタン（サンプルモーション再生） (PIXI v7用)
-        const button = new PIXI.Graphics();
-        button.beginFill(0x4caf50);
-        button.drawRect(0, 0, 200, 40);
-        button.endFill();
-        button.x = 400;
-        button.y = 720;
-        button.eventMode = "static";
-        button.cursor = "pointer";
-
-        const buttonText = new PIXI.Text("Play Motion", {
-          fontFamily: "Arial",
-          fontSize: 16,
-          fill: 0xffffff,
-        });
-        buttonText.x = 500;
-        buttonText.y = 740;
-        buttonText.anchor.set(0.5);
-
-        button.on("pointerdown", () => {
-          if (model) {
-            // ランダムなモーションを再生
-            model.motion("Idle");
-          }
-        });
-
-        app.stage.addChild(button);
-        app.stage.addChild(buttonText);
       } catch (error) {
         console.error("Failed to initialize Live2D viewer:", error);
       }
-    })();
+    }, 100); // Wait 100ms for container to be ready
 
     // クリーンアップ
     return () => {
+      clearTimeout(initTimeout);
       if (model) {
         model.destroy();
       }
@@ -186,18 +134,16 @@ export function Live2DViewer() {
         appRef.current = null;
       }
     };
-  }, []);
+  }, [width, height]);
 
   return (
-    <div
+    <Box
       ref={canvasRef}
       style={{
+        width: "100%",
         display: "flex",
         justifyContent: "center",
-        padding: "20px",
-        backgroundColor: "#f5f5f5",
-        borderRadius: "8px",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        alignItems: "center",
       }}
     />
   );

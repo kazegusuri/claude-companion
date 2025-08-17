@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { MantineProvider, createTheme, AppShell } from "@mantine/core";
+import { MantineProvider, createTheme, AppShell, Box } from "@mantine/core";
 import "@mantine/core/styles.css";
-import { Live2DViewer } from "@components/Live2DViewer";
+import { Live2DModelViewer } from "@components/Live2DModelViewer";
 import { AudioNarrator } from "@components/AudioNarrator";
 import { Dashboard } from "./pages/Dashboard";
 import { AppHeader } from "./components/AppHeader";
@@ -17,20 +17,24 @@ function App() {
       <AppShell
         header={{ height: 60 }}
         padding={0}
-        styles={{
-          main: {
-            backgroundColor: '#0a0a0a',
-          },
-        }}
+        style={{ height: "100dvh", overflow: "hidden" }}
       >
-        <AppShell.Header>
+        <AppShell.Header p={0}>
           <AppHeader currentView={currentView} onViewChange={setCurrentView} />
         </AppShell.Header>
 
-        <AppShell.Main>
-          {currentView === "dashboard" && <Dashboard />}
-          {currentView === "narrator" && <AudioNarrator />}
-          {currentView === "live2d" && <Live2DViewer />}
+        <AppShell.Main style={{ display: "flex", minHeight: 0, overflow: "hidden" }}>
+          <Box
+            maw={1440}
+            w="100%"
+            mx="auto"
+            px="md"
+            style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
+          >
+            {currentView === "dashboard" && <Dashboard />}
+            {currentView === "narrator" && <AudioNarrator />}
+            {currentView === "live2d" && <Live2DModelViewer width={1000} height={800} />}
+          </Box>
         </AppShell.Main>
       </AppShell>
     </MantineProvider>
