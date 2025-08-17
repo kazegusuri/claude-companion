@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
 import { Box } from "@mantine/core";
+import { SpeechBubble } from "./SpeechBubble";
 
 // Window型を拡張してLive2D関連の型を追加
 declare global {
@@ -13,11 +14,21 @@ declare global {
 interface Live2DModelViewerProps {
   width?: number;
   height?: number;
+  speechText?: string;
+  isSpeaking?: boolean;
+  bubbleSide?: "right" | "bottom" | "left" | "top";
 }
 
-export function Live2DModelViewer({ width, height }: Live2DModelViewerProps) {
+export function Live2DModelViewer({
+  width,
+  height,
+  speechText = "",
+  isSpeaking = false,
+  bubbleSide = "bottom",
+}: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
+  const [modelId] = useState(() => `model-${Date.now()}`);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -73,8 +84,8 @@ export function Live2DModelViewer({ width, height }: Live2DModelViewerProps) {
             const modelWidth = bounds.width;
             const modelHeight = bounds.height;
 
-            // アスペクト比を保持しながらスケールを計算（コンテナの90%に収める）
-            const targetSize = 0.9; // 90%
+            // アスペクト比を保持しながらスケールを計算（コンテナの95%に収める）
+            const targetSize = 0.95; // 95%
             const scaleX = (containerWidth * targetSize) / modelWidth;
             const scaleY = (containerHeight * targetSize) / modelHeight;
             const scale = Math.min(scaleX, scaleY); // アスペクト比を保持
@@ -137,14 +148,26 @@ export function Live2DModelViewer({ width, height }: Live2DModelViewerProps) {
   }, [width, height]);
 
   return (
-    <Box
-      ref={canvasRef}
-      style={{
-        width: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    />
+    <Box style={{ position: "relative", width: "100%", height: "100%" }}>
+      <Box
+        ref={canvasRef}
+        id={modelId}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      />
+      <SpeechBubble
+        text={speechText}
+        visible={isSpeaking}
+        anchorSelector={`#${modelId}`}
+        side={bubbleSide}
+        withWave={true}
+        typewriter={true}
+      />
+    </Box>
   );
 }

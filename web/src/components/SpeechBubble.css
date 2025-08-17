@@ -1,0 +1,222 @@
+/* 吹き出しオーバーレイのベーススタイル */
+.speech-bubble-overlay {
+  position: fixed; /* 完全に自由な配置 */
+  z-index: 10000; /* 最前面に表示 - さらに高く */
+  pointer-events: none; /* UIクリック可能性を維持 */
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  isolation: isolate; /* 他の要素の効果から独立 */
+  mix-blend-mode: normal; /* ブレンドモードを通常に */
+  transform: translateZ(0); /* レイヤーを独立させる */
+}
+
+.speech-bubble-overlay.hide {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.speech-bubble-overlay.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 吹き出し本体 */
+.bubble {
+  background: white;
+  background-color: rgba(255, 255, 255, 1); /* 完全に不透明な白 */
+  border: 3px solid #222; /* より太く濃い境界線 */
+  border-radius: 16px;
+  padding: 16px 20px;
+  position: relative;
+  min-width: 200px;
+  max-width: 600px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.3); /* より強い影 */
+  font-size: 16px;
+  line-height: 1.5;
+  color: #222; /* より濃いテキスト色 */
+  font-weight: 500; /* 少し太めのフォント */
+  backdrop-filter: none; /* 背景のブラー効果を無効化 */
+  -webkit-backdrop-filter: none;
+  will-change: transform; /* GPUアクセラレーションのヒント */
+}
+
+/* 吹き出しの三角形部分 */
+.bubble::before {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+/* 右側に表示する場合の三角形 */
+.speech-bubble-overlay.right .bubble::before {
+  left: -12px;
+  top: 20%;
+  border-width: 10px 12px 10px 0;
+  border-color: transparent white transparent transparent;
+}
+
+.speech-bubble-overlay.right .bubble::after {
+  content: "";
+  position: absolute;
+  left: -15px;
+  top: 20%;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 12px 10px 0;
+  border-color: transparent #222 transparent transparent;
+}
+
+/* 左側に表示する場合の三角形 */
+.speech-bubble-overlay.left .bubble::before {
+  right: -12px;
+  top: 20%;
+  border-width: 10px 0 10px 12px;
+  border-color: transparent transparent transparent white;
+}
+
+.speech-bubble-overlay.left .bubble::after {
+  content: "";
+  position: absolute;
+  right: -15px;
+  top: 20%;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 0 10px 12px;
+  border-color: transparent transparent transparent #222;
+}
+
+/* 上側に表示する場合の三角形 */
+.speech-bubble-overlay.top .bubble::before {
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 12px 10px 0 10px;
+  border-color: white transparent transparent transparent;
+}
+
+.speech-bubble-overlay.top .bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 12px 10px 0 10px;
+  border-color: #222 transparent transparent transparent;
+}
+
+/* 下側に表示する場合の三角形 - 線のみ */
+.speech-bubble-overlay.bottom .bubble::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 12px 14px 12px;
+  border-color: transparent transparent white transparent;
+}
+
+.speech-bubble-overlay.bottom .bubble::after {
+  content: "";
+  position: absolute;
+  top: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 14px 17px 14px;
+  border-color: transparent transparent #222 transparent;
+  z-index: -1;
+}
+
+/* テキストスタイル - 改行制御を強化 */
+.bubble-text {
+  display: block;
+  word-wrap: break-word;
+  word-break: break-word; /* 長文でもレイアウト崩れにくく */
+  white-space: pre-wrap; /* 改行を保持 */
+  line-height: 1.5;
+}
+
+/* 波形アニメーション */
+.bubble-wave {
+  display: flex;
+  gap: 3px;
+  margin-top: 8px;
+  justify-content: center;
+  align-items: center;
+  height: 20px;
+}
+
+.bubble-wave i {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: #666;
+  border-radius: 2px;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.bubble-wave i:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.bubble-wave i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.bubble-wave i:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.bubble-wave i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+@keyframes wave {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(0.5);
+    opacity: 0.5;
+  }
+  30% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* タイプライター効果のカーソル */
+.bubble-text::after {
+  content: "|";
+  animation: blink 1s infinite;
+  opacity: 0;
+}
+
+.speech-bubble-overlay.show .bubble-text::after {
+  opacity: 1;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}

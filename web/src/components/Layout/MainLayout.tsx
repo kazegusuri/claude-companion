@@ -10,8 +10,9 @@ interface MainLayoutProps {
 }
 
 const HEADER = 60; // AppShellのheader高さ
-const ModelHeight = "400px";
-const ScheduleHeight = "clamp(260px, 35dvh, 420px)";
+const ModelHeight = "420px";
+const ScheduleHeight = "200px";
+const TextHeight = "120px";
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   modelComponent,
@@ -50,7 +51,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 withBorder
                 radius="md"
                 className="layout-frame model-frame"
-                style={{ flex: 1, overflow: "hidden" }} // 重要: flex:1 で高さを自動調整
+                style={{
+                  padding: 0,
+                  flex: 1,
+                  overflow: "hidden", // コンテンツを適切に収める
+                  position: "relative",
+                }}
               >
                 <Box>
                   {modelComponent || (
@@ -67,8 +73,42 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               </Card>
             </Box>
 
-            {/* 下段 2 カード  */}
-            <Group grow align="stretch" style={{ height: ScheduleHeight }}>
+            {/* 下段 - Speech to Text / Translation カード  */}
+            <Box style={{ height: TextHeight }}>
+              <Card
+                withBorder
+                radius="md"
+                className="layout-frame text-frame"
+                h="100%"
+                style={{ display: "flex", flexDirection: "column" }}
+              >
+                <Title order={5} className="frame-title">
+                  Speech to Text / Translation
+                </Title>
+                <Box
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {textComponent || (
+                    <Stack align="center" justify="center">
+                      <Text size="sm" c="dimmed">
+                        音声認識待機中...
+                      </Text>
+                      <Text size="xs" c="dimmed" opacity={0.7}>
+                        モデルが話すとここに内容が表示されます
+                      </Text>
+                    </Stack>
+                  )}
+                </Box>
+              </Card>
+            </Box>
+
+            {/* 中段 - Schedule カード  */}
+            <Box style={{ height: ScheduleHeight, marginBottom: "16px" }}>
               <Card
                 withBorder
                 radius="md"
@@ -116,38 +156,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                   )}
                 </ScrollArea>
               </Card>
-
-              <Card
-                withBorder
-                radius="md"
-                className="layout-frame text-frame"
-                h="100%"
-                style={{ display: "flex", flexDirection: "column" }}
-              >
-                <Title order={5} className="frame-title">
-                  Speech to Text / Translation
-                </Title>
-                <Box
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {textComponent || (
-                    <Stack align="center" justify="center">
-                      <Text size="md" fw={500} c="white">
-                        Hello, how are you?
-                      </Text>
-                      <Text size="sm" c="white" opacity={0.8}>
-                        こんにちは、お元気ですか？
-                      </Text>
-                    </Stack>
-                  )}
-                </Box>
-              </Card>
-            </Group>
+            </Box>
           </Stack>
         </Grid.Col>
 
@@ -162,7 +171,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         >
           <Box
             style={{
-              height: `calc(${ScheduleHeight} + ${ModelHeight} + 16px)`, // ヘッダー高さを引いた残りの高さ
+              height: `calc(${ModelHeight} + ${ScheduleHeight} + ${TextHeight} + 32px)`, // 3つのカードの高さ + gap
               display: "flex",
               flexDirection: "column",
             }}
