@@ -88,14 +88,16 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 	hn.cacheMu.RUnlock()
 
 	// Try each narrator in sequence
-	for _, narrator := range hn.narrators {
+	for i, narrator := range hn.narrators {
 		narration, shouldFallback := narrator.NarrateToolUse(toolName, input)
 		if !shouldFallback {
-			// Cache the result
-			hn.cacheMu.Lock()
-			hn.cache[cacheKey] = narration
-			hn.cacheTime[cacheKey] = time.Now()
-			hn.cacheMu.Unlock()
+			// Cache the result only if not the first narrator
+			if i > 0 {
+				hn.cacheMu.Lock()
+				hn.cache[cacheKey] = narration
+				hn.cacheTime[cacheKey] = time.Now()
+				hn.cacheMu.Unlock()
+			}
 			return narration, false
 		}
 	}
