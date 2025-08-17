@@ -163,6 +163,38 @@ func (ai *OpenAINarrator) NarrateTaskCompletion(description string, subagentType
 	return "", false
 }
 
+// NarrateAPIError narrates an API error
+func (ai *OpenAINarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), ai.timeout)
+	defer cancel()
+
+	prompt := fmt.Sprintf(`APIエラーが発生しました。以下のエラーをユーザーに分かりやすく日本語で説明してください。
+
+エラー情報:
+- HTTPステータスコード: %d
+- エラータイプ: %s
+- エラーメッセージ: %s
+
+以下の点に注意してください：
+- 20-30文字程度の短い文で説明
+- 技術的な詳細は省略し、ユーザーが理解しやすい表現を使用
+- 可能であれば対処法も簡潔に含める
+- Claude のサーバーで発生したことを説明してください。
+
+例:
+- Claude のサーバーが過負荷状態です。少し待ってから再試行してください。
+- Claude のサーバーからリクエストエラーを受け取りました。入力内容を確認してください。`, statusCode, errorType, message)
+
+	response, err := ai.callOpenAI(ctx, prompt, 0.3, 50)
+	if err != nil {
+		// Fallback to simple format
+		logger.LogError("Failed to call OpenAI for API error narration: %v", err)
+		return fmt.Sprintf("APIエラー %d: %s", statusCode, message), true
+	}
+
+	return response, false
+}
+
 // OpenAI API structures
 type openAIRequest struct {
 	Model       string          `json:"model"`

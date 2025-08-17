@@ -123,6 +123,17 @@ func (vn *VoiceNarrator) NarrateTaskCompletion(description string, subagentType 
 	return text, shouldFallback
 }
 
+// NarrateAPIError narrates an API error with optional voice
+func (vn *VoiceNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	text, shouldFallback := vn.narrator.NarrateAPIError(statusCode, errorType, message)
+
+	if vn.enabled && text != "" {
+		vn.enqueueNarration(text, NarrationTypeNotification)
+	}
+
+	return text, shouldFallback
+}
+
 // voiceWorker processes voice queue
 func (vn *VoiceNarrator) voiceWorker() {
 	defer vn.wg.Done()

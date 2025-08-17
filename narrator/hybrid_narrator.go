@@ -180,3 +180,16 @@ func (hn *HybridNarrator) NarrateTaskCompletion(description string, subagentType
 	// Fallback
 	return "タスクが完了しました", false
 }
+
+// NarrateAPIError narrates an API error
+func (hn *HybridNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	// Try each narrator in sequence
+	for _, narrator := range hn.narrators {
+		narration, shouldFallback := narrator.NarrateAPIError(statusCode, errorType, message)
+		if !shouldFallback {
+			return narration, false
+		}
+	}
+	// Fallback
+	return fmt.Sprintf("APIエラー %d: %s", statusCode, message), false
+}

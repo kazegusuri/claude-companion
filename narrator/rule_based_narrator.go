@@ -484,3 +484,14 @@ func (cn *RuleBasedNarrator) NarrateTaskCompletion(description string, subagentT
 	}
 	return "タスクが完了しました", false
 }
+
+// NarrateAPIError narrates an API error
+func (cn *RuleBasedNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	if statusCode == 500 && errorType == "api_error" && message == "Overloaded" {
+		return "Claude のサーバーが過負荷状態です。しばらく待ってから再試行してください。", true
+	}
+	if statusCode == 400 && errorType == "invalid_request_error" {
+		return "Claude のサーバーからリクエストエラーを受け取りました", true
+	}
+	return fmt.Sprintf("APIエラー %d: %s - %s", statusCode, errorType, message), true
+}

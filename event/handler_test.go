@@ -40,6 +40,10 @@ func (m *mockNarrator) NarrateTaskCompletion(description string, subagentType st
 	return "タスクが完了しました", false
 }
 
+func (m *mockNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	return fmt.Sprintf("APIエラー %d: %s", statusCode, message), false
+}
+
 // captureOutput captures printed output during test
 func captureOutput(t *testing.T, f func()) string {
 	// Create a pipe to capture output

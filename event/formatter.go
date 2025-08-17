@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -162,6 +163,55 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		}
 	}
 	output.WriteString(header + "\n")
+
+	// Check if this is an API error message
+	if event.IsApiErrorMessage {
+		// Parse the API error from the content
+		for _, content := range event.Message.Content {
+			if content.Type == "text" {
+				// Extract status code and JSON from the error message
+				// Format: "API Error: 500 {\"type\":\"error\",\"error\":{...}}"
+				statusCode := 0
+				jsonStartIdx := strings.Index(content.Text, "{")
+
+				// Extract status code if present
+				if strings.HasPrefix(content.Text, "API Error: ") {
+					parts := strings.SplitN(content.Text, " ", 4)
+					if len(parts) >= 3 {
+						if code, err := strconv.Atoi(parts[2]); err == nil {
+							statusCode = code
+						}
+					}
+				}
+
+				if jsonStartIdx != -1 {
+					jsonStr := content.Text[jsonStartIdx:]
+					var apiError APIError
+					if err := json.Unmarshal([]byte(jsonStr), &apiError); err == nil {
+						// Pass the parsed API error to the narrator
+						narration, _ := f.narrator.NarrateAPIError(statusCode, apiError.Error.Type, apiError.Error.Message)
+						if narration != "" {
+							output.WriteString(fmt.Sprintf("  ❌ %s\n", narration))
+						} else {
+							// Fallback to formatted error
+							output.WriteString(fmt.Sprintf("  ❌ API Error %d: %s - %s\n", statusCode, apiError.Error.Type, apiError.Error.Message))
+						}
+					} else {
+						// Fallback to raw text if JSON parsing fails
+						output.WriteString(fmt.Sprintf("  ❌ %s\n", content.Text))
+					}
+				} else {
+					// No JSON found, use raw text
+					output.WriteString(fmt.Sprintf("  ❌ %s\n", content.Text))
+				}
+			}
+		}
+		result := output.String()
+		if result != "" && !strings.HasSuffix(result, "\n") {
+			result += "\n"
+		}
+		return result, nil
+	}
 
 	// Track if we have any content to show summary for
 	hasContent := false

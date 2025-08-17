@@ -102,8 +102,9 @@ type AssistantMessageContent struct {
 // AssistantMessage represents an assistant response
 type AssistantMessage struct {
 	BaseEvent
-	RequestID string                  `json:"requestId"`
-	Message   AssistantMessageContent `json:"message"`
+	RequestID         string                  `json:"requestId"`
+	Message           AssistantMessageContent `json:"message"`
+	IsApiErrorMessage bool                    `json:"isApiErrorMessage,omitempty"`
 }
 
 // SystemMessage represents system messages
