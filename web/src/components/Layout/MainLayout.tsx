@@ -10,9 +10,9 @@ interface MainLayoutProps {
 }
 
 const HEADER = 60; // AppShellのheader高さ
-const ModelHeight = "420px";
+const ModelHeight = "720px";
 const ScheduleHeight = "200px";
-const TextHeight = "120px";
+const TextHeight = "0px";
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   modelComponent,
@@ -74,6 +74,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             </Box>
 
             {/* 下段 - Speech to Text / Translation カード  */}
+            {/*
             <Box style={{ height: TextHeight }}>
               <Card
                 withBorder
@@ -106,6 +107,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 </Box>
               </Card>
             </Box>
+          */}
 
             {/* 中段 - Schedule カード  */}
             <Box style={{ height: ScheduleHeight, marginBottom: "16px" }}>
@@ -171,7 +173,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         >
           <Box
             style={{
-              height: `calc(${ModelHeight} + ${ScheduleHeight} + ${TextHeight} + 32px)`, // 3つのカードの高さ + gap
+              height: `calc(${ModelHeight} + ${ScheduleHeight} + ${TextHeight} + 16px)`, // 3つのカードの高さ + gap
               display: "flex",
               flexDirection: "column",
             }}

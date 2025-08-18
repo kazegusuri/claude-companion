@@ -10,6 +10,7 @@ interface SpeechBubbleProps {
   side?: "right" | "left" | "top" | "bottom";
   withWave?: boolean;
   typewriter?: boolean;
+  style?: React.CSSProperties;
 }
 
 export function SpeechBubble({
@@ -19,6 +20,7 @@ export function SpeechBubble({
   side = "right",
   withWave = true,
   typewriter = true,
+  style = {},
 }: SpeechBubbleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
@@ -128,6 +130,7 @@ export function SpeechBubble({
       className={`speech-bubble-overlay ${visible ? "show" : "hide"} ${side}`}
       aria-live="polite"
       aria-atomic="true"
+      style={style}
     >
       <div className="bubble">
         <span className="bubble-text">{typed}</span>

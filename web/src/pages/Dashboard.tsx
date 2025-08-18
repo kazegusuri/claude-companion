@@ -81,6 +81,8 @@ export const Dashboard: React.FC = () => {
               speechText={speechText}
               isSpeaking={bubbleState !== "hidden"}
               bubbleSide={bubbleState === "hidden" ? "bottom" : bubbleState}
+              useCard={true}
+              cardTitle="ASSISTANT"
             />
           </div>
           <div

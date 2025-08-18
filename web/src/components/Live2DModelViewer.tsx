@@ -3,6 +3,8 @@ import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
 import { Box } from "@mantine/core";
 import { SpeechBubble } from "./SpeechBubble";
+import { Live2DModelStage } from "./Live2DModelStage";
+import type { StageType } from "./Live2DModelStage";
 
 // Window型を拡張してLive2D関連の型を追加
 declare global {
@@ -17,14 +19,20 @@ interface Live2DModelViewerProps {
   speechText?: string;
   isSpeaking?: boolean;
   bubbleSide?: "right" | "bottom" | "left" | "top";
+  useCard?: boolean;
+  cardTitle?: string;
+  stageType?: StageType;
 }
 
 export function Live2DModelViewer({
-  width,
-  height,
+  width = 360,
+  height = 480,
   speechText = "",
   isSpeaking = false,
   bubbleSide = "bottom",
+  useCard = false,
+  cardTitle = "ASSISTANT",
+  stageType = "gold-card",
 }: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
@@ -45,8 +53,8 @@ export function Live2DModelViewer({
 
       try {
         // Get actual container dimensions
-        const containerWidth = width || canvasRef.current.clientWidth || 400;
-        const containerHeight = height || canvasRef.current.clientHeight || 400;
+        const containerWidth = width || canvasRef.current.clientWidth || 360;
+        const containerHeight = height || canvasRef.current.clientHeight || 480;
 
         // PixiJSアプリケーションを作成 (PIXI v7用)
         app = new PIXI.Application({
@@ -84,8 +92,8 @@ export function Live2DModelViewer({
             const modelWidth = bounds.width;
             const modelHeight = bounds.height;
 
-            // アスペクト比を保持しながらスケールを計算（コンテナの95%に収める）
-            const targetSize = 0.95; // 95%
+            // アスペクト比を保持しながらスケールを計算（コンテナの85%に収める）
+            const targetSize = 0.85; // 85%に調整
             const scaleX = (containerWidth * targetSize) / modelWidth;
             const scaleY = (containerHeight * targetSize) / modelHeight;
             const scale = Math.min(scaleX, scaleY); // アスペクト比を保持
@@ -97,9 +105,9 @@ export function Live2DModelViewer({
             const scaledWidth = modelWidth * scale;
             const scaledHeight = modelHeight * scale;
 
-            // モデルの中心をキャンバスの中心に配置
+            // モデルの中心をキャンバスの中心に配置（少し下寄りに調整）
             model.x = (containerWidth - scaledWidth) / 2;
-            model.y = (containerHeight - scaledHeight) / 2;
+            model.y = (containerHeight - scaledHeight) / 2 + containerHeight * 0.05; // 5%下にオフセット
 
             console.log("Model dimensions:", {
               containerWidth,
@@ -147,19 +155,58 @@ export function Live2DModelViewer({
     };
   }, [width, height]);
 
+  const modelContent = (
+    <Box
+      ref={canvasRef}
+      id={modelId}
+      className="tcg-art"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 2, // 背景の上に配置
+      }}
+    />
+  );
+
+  if (useCard) {
+    return (
+      <Box style={{ position: "relative", width: "100%", height: "100%" }}>
+        <Box
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <Live2DModelStage type={stageType} title={cardTitle}>
+            {modelContent}
+          </Live2DModelStage>
+        </Box>
+        <SpeechBubble
+          text={speechText}
+          visible={isSpeaking}
+          anchorSelector={`.live2d-stage`}
+          side={bubbleSide}
+          withWave={true}
+          typewriter={true}
+          style={{
+            zIndex: 1000,
+          }}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box style={{ position: "relative", width: "100%", height: "100%" }}>
-      <Box
-        ref={canvasRef}
-        id={modelId}
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      />
+      {modelContent}
       <SpeechBubble
         text={speechText}
         visible={isSpeaking}
