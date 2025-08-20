@@ -21,10 +21,12 @@ export interface AudioMessage {
 export class WebSocketAudioClient {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 5;
-  private readonly reconnectDelay = 1000;
+  private readonly maxReconnectAttempts = 10;
+  private readonly initialReconnectDelay = 1000; // 初期リトライ間隔: 1秒
+  private readonly maxReconnectDelay = 30000; // 最大リトライ間隔: 30秒
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private isConnecting = false;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly url: string,
@@ -33,6 +35,12 @@ export class WebSocketAudioClient {
   ) {}
 
   connect(): void {
+    // 既存のリトライタイマーをクリア
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -106,6 +114,12 @@ export class WebSocketAudioClient {
   }
 
   private attemptReconnect(): void {
+    // 既存のタイマーをクリア
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error("Max reconnection attempts reached");
       this.onStatusChange("failed");
@@ -113,13 +127,21 @@ export class WebSocketAudioClient {
     }
 
     this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    // 指数バックオフ with 上限
+    const delay = Math.min(
+      this.initialReconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.maxReconnectDelay,
+    );
 
     console.log(
       `Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`,
     );
 
-    setTimeout(() => {
+    // エラー状態を維持（connectingに変わるまで）
+    this.onStatusChange("error");
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
       this.connect();
     }, delay);
   }
@@ -145,12 +167,21 @@ export class WebSocketAudioClient {
   disconnect(): void {
     this.stopHeartbeat();
 
+    // リトライタイマーをクリア
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     if (this.ws) {
       // Close with normal closure code
       this.ws.close(1000, "Client disconnecting");
       this.ws = null;
     }
 
+    // リトライカウンターをリセット
+    this.reconnectAttempts = 0;
+    this.isConnecting = false;
     this.onStatusChange("disconnected");
   }
 

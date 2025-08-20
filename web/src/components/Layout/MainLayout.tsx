@@ -190,10 +190,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 minHeight: 0, // 重要: flexレイアウトの計算を正しく行う
               }}
             >
-              <Title order={5} className="frame-title">
-                Chat
-              </Title>
-
               {/* チャット内容エリア */}
               <Box style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                 {chatComponent}
