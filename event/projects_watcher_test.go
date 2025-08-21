@@ -6,12 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
 func TestSessionFileManager(t *testing.T) {
-	// Create a mock handler
-	handler := NewHandler(narrator.NewNoOpNarrator(), false)
+	// Create a mock handler with session manager
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
 
 	manager := NewSessionFileManager(handler)
 	manager.idleTimeout = 100 * time.Millisecond // Short timeout for testing
@@ -52,7 +54,8 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a mock handler
-	handler := NewHandler(narrator.NewNoOpNarrator(), false)
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
 
 	// Create projects watcher
 	watcher, err := NewProjectsWatcher(tmpDir, handler)
@@ -71,7 +74,8 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 
 func TestProjectsWatcherHomeExpansion(t *testing.T) {
 	// Create a mock handler
-	handler := NewHandler(narrator.NewNoOpNarrator(), false)
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
 
 	// Test home directory expansion
 	watcher, err := NewProjectsWatcher("~/test", handler)

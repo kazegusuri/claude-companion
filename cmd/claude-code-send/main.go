@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type Request struct {
@@ -96,7 +97,7 @@ func execEmacsCommand(command string) error {
 	cmd := exec.Command("emacsclient", "--eval", fmt.Sprintf(`(load-file "%s")`, absPath))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("emacsclient error: %w, output: %s", err, output)
+		return fmt.Errorf("emacsclient error: %w, output: %s", err, strings.TrimSpace(string(output)))
 	}
 
 	// Optionally log the output for debugging

@@ -10,14 +10,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/speech"
 	"github.com/kazegusuri/claude-companion/websocket"
 	"github.com/rs/cors"
 )
 
 func main() {
-	// Create WebSocket server
-	wsServer := websocket.NewServer()
+	// Create WebSocket server (nil SessionGetter for test)
+	wsServer := websocket.NewServer(nil)
 	go wsServer.Run()
 
 	// Create WebSocket player for audio messages
@@ -80,8 +81,8 @@ func handleSendText(server *websocket.Server) http.HandlerFunc {
 		}
 
 		// Create message with text type
-		msg := &websocket.AudioMessage{
-			Type:      websocket.MessageTypeText,
+		msg := &handler.AudioMessage{
+			Type:      handler.MessageTypeText,
 			ID:        uuid.New().String(),
 			Text:      req.Text,
 			Priority:  5,
@@ -90,7 +91,7 @@ func handleSendText(server *websocket.Server) http.HandlerFunc {
 
 		// Add metadata if provided
 		if req.EventType != "" || req.ToolName != "" {
-			metadata := websocket.Metadata{}
+			metadata := handler.Metadata{}
 			if req.EventType != "" {
 				metadata.EventType = req.EventType
 			}

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -8,64 +9,36 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/kazegusuri/claude-companion/handler"
 )
-
-// MessageType represents the type of WebSocket message
-type MessageType string
-
-const (
-	MessageTypeAudio MessageType = "audio"
-	MessageTypeText  MessageType = "text"
-	MessageTypePing  MessageType = "ping"
-	MessageTypePong  MessageType = "pong"
-	MessageTypeError MessageType = "error"
-)
-
-// AudioMessage represents a message containing audio data
-type AudioMessage struct {
-	Type      MessageType `json:"type"`
-	ID        string      `json:"id"`
-	Text      string      `json:"text"`
-	AudioData string      `json:"audioData,omitempty"` // Base64 encoded WAV data
-	Priority  int         `json:"priority"`
-	Timestamp time.Time   `json:"timestamp"`
-	Metadata  Metadata    `json:"metadata,omitempty"`
-}
-
-// Metadata contains additional information about the message
-type Metadata struct {
-	EventType  string  `json:"eventType"`
-	ToolName   string  `json:"toolName,omitempty"`
-	Speaker    int     `json:"speaker,omitempty"`
-	SampleRate int     `json:"sampleRate,omitempty"`
-	Duration   float64 `json:"duration,omitempty"`
-}
 
 // Client represents a WebSocket client connection
 type Client struct {
 	conn   *websocket.Conn
-	send   chan *AudioMessage
+	send   chan *handler.AudioMessage
 	id     string
 	server *Server
 }
 
 // Server manages WebSocket connections and message broadcasting
 type Server struct {
-	clients    map[*Client]bool
-	broadcast  chan *AudioMessage
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
-	upgrader   websocket.Upgrader
+	clients       map[*Client]bool
+	broadcast     chan *handler.AudioMessage
+	register      chan *Client
+	unregister    chan *Client
+	mu            sync.RWMutex
+	upgrader      websocket.Upgrader
+	sessionGetter handler.SessionGetter
 }
 
 // NewServer creates a new WebSocket server
-func NewServer() *Server {
+func NewServer(sessionGetter handler.SessionGetter) *Server {
 	return &Server{
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan *AudioMessage, 256),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		clients:       make(map[*Client]bool),
+		broadcast:     make(chan *handler.AudioMessage, 256),
+		register:      make(chan *Client),
+		unregister:    make(chan *Client),
+		sessionGetter: sessionGetter,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				// Allow connections from localhost in development
@@ -125,7 +98,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	client := &Client{
 		conn:   conn,
-		send:   make(chan *AudioMessage, 256),
+		send:   make(chan *handler.AudioMessage, 256),
 		id:     uuid.New().String(),
 		server: s,
 	}
@@ -138,7 +111,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 // Broadcast sends a message to all connected clients
-func (s *Server) Broadcast(message *AudioMessage) {
+func (s *Server) Broadcast(message *handler.AudioMessage) {
 	if message.ID == "" {
 		message.ID = uuid.New().String()
 	}
@@ -169,6 +142,27 @@ const (
 	maxMessageSize = 512 * 1024 // 512KB
 )
 
+// clientMessageSender implements MessageSender interface for a specific client
+type clientMessageSender struct {
+	client *Client
+	server *Server
+}
+
+// Send sends a message to the specific client
+func (s *clientMessageSender) Send(msg *handler.AudioMessage) error {
+	select {
+	case s.client.send <- msg:
+		return nil
+	default:
+		return fmt.Errorf("client %s send channel is full", s.client.id)
+	}
+}
+
+// Broadcast sends a message to all connected clients
+func (s *clientMessageSender) Broadcast(msg *handler.AudioMessage) {
+	s.server.Broadcast(msg)
+}
+
 // readPump pumps messages from the websocket connection to the server
 func (c *Client) readPump() {
 	defer func() {
@@ -183,8 +177,17 @@ func (c *Client) readPump() {
 		return nil
 	})
 
+	// Create message sender for this client
+	sender := &clientMessageSender{
+		client: c,
+		server: c.server,
+	}
+
+	// Create event handler for this client
+	eventHandler := handler.NewEventHandler(c.id, sender, c.server.sessionGetter)
+
 	for {
-		var message AudioMessage
+		var message handler.ClientMessage
 		err := c.conn.ReadJSON(&message)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -193,19 +196,8 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Handle ping messages
-		if message.Type == MessageTypePing {
-			pong := &AudioMessage{
-				Type:      MessageTypePong,
-				ID:        uuid.New().String(),
-				Timestamp: time.Now(),
-			}
-			select {
-			case c.send <- pong:
-			default:
-				// Channel full, skip
-			}
-		}
+		// Delegate to event handler
+		eventHandler.HandleMessage(message)
 	}
 }
 

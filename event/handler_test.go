@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kazegusuri/claude-companion/handler"
+
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
@@ -76,8 +78,9 @@ func captureOutput(t *testing.T, f func()) string {
 }
 
 func TestHandler_IgnoreSidechainEvents(t *testing.T) {
-	// Create handler with mock narrator
-	handler := NewHandler(&mockNarrator{}, false)
+	// Create handler with mock narrator and session manager
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(&mockNarrator{}, sessionManager, false)
 	handler.Start()
 	defer handler.Stop()
 
@@ -170,8 +173,9 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 }
 
 func TestHandler_TaskToolResultNarration(t *testing.T) {
-	// Create handler with mock narrator
-	handler := NewHandler(&mockNarrator{}, false)
+	// Create handler with mock narrator and session manager
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(&mockNarrator{}, sessionManager, false)
 	handler.Start()
 	defer handler.Stop()
 
@@ -300,8 +304,9 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 }
 
 func TestHandler_NonTaskToolResult(t *testing.T) {
-	// Create handler with mock narrator
-	handler := NewHandler(&mockNarrator{}, false)
+	// Create handler with mock narrator and session manager
+	sessionManager := handler.NewSessionManager()
+	handler := NewHandler(&mockNarrator{}, sessionManager, false)
 	handler.Start()
 	defer handler.Stop()
 
@@ -374,7 +379,8 @@ func createTestUserMessage(sessionName string, parentUUID *string) *UserMessage 
 			UUID:        fmt.Sprintf("user-%d", time.Now().UnixNano()),
 			Timestamp:   time.Now(),
 			ParentUUID:  parentUUID,
-			Session: &Session{
+			Session: &SessionFile{
+				Path:    "/test/path.jsonl",
 				Project: "test-project",
 				Session: sessionName,
 			},
@@ -393,7 +399,8 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 			TypeString:  EventTypeSystem,
 			UUID:        fmt.Sprintf("hook-%d", time.Now().UnixNano()),
 			Timestamp:   time.Now(),
-			Session: &Session{
+			Session: &SessionFile{
+				Path:    "/test/path.jsonl",
 				Project: "test-project",
 				Session: sessionName,
 			},

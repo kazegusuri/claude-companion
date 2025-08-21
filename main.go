@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/kazegusuri/claude-companion/event"
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 	"github.com/kazegusuri/claude-companion/speech"
@@ -71,6 +72,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create session manager early as it's needed by multiple components
+	sessionManager := handler.NewSessionManager()
+
 	var n narrator.Narrator
 	if narratorConfigPath != "" {
 		n = narrator.NewHybridNarratorWithConfig(openaiAPIKey, useAINarrator, &narratorConfigPath)
@@ -95,8 +99,8 @@ func main() {
 		// Create player based on server option
 		var player speech.Player
 		if enableServer {
-			// Create WebSocket server
-			wsServer = websocket.NewServer()
+			// Create WebSocket server with session manager
+			wsServer = websocket.NewServer(sessionManager)
 			go wsServer.Run()
 
 			// Use WebSocket player
@@ -121,8 +125,15 @@ func main() {
 		defer voiceNarrator.Close()
 	}
 
-	// Create event handler
-	eventHandler := event.NewHandler(n, debugMode)
+	// Create event handler with session manager
+	eventHandler := event.NewHandler(n, sessionManager, debugMode)
+
+	// Set message emitter in formatter if server is enabled
+	if wsServer != nil {
+		// WebSocket server implements MessageEmitter interface
+		eventHandler.GetFormatter().SetMessageEmitter(wsServer)
+	}
+
 	eventHandler.Start()
 	defer eventHandler.Stop()
 

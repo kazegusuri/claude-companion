@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Type represents the type of event
@@ -14,6 +16,26 @@ type Type string
 // Event is the common interface for all events
 type Event interface {
 	Type() Type
+}
+
+// EventMeta contains metadata about the event context
+type EventMeta struct {
+	EventID   string // Unique identifier for the event
+	SessionID string // Session identifier
+	ToolID    string
+	CWD       string
+	Timestamp time.Time // When the event was created
+}
+
+// NewEventMeta creates a new EventMeta with a generated UUID and timestamp
+func NewEventMeta(toolID, cwd string) EventMeta {
+	return EventMeta{
+		EventID:   uuid.New().String(),
+		SessionID: uuid.New().String(), // Generate a new session ID
+		ToolID:    toolID,
+		CWD:       cwd,
+		Timestamp: time.Now(),
+	}
 }
 
 // EventSender is an interface for sending events
@@ -30,25 +52,26 @@ const (
 	EventTypeNotification = "notification"
 )
 
-// Session represents the project and session information extracted from the log file path
-type Session struct {
+// SessionFile represents the project and session information extracted from the log file path
+type SessionFile struct {
+	Path    string `json:"path"` // Full path to the session file
 	Project string `json:"project"`
 	Session string `json:"session"`
 }
 
 // BaseEvent contains common fields for all event types
 type BaseEvent struct {
-	ParentUUID  *string   `json:"parentUuid"`
-	IsSidechain bool      `json:"isSidechain"`
-	UserType    string    `json:"userType"`
-	CWD         string    `json:"cwd"`
-	SessionID   string    `json:"sessionId"`
-	Session     *Session  `json:"session,omitempty"`
-	Version     string    `json:"version"`
-	GitBranch   string    `json:"gitBranch"`
-	UUID        string    `json:"uuid"`
-	Timestamp   time.Time `json:"timestamp"`
-	TypeString  string    `json:"type"`
+	ParentUUID  *string      `json:"parentUuid"`
+	IsSidechain bool         `json:"isSidechain"`
+	UserType    string       `json:"userType"`
+	CWD         string       `json:"cwd"`
+	SessionID   string       `json:"sessionId"`
+	Session     *SessionFile `json:"session,omitempty"`
+	Version     string       `json:"version"`
+	GitBranch   string       `json:"gitBranch"`
+	UUID        string       `json:"uuid"`
+	Timestamp   time.Time    `json:"timestamp"`
+	TypeString  string       `json:"type"`
 }
 
 // Type returns the event type
@@ -207,7 +230,7 @@ func stripANSI(str string) string {
 
 // extractSessionFromPath extracts project and session information from a log file path
 // Expected format: {project}/{session}.jsonl
-func extractSessionFromPath(path string) *Session {
+func extractSessionFromPath(path string) *SessionFile {
 	// Clean the path
 	cleanPath := filepath.Clean(path)
 
@@ -224,7 +247,8 @@ func extractSessionFromPath(path string) *Session {
 	projectDir := filepath.Base(dir)
 
 	// Return session info from parent directory and filename
-	return &Session{
+	return &SessionFile{
+		Path:    cleanPath,
 		Project: projectDir,
 		Session: filename,
 	}

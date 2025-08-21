@@ -21,7 +21,8 @@
       "mcp__playwright__browser_evaluate",
       "Bash(npm run test:e2e:*)",
       "Bash(npx playwright screenshot:*)",
-      "WebFetch(domain:mantine.dev)"
+      "WebFetch(domain:mantine.dev)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }

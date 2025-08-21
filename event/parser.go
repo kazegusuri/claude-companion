@@ -8,7 +8,7 @@ import (
 // Parser handles parsing of JSONL events
 type Parser struct {
 	logPath string
-	session *Session
+	session *SessionFile
 }
 
 // NewParser creates a new Parser instance
@@ -24,6 +24,17 @@ func NewParserWithPath(logPath string) *Parser {
 	}
 }
 
+// ParseBaseEvent parses a JSON line and returns a BaseEvent
+func (p *Parser) ParseBaseEvent(line string) (*BaseEvent, error) {
+	var baseEvent BaseEvent
+	if err := json.Unmarshal([]byte(line), &baseEvent); err != nil {
+		return nil, fmt.Errorf("failed to parse base event: %w", err)
+	}
+	baseEvent.Session = p.session
+
+	return &baseEvent, nil
+}
+
 // Parse parses a JSON line and returns the appropriate event type
 func (p *Parser) Parse(line string) (Event, error) {
 	// First, parse to get the event type
@@ -31,6 +42,7 @@ func (p *Parser) Parse(line string) (Event, error) {
 	if err := json.Unmarshal([]byte(line), &baseEvent); err != nil {
 		return nil, fmt.Errorf("failed to parse base event: %w", err)
 	}
+	baseEvent.Session = p.session
 
 	// Parse into specific event type based on Type field
 	switch baseEvent.TypeString {
@@ -85,7 +97,6 @@ func (p *Parser) Parse(line string) (Event, error) {
 		return &event, nil
 	default:
 		// Return base event for unknown types
-		baseEvent.Session = p.session
 		return &baseEvent, nil
 	}
 }

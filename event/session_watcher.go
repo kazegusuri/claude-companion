@@ -41,6 +41,11 @@ func (w *SessionWatcher) Stop() {
 
 // watch monitors the session file
 func (w *SessionWatcher) watch() {
+	// Run warmup first
+	if err := w.warmup(); err != nil {
+		logger.LogError("Error during warmup: %v", err)
+	}
+
 	if err := w.tailFile(); err != nil {
 		logger.LogError("Error watching session file: %v", err)
 	}
@@ -126,5 +131,44 @@ func (w *SessionWatcher) ReadFullFile() error {
 	}
 
 	logger.LogInfo("Finished reading %d lines", lineNum)
+	return nil
+}
+
+// warmup reads the first 10 lines of the file to initialize the session
+func (w *SessionWatcher) warmup() error {
+	file, err := os.Open(w.filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file for warmup: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	// Increase buffer size to handle very long JSON lines
+	const maxScanTokenSize = 1024 * 1024 // 1MB
+	buf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(buf, maxScanTokenSize)
+
+	lineCount := 0
+	maxLines := 10
+
+	for scanner.Scan() && lineCount < maxLines {
+		lineCount++
+		line := scanner.Text()
+		if len(line) > 0 {
+			// Parse the line into a base event
+			baseEvent, err := w.parser.ParseBaseEvent(line)
+			if err != nil {
+				logger.LogError("Error parsing warmup line %d: %v", lineCount, err)
+				continue
+			}
+			// Send to warmup handler
+			w.eventHandler.HandleWarmupEvent(baseEvent)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading file during warmup: %w", err)
+	}
+
 	return nil
 }

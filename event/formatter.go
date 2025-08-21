@@ -8,14 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
-
-// EventMeta contains metadata about the event context
-type EventMeta struct {
-	ToolID string
-	CWD    string
-}
 
 // Formatter handles formatting of parsed events
 type Formatter struct {
@@ -23,6 +19,7 @@ type Formatter struct {
 	debugMode      bool
 	fileOperations []string
 	currentTool    string
+	emitter        handler.MessageEmitter
 }
 
 // NewFormatter creates a new Formatter instance
@@ -32,6 +29,11 @@ func NewFormatter(narrator narrator.Narrator) *Formatter {
 		debugMode:      false,
 		fileOperations: make([]string, 0),
 	}
+}
+
+// SetMessageEmitter sets the message emitter for sending events
+func (f *Formatter) SetMessageEmitter(emitter handler.MessageEmitter) {
+	f.emitter = emitter
 }
 
 // SetDebugMode enables or disables debug mode
@@ -189,10 +191,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 				}
 			}
 			// Create EventMeta with tool ID and CWD
-			meta := EventMeta{
-				ToolID: content.ID,
-				CWD:    event.CWD,
-			}
+			meta := NewEventMeta(content.ID, event.CWD)
 			formatted := f.FormatToolUse(content.Name, meta, inputMap)
 			output.WriteString(formatted)
 			// Add debug info showing tool use details
@@ -476,6 +475,22 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 		narration, _ := f.narrator.NarrateToolUsePermission(displayToolName)
 		if narration != "" {
 			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
+		}
+
+		// Send ConfirmEvent to WebSocket clients
+		if f.emitter != nil {
+			confirmMsg := &handler.AudioMessage{
+				Type:      handler.MessageTypeText,
+				ID:        uuid.New().String(),
+				Text:      fmt.Sprintf("Tool permission requested: %s", displayToolName),
+				Timestamp: time.Now(),
+				Metadata: handler.Metadata{
+					EventType: "tool_permission",
+					ToolName:  displayToolName,
+					SessionID: event.SessionID,
+				},
+			}
+			f.emitter.Broadcast(confirmMsg)
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications

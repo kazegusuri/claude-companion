@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
@@ -25,13 +26,14 @@ type FormatterInterface interface {
 
 // Handler processes events from multiple sources
 type Handler struct {
-	narrator    narrator.Narrator
-	formatter   FormatterInterface
-	debugMode   bool
-	eventChan   chan Event
-	wg          sync.WaitGroup
-	done        chan struct{}
-	taskTracker *TaskTracker
+	narrator       narrator.Narrator
+	formatter      FormatterInterface
+	debugMode      bool
+	eventChan      chan Event
+	wg             sync.WaitGroup
+	done           chan struct{}
+	taskTracker    *TaskTracker
+	sessionManager *handler.SessionManager
 
 	// Buffering support
 	bufferMutex sync.Mutex
@@ -39,20 +41,34 @@ type Handler struct {
 }
 
 // NewHandler creates a new event handler
-func NewHandler(narrator narrator.Narrator, debugMode bool) *Handler {
+func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, debugMode bool) *Handler {
 	formatter := NewFormatter(narrator)
 	formatter.SetDebugMode(debugMode)
 	taskTracker := NewTaskTracker()
 
 	return &Handler{
-		narrator:    narrator,
-		formatter:   formatter,
-		debugMode:   debugMode,
-		eventChan:   make(chan Event, 100),
-		done:        make(chan struct{}),
-		taskTracker: taskTracker,
-		buffers:     make(map[string]*BufferInfo),
+		narrator:       narrator,
+		formatter:      formatter,
+		debugMode:      debugMode,
+		eventChan:      make(chan Event, 100),
+		done:           make(chan struct{}),
+		taskTracker:    taskTracker,
+		sessionManager: sessionManager,
+		buffers:        make(map[string]*BufferInfo),
 	}
+}
+
+// GetFormatter returns the handler's formatter
+func (h *Handler) GetFormatter() *Formatter {
+	if formatter, ok := h.formatter.(*Formatter); ok {
+		return formatter
+	}
+	return nil
+}
+
+// GetSessionManager returns the handler's session manager
+func (h *Handler) GetSessionManager() *handler.SessionManager {
+	return h.sessionManager
 }
 
 // Start begins processing events
@@ -75,6 +91,31 @@ func (h *Handler) SendEvent(event Event) {
 	case <-h.done:
 		// Handler is stopping, discard event
 	}
+}
+
+// HandleWarmupEvent processes warmup events to initialize session state
+func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
+	// Extract session information from the base event
+	if event.ParentUUID != nil && !event.IsSidechain && event.SessionID != "" && h.sessionManager != nil {
+		// Get or create session
+		session, exists := h.sessionManager.GetSession(event.SessionID)
+		if !exists {
+			h.sessionManager.CreateSession(event.SessionID, event.CWD, event.Session.Path)
+			// If session doesn't exist during warmup, we might want to create it
+			// but for now, just log it
+			if h.debugMode {
+				logger.LogInfo("Warmup: Session %s not found for event type %s", event.SessionID, event.TypeString)
+			}
+		} else {
+			// Update session with warmup information if needed
+			if h.debugMode {
+				logger.LogInfo("Warmup: Processing event type %s for session %s (CWD: %s)", event.TypeString, event.SessionID, session.CWD)
+			}
+		}
+	}
+
+	// For warmup, we don't process the event through the normal pipeline
+	// This is just to initialize state
 }
 
 // processEvents processes events from the channel
@@ -153,6 +194,11 @@ func (h *Handler) processEvent(event Event) {
 
 	switch e := event.(type) {
 	case *NotificationEvent:
+		// Handle SessionStart notification events
+		if e.HookEventName == "SessionStart" {
+			// NotificationEvent has TranscriptPath, so we can use it directly
+			h.sessionManager.CreateSession(e.SessionID, e.CWD, e.TranscriptPath)
+		}
 		// Process notification events
 		output, err := h.formatter.Format(e)
 		if err != nil {
@@ -194,7 +240,27 @@ func (h *Handler) processEvent(event Event) {
 		if output != "" {
 			fmt.Print(output)
 		}
-	case *SystemMessage, *HookEvent, *SummaryEvent, *BaseEvent, *TaskCompletionMessage:
+	case *HookEvent:
+		// Handle SessionStart event
+		if e.HookEventType == "SessionStart" {
+			// Use SessionFile.Path as TranscriptPath
+			transcriptPath := ""
+			if e.Session != nil {
+				transcriptPath = e.Session.Path
+			}
+			// Create a new session
+			h.sessionManager.CreateSession(e.SessionID, e.CWD, transcriptPath)
+		}
+		// Format and display the event
+		output, err := h.formatter.Format(e)
+		if err != nil {
+			logger.LogError("Error formatting HookEvent: %v", err)
+			return
+		}
+		if output != "" {
+			fmt.Print(output)
+		}
+	case *SystemMessage, *SummaryEvent, *BaseEvent, *TaskCompletionMessage:
 		// Format and display parsed events
 		output, err := h.formatter.Format(e)
 		if err != nil {

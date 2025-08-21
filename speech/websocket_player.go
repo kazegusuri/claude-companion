@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kazegusuri/claude-companion/handler"
 	"github.com/kazegusuri/claude-companion/websocket"
 )
 
@@ -26,7 +27,7 @@ func (p *WebSocketPlayer) Play(audioData []byte, meta *AudioMeta) error {
 	audioDataBase64 := base64.StdEncoding.EncodeToString(audioData)
 
 	// Create metadata
-	metadata := websocket.Metadata{
+	metadata := handler.Metadata{
 		EventType:  "audio",
 		SampleRate: 24000, // Default sample rate (matching common VOICEVOX output)
 	}
@@ -37,8 +38,8 @@ func (p *WebSocketPlayer) Play(audioData []byte, meta *AudioMeta) error {
 	}
 
 	// Create the message
-	message := &websocket.AudioMessage{
-		Type:      websocket.MessageTypeAudio,
+	message := &handler.AudioMessage{
+		Type:      handler.MessageTypeAudio,
 		ID:        uuid.New().String(),
 		Text:      "",
 		AudioData: audioDataBase64,
