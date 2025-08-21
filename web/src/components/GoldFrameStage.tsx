@@ -36,7 +36,6 @@ const GoldFrameStage: React.FC<Props> = ({
   // 内枠（背景エリア）- フレームに近づける
   const inner = { x: 10, y: frameOffsetY + 10, w: VBW - 20, h: 492, r: 20 };
 
-
   function buildConcaveInnerPathD({
     x,
     y,
@@ -90,7 +89,6 @@ const GoldFrameStage: React.FC<Props> = ({
 
     return d.join(" ");
   }
-
 
   return (
     <div

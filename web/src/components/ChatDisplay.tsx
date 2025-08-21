@@ -1,5 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Stack, Text, Paper, Badge, ScrollArea, Button, Group, Box } from "@mantine/core";
+import {
+  Stack,
+  Text,
+  Paper,
+  Badge,
+  ScrollArea,
+  Button,
+  Group,
+  Box,
+  Textarea,
+  ActionIcon,
+} from "@mantine/core";
+import { IconSend, IconCheck, IconX } from "@tabler/icons-react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 import type { ConnectionStatus, AudioMessage } from "../services/WebSocketClient";
 
@@ -21,6 +33,9 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
 }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
+  const [inputMessage, setInputMessage] = useState("");
+  const [respondedPermissions, setRespondedPermissions] = useState<Set<string>>(new Set());
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null); // ScrollAreaのviewport参照
@@ -41,15 +56,31 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       (message: AudioMessage) => {
         console.log("Received WebSocket message:", message);
 
+        // Track sessionId from any message that has it
+        if (message.metadata?.sessionId) {
+          setCurrentSessionId(message.metadata.sessionId);
+          console.log("Session ID received:", message.metadata.sessionId);
+        }
+
         // Add to message history with max limit
         setMessages((prev) => {
           if (prev.some((msg) => msg.id === message.id)) {
             return prev;
           }
 
+          // Format text based on event type
+          let displayText = message.text;
+          if (message.metadata?.eventType === "tool_permission") {
+            displayText = `🔐 ${message.text}`;
+          } else if (message.metadata?.eventType === "command_success") {
+            displayText = `✅ ${message.text}`;
+          } else if (message.metadata?.eventType === "command_error") {
+            displayText = `❌ ${message.text}`;
+          }
+
           const historyItem: MessageHistory = {
             id: message.id,
-            text: message.text,
+            text: displayText,
             timestamp: new Date(message.timestamp),
             metadata: message.metadata,
           };
@@ -96,6 +127,50 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
     wsClient.current?.connect();
   };
 
+  const handleSendMessage = () => {
+    if (!inputMessage.trim() || !wsClient.current || !currentSessionId) {
+      if (!currentSessionId) {
+        console.error("Session ID not available yet. Waiting for tool_permission message.");
+      }
+      return;
+    }
+
+    // WebSocket経由でメッセージを送信（currentSessionIdを使用）
+    wsClient.current.sendMessage(inputMessage.trim(), currentSessionId);
+
+    // 入力フィールドをクリア
+    setInputMessage("");
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Shift+Enterで改行、Enterのみで送信
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handlePermissionResponse = (
+    messageId: string,
+    action: "permit" | "deny",
+    sessionId?: string,
+  ) => {
+    if (!wsClient.current) return;
+
+    // Use sessionId from the message metadata if available, otherwise use currentSessionId
+    const targetSessionId = sessionId || currentSessionId;
+    if (!targetSessionId) {
+      console.error("Session ID not available for permission response");
+      return;
+    }
+
+    // Send confirmation response with the appropriate sessionId
+    wsClient.current.sendConfirmResponse(action, messageId, targetSessionId);
+
+    // Mark this permission as responded
+    setRespondedPermissions((prev) => new Set(prev).add(messageId));
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("ja-JP", {
       hour: "2-digit",
@@ -114,6 +189,14 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
         return "ℹ️";
       case "error":
         return "⚠️";
+      case "tool_permission":
+        return "🔐";
+      case "command_success":
+        return "✅";
+      case "command_error":
+        return "❌";
+      case "user_message_echo":
+        return "💭";
       default:
         return "📝";
     }
@@ -219,14 +302,31 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                     {formatTime(message.timestamp)}
                   </Text>
                   {message.metadata?.eventType && (
-                    <Badge size="xs" variant="light">
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={
+                        message.metadata.eventType === "tool_permission"
+                          ? "yellow"
+                          : message.metadata.eventType === "command_success"
+                            ? "green"
+                            : message.metadata.eventType === "command_error"
+                              ? "red"
+                              : "gray"
+                      }
+                    >
                       {getEventTypeIcon(message.metadata.eventType)}
                       {message.metadata.eventType}
                     </Badge>
                   )}
                   {message.metadata?.toolName && (
                     <Badge size="xs" variant="light" color="blue">
-                      {message.metadata.toolName}
+                      🔧 {message.metadata.toolName}
+                    </Badge>
+                  )}
+                  {message.metadata?.sessionId && (
+                    <Badge size="xs" variant="light" color="cyan">
+                      📍 {message.metadata.sessionId}
                     </Badge>
                   )}
                 </Group>
@@ -239,16 +339,68 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
               <Text size="sm" c="white" style={{ lineHeight: 1.5 }}>
                 {message.text}
               </Text>
+
+              {/* Permission buttons for tool_permission events */}
+              {message.metadata?.eventType === "tool_permission" &&
+                !respondedPermissions.has(message.id) && (
+                  <Group gap="xs" mt="sm">
+                    <Button
+                      size="xs"
+                      color="green"
+                      leftSection={<IconCheck size={16} />}
+                      onClick={() =>
+                        handlePermissionResponse(message.id, "permit", message.metadata?.sessionId)
+                      }
+                    >
+                      許可
+                    </Button>
+                    <Button
+                      size="xs"
+                      color="red"
+                      leftSection={<IconX size={16} />}
+                      onClick={() =>
+                        handlePermissionResponse(message.id, "deny", message.metadata?.sessionId)
+                      }
+                    >
+                      拒否
+                    </Button>
+                  </Group>
+                )}
             </Paper>
           ))}
         </Stack>
       </ScrollArea>
 
-      {/* 将来的に入力欄を追加する場合はここに */}
-      {/* <Group p="xs" gap="xs" style={{ flex: "0 0 auto" }}>
-        <TextInput style={{ flex: 1 }} placeholder="Type message..." />
-        <Button>Send</Button>
-      </Group> */}
+      {/* メッセージ入力エリア */}
+      <Group
+        p="xs"
+        gap="xs"
+        style={{
+          flex: "0 0 auto",
+          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+        }}
+      >
+        <Textarea
+          style={{ flex: 1 }}
+          placeholder="メッセージを入力... (Enterで送信、Shift+Enterで改行)"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.currentTarget.value)}
+          onKeyDown={handleKeyPress}
+          minRows={3}
+          maxRows={6}
+          autosize
+          disabled={connectionStatus !== "connected" || !currentSessionId}
+        />
+        <ActionIcon
+          size="lg"
+          variant="filled"
+          color="blue"
+          onClick={handleSendMessage}
+          disabled={!inputMessage.trim() || connectionStatus !== "connected" || !currentSessionId}
+        >
+          <IconSend size={18} />
+        </ActionIcon>
+      </Group>
     </Box>
   );
 };

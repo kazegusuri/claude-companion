@@ -15,6 +15,7 @@ export interface AudioMessage {
     speaker?: number;
     sampleRate?: number;
     duration?: number;
+    sessionId?: string;
   };
 }
 
@@ -193,5 +194,60 @@ export class WebSocketAudioClient {
 
   getReadyState(): number | undefined {
     return this.ws?.readyState;
+  }
+
+  // メッセージ送信機能を追加
+  sendMessage(text: string, sessionId: string): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not connected");
+      return;
+    }
+
+    if (!sessionId) {
+      console.error("Session ID not provided");
+      return;
+    }
+
+    const message = {
+      type: "user_message",
+      sessionId: sessionId,
+      text: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      this.ws.send(JSON.stringify(message));
+      console.log("Message sent:", message);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
+  }
+
+  // Send confirmation response for tool permissions
+  sendConfirmResponse(action: "permit" | "deny", messageId: string, sessionId: string): void {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not connected");
+      return;
+    }
+
+    if (!sessionId) {
+      console.error("Session ID not provided");
+      return;
+    }
+
+    const message = {
+      type: "confirm_response",
+      sessionId: sessionId,
+      action: action,
+      messageId: messageId,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      this.ws.send(JSON.stringify(message));
+      console.log("Confirm response sent:", message);
+    } catch (error) {
+      console.error("Failed to send confirm response:", error);
+    }
   }
 }
