@@ -32,7 +32,9 @@ export class WebSocketAudioClient {
     private readonly url: string,
     private readonly onMessage: (message: AudioMessage) => void,
     private readonly onStatusChange: (status: ConnectionStatus) => void,
-  ) {}
+  ) {
+    // Constructor body
+  }
 
   connect(): void {
     // 既存のリトライタイマーをクリア

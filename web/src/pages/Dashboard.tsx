@@ -14,7 +14,7 @@ export const Dashboard: React.FC = () => {
   const [speechText, setSpeechText] = useState("音声を待機中...");
   const [bubbleState, setBubbleState] = useState<BubbleState>("bottom"); // 初期状態で下側表示
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
+  const [_connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
@@ -61,17 +61,17 @@ export const Dashboard: React.FC = () => {
     isProcessingQueue.current = true;
     const message = audioQueue.current[0];
 
-    if (message.audioData) {
+    if (message && message.audioData) {
       // AudioPlayerを初期化
       if (!audioPlayer.current) {
         audioPlayer.current = new AudioPlayer();
         audioPlayer.current.setVolume(1.0);
       }
 
-      setCurrentMessageId(message.id);
+      setCurrentMessageId(message?.id || null);
 
       try {
-        await audioPlayer.current.playBase64Audio(message.audioData, {
+        await audioPlayer.current.playBase64Audio(message?.audioData || "", {
           onEnd: () => {
             // キューから削除
             audioQueue.current.shift();
@@ -120,7 +120,7 @@ export const Dashboard: React.FC = () => {
     }
 
     // WebSocketクライアントを作成
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
 
     // WebSocketに接続
@@ -213,7 +213,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <MainLayout
-      style={{ flex: 1, height: "100%", overflow: "hidden" }}
       modelComponent={
         <div
           style={{

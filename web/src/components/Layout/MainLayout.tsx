@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Grid, Card, Title, Text, Stack, Box, ScrollArea, Group } from "@mantine/core";
+import { Grid, Card, Title, Text, Stack, Box, ScrollArea } from "@mantine/core";
 import "./MainLayout.css";
 
 interface MainLayoutProps {
@@ -9,7 +9,6 @@ interface MainLayoutProps {
   chatComponent?: React.ReactNode;
 }
 
-const HEADER = 60; // AppShellのheader高さ
 const ModelHeight = "720px";
 const ScheduleHeight = "200px";
 const TextHeight = "0px";
@@ -17,7 +16,7 @@ const TextHeight = "0px";
 export const MainLayout: React.FC<MainLayoutProps> = ({
   modelComponent,
   scheduleComponent,
-  textComponent,
+  textComponent: _textComponent,
   chatComponent,
 }) => {
   return (

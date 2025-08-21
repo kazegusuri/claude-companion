@@ -12,6 +12,8 @@
     "format": "bun run --filter claude-companion-web format",
     "check": "bun run --filter claude-companion-web check",
     "preview": "bun run --filter claude-companion-web preview",
+    "serve": "bun run --filter claude-companion-web serve",
+    "start": "bun run build && bun run serve",
     "test:e2e": "bun run --filter claude-companion-web test:e2e",
     "web:dev": "bun run --filter claude-companion-web dev",
     "web:build": "bun run --filter claude-companion-web build",

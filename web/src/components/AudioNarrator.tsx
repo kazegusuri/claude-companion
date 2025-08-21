@@ -39,7 +39,7 @@ export const AudioNarrator: React.FC = () => {
     }
 
     // Create WebSocket client
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
 
     // Don't create audio player here - create it when needed
@@ -126,22 +126,22 @@ export const AudioNarrator: React.FC = () => {
     isProcessingQueue.current = true;
     const message = audioQueue[0];
 
-    if (message.audioData) {
+    if (message && message.audioData) {
       // Create audio player if not exists
       if (!audioPlayer.current) {
         audioPlayer.current = new AudioPlayer();
         audioPlayer.current.setVolume(volume);
       }
-      setCurrentMessageId(message.id);
+      setCurrentMessageId(message?.id || null);
       setIsPlaying(true);
 
       // Update message to show it's playing
       setMessages((prev) =>
-        prev.map((msg) => (msg.id === message.id ? { ...msg, isPlaying: true } : msg)),
+        prev.map((msg) => (msg.id === message?.id ? { ...msg, isPlaying: true } : msg)),
       );
 
       try {
-        await audioPlayer.current.playBase64Audio(message.audioData, {
+        await audioPlayer.current.playBase64Audio(message?.audioData || "", {
           onEnd: () => {
             // Remove from queue
             setAudioQueue((prev) => prev.slice(1));
@@ -150,7 +150,7 @@ export const AudioNarrator: React.FC = () => {
             setIsPlaying(false);
             setCurrentMessageId(null);
             setMessages((prev) =>
-              prev.map((msg) => (msg.id === message.id ? { ...msg, isPlaying: false } : msg)),
+              prev.map((msg) => (msg.id === message?.id ? { ...msg, isPlaying: false } : msg)),
             );
 
             isProcessingQueue.current = false;
@@ -165,7 +165,7 @@ export const AudioNarrator: React.FC = () => {
             // Remove failed item from queue
             setAudioQueue((prev) => prev.slice(1));
             setMessages((prev) =>
-              prev.map((msg) => (msg.id === message.id ? { ...msg, isPlaying: false } : msg)),
+              prev.map((msg) => (msg.id === message?.id ? { ...msg, isPlaying: false } : msg)),
             );
             isProcessingQueue.current = false;
             setIsPlaying(false);

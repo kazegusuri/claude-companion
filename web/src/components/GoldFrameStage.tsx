@@ -36,14 +36,6 @@ const GoldFrameStage: React.FC<Props> = ({
   // 内枠（背景エリア）- フレームに近づける
   const inner = { x: 10, y: frameOffsetY + 10, w: VBW - 20, h: 492, r: 20 };
 
-  // 凹ノッチのパラメータ（スクショに近い雰囲気）
-  const notch = {
-    // 角丸が終わった位置（直線部の始点）からノッチまでの距離
-    s: 30, // side offset from corner (top/left からの距離)
-    lead: 0, // ノッチ前後の水平/垂直リード
-    r: 40, // ノッチの丸み半径（半円の半径）
-    // ※“半円ノッチ”にしているので depth は 2r に固定されます
-  };
 
   function buildConcaveInnerPathD({
     x,
@@ -99,13 +91,6 @@ const GoldFrameStage: React.FC<Props> = ({
     return d.join(" ");
   }
 
-  const innerPathD = buildConcaveInnerPathD({
-    x: inner.x,
-    y: inner.y,
-    w: inner.w,
-    h: inner.h,
-    R: inner.r,
-  });
 
   return (
     <div

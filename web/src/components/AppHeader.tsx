@@ -35,7 +35,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, onViewChange 
           onChange={(value) => onViewChange(value as "dashboard" | "narrator" | "live2d")}
           variant="pills"
           radius="lg"
-          size="sm"
         >
           <Tabs.List>
             <Tabs.Tab value="dashboard" leftSection={<IconDashboard size={16} />}>

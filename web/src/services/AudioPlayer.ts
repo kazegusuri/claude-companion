@@ -117,12 +117,12 @@ export class AudioPlayer {
       const audioData = this.base64ToArrayBuffer(base64Data);
 
       // Decode audio data
-      const audioBuffer = await this.audioContext.decodeAudioData(audioData);
+      const audioBuffer = await this.audioContext!.decodeAudioData(audioData);
 
       // Create and configure source
-      this.currentSource = this.audioContext.createBufferSource();
+      this.currentSource = this.audioContext!.createBufferSource();
       this.currentSource.buffer = audioBuffer;
-      this.currentSource.connect(this.gainNode);
+      this.currentSource.connect(this.gainNode!);
 
       // Set up event handlers
       this.currentSource.onended = () => {

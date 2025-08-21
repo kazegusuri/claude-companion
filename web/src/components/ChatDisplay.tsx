@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Stack, Text, Paper, Badge, ScrollArea, Button, Group, Box } from "@mantine/core";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 import type { ConnectionStatus, AudioMessage } from "../services/WebSocketClient";
@@ -35,7 +35,7 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       wsClient.current = null;
     }
 
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(
       wsUrl,
       (message: AudioMessage) => {
