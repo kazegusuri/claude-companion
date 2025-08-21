@@ -32,9 +32,14 @@ func (p *WebSocketPlayer) Play(audioData []byte, meta *AudioMeta) error {
 		SampleRate: 24000, // Default sample rate (matching common VOICEVOX output)
 	}
 
-	// Add duration if available
-	if meta != nil && meta.Duration > 0 {
-		metadata.Duration = meta.Duration.Seconds()
+	// Add duration and SessionID if available
+	if meta != nil {
+		if meta.Duration > 0 {
+			metadata.Duration = meta.Duration.Seconds()
+		}
+		if meta.SessionID != "" {
+			metadata.SessionID = meta.SessionID
+		}
 	}
 
 	// Create the message

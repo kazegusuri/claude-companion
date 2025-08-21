@@ -136,10 +136,10 @@ func (hn *HybridNarrator) NarrateToolUsePermission(toolName string) (string, boo
 }
 
 // NarrateText returns the text as-is
-func (hn *HybridNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (hn *HybridNarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
 	// Try each narrator in sequence with first line only
 	for _, narrator := range hn.narrators {
-		narration, shouldFallback := narrator.NarrateText(text, isThinking)
+		narration, shouldFallback := narrator.NarrateText(text, isThinking, meta)
 		if !shouldFallback {
 			return narration, false
 		}

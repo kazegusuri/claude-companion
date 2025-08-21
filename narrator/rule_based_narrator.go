@@ -451,7 +451,7 @@ func (cn *RuleBasedNarrator) NarrateToolUsePermission(toolName string) (string, 
 }
 
 // NarrateText returns the text as-is
-func (cn *RuleBasedNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (cn *RuleBasedNarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
 	return text, true
 }
 

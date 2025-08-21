@@ -2,6 +2,7 @@ package narrator
 
 import (
 	"strings"
+	"time"
 )
 
 // NotificationType represents different types of notifications
@@ -15,11 +16,20 @@ const (
 	NotificationTypeSessionStartCompact NotificationType = "session_start_compact"
 )
 
+// EventMeta contains metadata about the event context
+type EventMeta struct {
+	EventID   string // Unique identifier for the event
+	SessionID string // Session identifier
+	ToolID    string
+	CWD       string
+	Timestamp time.Time // When the event was created
+}
+
 // Narrator interface for converting tool actions to natural language
 type Narrator interface {
 	NarrateToolUse(toolName string, input map[string]interface{}) (string, bool)
 	NarrateToolUsePermission(toolName string) (string, bool)
-	NarrateText(text string, isThinking bool) (string, bool)
+	NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool)
 	NarrateNotification(notificationType NotificationType) (string, bool)
 	NarrateTaskCompletion(description string, subagentType string) (string, bool)
 }
@@ -64,7 +74,7 @@ func (n *NoOpNarrator) NarrateToolUsePermission(toolName string) (string, bool) 
 }
 
 // NarrateText returns the text as-is
-func (n *NoOpNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (n *NoOpNarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
 	return text, false
 }
 

@@ -117,7 +117,7 @@ func TestFormatAssistantText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatter.FormatAssistantText(tt.text, tt.isThinking)
+			result := formatter.FormatAssistantText(tt.text, tt.isThinking, nil)
 
 			// Check that all expected strings are contained
 			for _, want := range tt.wantContain {

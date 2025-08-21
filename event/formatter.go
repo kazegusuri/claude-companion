@@ -173,10 +173,24 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		hasContent = true
 		switch content.Type {
 		case "text":
-			formatted := f.FormatAssistantText(content.Text, false)
+			// Create EventMeta for the assistant message
+			meta := &narrator.EventMeta{
+				EventID:   event.Message.ID,
+				SessionID: event.SessionID,
+				CWD:       event.CWD,
+				Timestamp: event.Timestamp,
+			}
+			formatted := f.FormatAssistantText(content.Text, false, meta)
 			output.WriteString(formatted)
 		case "thinking":
-			formatted := f.FormatAssistantText(content.Thinking, true)
+			// Create EventMeta for the thinking content
+			meta := &narrator.EventMeta{
+				EventID:   event.Message.ID,
+				SessionID: event.SessionID,
+				CWD:       event.CWD,
+				Timestamp: event.Timestamp,
+			}
+			formatted := f.FormatAssistantText(content.Thinking, true, meta)
 			output.WriteString(formatted)
 		case "tool_use":
 			// Convert input to map[string]interface{} for formatter
@@ -494,7 +508,13 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications
-		narration, _ := f.narrator.NarrateText(event.Message, false)
+		// Create EventMeta for the notification
+		meta := &narrator.EventMeta{
+			SessionID: event.SessionID,
+			CWD:       event.CWD,
+			Timestamp: time.Now(), // NotificationEvent doesn't have timestamp, use current time
+		}
+		narration, _ := f.narrator.NarrateText(event.Message, false, meta)
 		if narration != "" {
 			output.WriteString(fmt.Sprintf("  💬 %s\n", narration))
 		}
@@ -820,7 +840,7 @@ func (f *Formatter) FormatToolUse(toolName string, meta EventMeta, input map[str
 }
 
 // FormatAssistantText formats assistant text content with code block extraction
-func (f *Formatter) FormatAssistantText(text string, isThinking bool) string {
+func (f *Formatter) FormatAssistantText(text string, isThinking bool, meta *narrator.EventMeta) string {
 	var output strings.Builder
 
 	// Extract code blocks
@@ -842,7 +862,7 @@ func (f *Formatter) FormatAssistantText(text string, isThinking bool) string {
 	}
 
 	// Narrate the text
-	narrated, _ := f.narrator.NarrateText(processedText, isThinking)
+	narrated, _ := f.narrator.NarrateText(processedText, isThinking, meta)
 	output.WriteString(fmt.Sprintf("  💬 %s\n", narrated))
 
 	// Show the main text (only if multiple lines)

@@ -91,7 +91,7 @@ func (ai *OpenAINarrator) NarrateToolUsePermission(toolName string) (string, boo
 }
 
 // NarrateText returns the text as-is
-func (ai *OpenAINarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (ai *OpenAINarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
 	// If text is a single line without newlines, return as-is
 	if !strings.Contains(text, "\n") {
 		return text, false

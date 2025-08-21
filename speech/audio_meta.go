@@ -18,6 +18,9 @@ type AudioMeta struct {
 
 	// Duration is the duration of the audio
 	Duration time.Duration
+
+	// SessionID is the session identifier
+	SessionID string
 }
 
 // ParseWAVDuration parses the duration from WAV audio data using go-audio/wav library

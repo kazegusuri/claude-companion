@@ -20,7 +20,7 @@ func (m *mockAINarrator) NarrateToolUsePermission(toolName string) (string, bool
 	return "", true
 }
 
-func (m *mockAINarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (m *mockAINarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
 	return text, false
 }
 

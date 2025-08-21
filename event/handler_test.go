@@ -25,7 +25,7 @@ func (m *mockNarrator) NarrateToolUsePermission(toolName string) (string, bool) 
 	return "mock-permission-" + toolName, false
 }
 
-func (m *mockNarrator) NarrateText(text string, isThinking bool) (string, bool) {
+func (m *mockNarrator) NarrateText(text string, isThinking bool, meta *narrator.EventMeta) (string, bool) {
 	return text, false
 }
 

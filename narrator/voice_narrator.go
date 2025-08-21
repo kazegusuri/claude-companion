@@ -73,7 +73,7 @@ func (vn *VoiceNarrator) NarrateToolUse(toolName string, input map[string]interf
 			narType = NarrationTypeToolUseMCP
 		}
 
-		vn.enqueueNarration(text, narType)
+		vn.enqueueNarration(text, narType, nil)
 	}
 
 	return text, shouldFallback
@@ -84,18 +84,18 @@ func (vn *VoiceNarrator) NarrateToolUsePermission(toolName string) (string, bool
 	text, shouldFallback := vn.narrator.NarrateToolUsePermission(toolName)
 
 	if vn.enabled && text != "" {
-		vn.enqueueNarration(text, NarrationTypeToolUsePermission)
+		vn.enqueueNarration(text, NarrationTypeToolUsePermission, nil)
 	}
 
 	return text, shouldFallback
 }
 
 // NarrateText narrates text with optional voice
-func (vn *VoiceNarrator) NarrateText(text string, isThinking bool) (string, bool) {
-	result, shouldFallback := vn.narrator.NarrateText(text, isThinking)
+func (vn *VoiceNarrator) NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool) {
+	result, shouldFallback := vn.narrator.NarrateText(text, isThinking, meta)
 
 	if vn.enabled && result != "" {
-		vn.enqueueNarration(result, NarrationTypeText)
+		vn.enqueueNarration(result, NarrationTypeText, meta)
 	}
 
 	return result, shouldFallback
@@ -106,7 +106,7 @@ func (vn *VoiceNarrator) NarrateNotification(notificationType NotificationType) 
 	text, shouldFallback := vn.narrator.NarrateNotification(notificationType)
 
 	if vn.enabled && text != "" {
-		vn.enqueueNarration(text, NarrationTypeNotification)
+		vn.enqueueNarration(text, NarrationTypeNotification, nil)
 	}
 
 	return text, shouldFallback
@@ -117,7 +117,7 @@ func (vn *VoiceNarrator) NarrateTaskCompletion(description string, subagentType 
 	text, shouldFallback := vn.narrator.NarrateTaskCompletion(description, subagentType)
 
 	if vn.enabled && text != "" {
-		vn.enqueueNarration(text, NarrationTypeNotification)
+		vn.enqueueNarration(text, NarrationTypeNotification, nil)
 	}
 
 	return text, shouldFallback
@@ -158,6 +158,11 @@ func (vn *VoiceNarrator) voiceWorker() {
 			NormalizedText: item.Text,
 		}
 
+		// Add SessionID from EventMeta if available
+		if item.Meta != nil && item.Meta.SessionID != "" {
+			meta.SessionID = item.Meta.SessionID
+		}
+
 		// Parse audio duration
 		if duration, err := speech.ParseWAVDuration(audioData); err == nil {
 			meta.Duration = duration
@@ -184,7 +189,7 @@ func (vn *VoiceNarrator) Close() {
 }
 
 // enqueueNarration processes and enqueues a narration item
-func (vn *VoiceNarrator) enqueueNarration(text string, narType NarrationType) {
+func (vn *VoiceNarrator) enqueueNarration(text string, narType NarrationType, meta *EventMeta) {
 	// Translate English to Japanese if needed
 	ctx, cancel := context.WithTimeout(vn.ctx, 5*time.Second)
 	translatedText, _ := vn.translator.Translate(ctx, text)
@@ -200,6 +205,7 @@ func (vn *VoiceNarrator) enqueueNarration(text string, narType NarrationType) {
 		Priority:     priorityMap[narType],
 		Timestamp:    time.Now(),
 		ID:           uuid.New().String(),
+		Meta:         meta,
 	}
 
 	if vn.queue.Enqueue(item) {

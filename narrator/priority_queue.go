@@ -35,6 +35,7 @@ type NarrationItem struct {
 	Priority     int
 	Timestamp    time.Time
 	ID           string
+	Meta         *EventMeta // Event metadata for context
 }
 
 // PriorityQueue manages narration items with priority-based skipping

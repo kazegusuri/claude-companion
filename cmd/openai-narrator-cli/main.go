@@ -74,7 +74,7 @@ func main() {
 			}
 
 			// Narrate the text
-			result, fallback := openAINarrator.NarrateText(input, thinking)
+			result, fallback := openAINarrator.NarrateText(input, thinking, nil)
 			if fallback {
 				fmt.Println("Fallback:", result)
 			} else {
@@ -110,7 +110,7 @@ func main() {
 			inputText = strings.Join(lines, "\n")
 		}
 
-		result, fallback := openAINarrator.NarrateText(inputText, *isThinking)
+		result, fallback := openAINarrator.NarrateText(inputText, *isThinking, nil)
 		if fallback {
 			fmt.Fprintln(os.Stderr, "Warning: Fallback mode")
 		}
