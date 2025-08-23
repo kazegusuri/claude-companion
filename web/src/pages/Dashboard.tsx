@@ -5,7 +5,7 @@ import { ChatDisplay } from "../components/ChatDisplay";
 import { ActionIcon, Stack, Tooltip } from "@mantine/core";
 import { IconMessage, IconMessageDown, IconMessageOff } from "@tabler/icons-react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, AudioMessage } from "../services/WebSocketClient";
+import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 import { AudioPlayer } from "../services/AudioPlayer";
 
 type BubbleState = "right" | "bottom" | "hidden";
@@ -19,21 +19,22 @@ export const Dashboard: React.FC = () => {
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
   const audioPlayer = useRef<AudioPlayer | null>(null);
-  const audioQueue = useRef<AudioMessage[]>([]);
+  const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
 
   // WebSocketメッセージハンドラー
   const handleWebSocketMessage = useCallback(
-    (message: AudioMessage) => {
+    (message: ChatMessage) => {
       console.log("Received WebSocket message:", message);
 
-      // テキストを更新
-      if (message.text) {
+      // テキストを更新（assistantメッセージのみ）
+      if (message.text && message.role === "assistant") {
         setSpeechText(message.text);
       }
 
       // 音声データがある場合はキューに追加
-      if (message.type === "audio" && message.audioData && isAudioEnabled) {
+      // Check for assistant messages with audio subtype or legacy audio type
+      if ((message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) && message.audioData && isAudioEnabled) {
         // 既存のメッセージがキューにないか確認
         if (!audioQueue.current.some((msg) => msg.id === message.id)) {
           audioQueue.current.push(message);

@@ -71,6 +71,11 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 		return "", nil
 	}
 
+	// Skip messages that contain only tool_result
+	if f.hasOnlyToolResult(event.Message.Content) {
+		return "", nil
+	}
+
 	var output strings.Builder
 
 	// Extract text content
@@ -79,8 +84,8 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 	// Check if this is a user command (XML tag format)
 	isUserCommand := f.isUserCommand(textContent)
 
-	// Send to WebSocket if emitter is available and it's not a user command or meta message
-	if f.emitter != nil && !isUserCommand && !event.IsMeta {
+	// Send to WebSocket if emitter is available and it's not a user command, meta message, or tool_result only
+	if f.emitter != nil && !isUserCommand && !event.IsMeta && !f.hasOnlyToolResult(event.Message.Content) {
 		chatMsg := &handler.ChatMessage{
 			Type:      handler.MessageTypeUser,
 			ID:        event.UUID,
@@ -207,6 +212,30 @@ func (f *Formatter) extractTextFromUserContent(content interface{}) string {
 	default:
 		return ""
 	}
+}
+
+// hasOnlyToolResult checks if the user message content contains only tool_result type
+func (f *Formatter) hasOnlyToolResult(content interface{}) bool {
+	contentArray, ok := content.([]interface{})
+	if !ok || len(contentArray) == 0 {
+		return false
+	}
+
+	// Check if all items are tool_result type
+	for _, item := range contentArray {
+		if contentMap, ok := item.(map[string]interface{}); ok {
+			if contentType, ok := contentMap["type"].(string); ok {
+				if contentType != "tool_result" {
+					return false
+				}
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
 }
 
 // isUserCommand checks if the text content is a user command in XML tag format
@@ -603,8 +632,9 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 
 		// Send ConfirmEvent to WebSocket clients
 		if f.emitter != nil {
-			confirmMsg := &handler.AudioMessage{
-				Type:      handler.MessageTypeText,
+			confirmMsg := &handler.ChatMessage{
+				Type:      handler.MessageTypeSystem,
+				Role:      handler.MessageRoleSystem,
 				ID:        uuid.New().String(),
 				Text:      fmt.Sprintf("Tool permission requested: %s", displayToolName),
 				Timestamp: time.Now(),
@@ -614,7 +644,7 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 					SessionID: event.SessionID,
 				},
 			}
-			f.emitter.Broadcast(confirmMsg)
+			f.emitter.BroadcastChat(confirmMsg)
 		}
 	} else if event.Message != "" {
 		// Use NarrateText for other notifications

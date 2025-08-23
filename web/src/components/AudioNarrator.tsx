@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, AudioMessage } from "../services/WebSocketClient";
+import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 import { AudioPlayer } from "../services/AudioPlayer";
 import "./AudioNarrator.css";
 
@@ -8,7 +8,7 @@ interface MessageHistory {
   id: string;
   text: string;
   timestamp: Date;
-  metadata?: AudioMessage["metadata"];
+  metadata?: ChatMessage["metadata"];
   isPlaying?: boolean;
 }
 
@@ -18,7 +18,7 @@ export const AudioNarrator: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const [volume, setVolume] = useState(1.0);
-  const [audioQueue, setAudioQueue] = useState<AudioMessage[]>([]);
+  const [audioQueue, setAudioQueue] = useState<ChatMessage[]>([]);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false); // Global audio enable/disable state
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
@@ -72,7 +72,7 @@ export const AudioNarrator: React.FC = () => {
     }
   }, [audioQueue]);
 
-  const handleWebSocketMessage = useCallback((message: AudioMessage) => {
+  const handleWebSocketMessage = useCallback((message: ChatMessage) => {
     // Add to message history (check for duplicates)
     setMessages((prev) => {
       // Check if message with this ID already exists
@@ -91,7 +91,8 @@ export const AudioNarrator: React.FC = () => {
     });
 
     // Add to audio queue if it contains audio data
-    if (message.type === "audio" && message.audioData) {
+    // Check for assistant messages with audio subtype or legacy audio type
+    if ((message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) && message.audioData) {
       setAudioQueue((prev) => {
         // Check if message with this ID already exists in queue
         if (prev.some((msg) => msg.id === message.id)) {

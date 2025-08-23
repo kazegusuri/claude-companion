@@ -13,20 +13,20 @@ import {
 } from "@mantine/core";
 import { IconSend, IconCheck, IconX } from "@tabler/icons-react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, AudioMessage } from "../services/WebSocketClient";
+import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 
 interface MessageHistory {
   id: string;
   text: string;
   timestamp: Date;
-  metadata?: AudioMessage["metadata"];
+  metadata?: ChatMessage["metadata"];
   role?: "system" | "user" | "assistant";
   subType?: "audio" | "text";
 }
 
 interface ChatDisplayProps {
   currentPlayingMessageId?: string | null;
-  onMessagesUpdate?: (messages: AudioMessage[]) => void;
+  onMessagesUpdate?: (messages: ChatMessage[]) => void;
 }
 
 export const ChatDisplay: React.FC<ChatDisplayProps> = ({
@@ -55,7 +55,7 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
     const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(
       wsUrl,
-      (message: AudioMessage) => {
+      (message: ChatMessage) => {
         console.log("Received WebSocket message:", message);
 
         // Track sessionId from any message that has it
@@ -85,8 +85,8 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
             text: displayText,
             timestamp: new Date(message.timestamp),
             metadata: message.metadata,
-            ...(message.metadata?.role && { role: message.metadata.role }),
-            ...(message.metadata?.subType && { subType: message.metadata.subType }),
+            ...(message.role && { role: message.role }),
+            ...(message.subType && { subType: message.subType }),
           };
 
           // Add new message and limit to MAX_MESSAGES (keep only the latest 100)

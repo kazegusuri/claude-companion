@@ -80,9 +80,11 @@ func handleSendText(server *websocket.Server) http.HandlerFunc {
 			return
 		}
 
-		// Create message with text type
-		msg := &handler.AudioMessage{
-			Type:      handler.MessageTypeText,
+		// Create message with assistant type
+		msg := &handler.ChatMessage{
+			Type:      handler.MessageTypeAssistant,
+			Role:      handler.MessageRoleAssistant,
+			SubType:   handler.AssistantMessageSubTypeText,
 			ID:        uuid.New().String(),
 			Text:      req.Text,
 			Priority:  5,
@@ -102,7 +104,7 @@ func handleSendText(server *websocket.Server) http.HandlerFunc {
 		}
 
 		// Broadcast message
-		server.Broadcast(msg)
+		server.BroadcastChat(msg)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{

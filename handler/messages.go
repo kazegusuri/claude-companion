@@ -8,16 +8,21 @@ import (
 type MessageType string
 
 const (
-	MessageTypeAudio           MessageType = "audio"
-	MessageTypeText            MessageType = "text"
+	// Core message types for chat
+	MessageTypeSystem    MessageType = "system"
+	MessageTypeUser      MessageType = "user"
+	MessageTypeAssistant MessageType = "assistant"
+
+	// WebSocket control messages
 	MessageTypePing            MessageType = "ping"
 	MessageTypePong            MessageType = "pong"
-	MessageTypeError           MessageType = "error"
-	MessageTypeUserMessage     MessageType = "user_message"
-	MessageTypeConfirmResponse MessageType = "confirm_response"
-	MessageTypeSystem          MessageType = "system"
-	MessageTypeUser            MessageType = "user"
-	MessageTypeAssistant       MessageType = "assistant"
+	MessageTypeUserMessage     MessageType = "user_message"     // User input from client
+	MessageTypeConfirmResponse MessageType = "confirm_response" // Tool permission response
+
+	// Legacy types (kept for compatibility)
+	MessageTypeAudio MessageType = "audio" // Deprecated: use MessageTypeAssistant with SubTypeAudio
+	MessageTypeText  MessageType = "text"  // Deprecated: use MessageTypeAssistant with SubTypeText
+	MessageTypeError MessageType = "error" // Deprecated: use MessageTypeSystem
 )
 
 // MessageRole represents the role of the message sender
@@ -37,16 +42,6 @@ const (
 	AssistantMessageSubTypeText  AssistantMessageSubType = "text"
 )
 
-// AudioMessage represents a message containing audio data
-type AudioMessage struct {
-	Type      MessageType `json:"type"`
-	ID        string      `json:"id"`
-	Text      string      `json:"text"`
-	AudioData string      `json:"audioData,omitempty"` // Base64 encoded WAV data
-	Priority  int         `json:"priority"`
-	Timestamp time.Time   `json:"timestamp"`
-	Metadata  Metadata    `json:"metadata,omitempty"`
-}
 
 // Metadata contains additional information about the message
 type Metadata struct {

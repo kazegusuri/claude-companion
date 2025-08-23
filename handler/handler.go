@@ -26,15 +26,13 @@ const (
 // MessageSender defines the interface for sending messages
 type MessageSender interface {
 	// Send sends a message to the specific client
-	Send(msg *AudioMessage) error
+	Send(msg *ChatMessage) error
 	// Broadcast sends a message to all connected clients
-	Broadcast(msg *AudioMessage)
+	Broadcast(msg *ChatMessage)
 }
 
 // MessageEmitter defines the interface for sending messages
 type MessageEmitter interface {
-	// Broadcast sends a message to all connected clients
-	Broadcast(msg *AudioMessage)
 	// BroadcastChat sends a chat message to all connected clients
 	BroadcastChat(msg *ChatMessage)
 }
@@ -87,7 +85,7 @@ func (h *EventHandler) HandleMessage(message ClientMessage) {
 
 // HandlePing handles ping messages from the client
 func (h *EventHandler) HandlePing(message ClientMessage) {
-	pong := &AudioMessage{
+	pong := &ChatMessage{
 		Type:      MessageTypePong,
 		ID:        uuid.New().String(),
 		Timestamp: time.Now(),
@@ -163,8 +161,9 @@ func (h *EventHandler) HandleConfirmResponse(message ClientMessage) {
 	go h.executeClaudeCommand(req)
 
 	// Send feedback message to the requesting client only
-	feedbackMsg := &AudioMessage{
-		Type:      MessageTypeText,
+	feedbackMsg := &ChatMessage{
+		Type:      MessageTypeSystem,
+		Role:      MessageRoleSystem,
 		ID:        uuid.New().String(),
 		Text:      fmt.Sprintf("Permission %s - executing %s command", message.Action, command),
 		Timestamp: time.Now(),
@@ -209,8 +208,9 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 		log.Printf("Command output: %s", string(output))
 
 		// Send error message to client
-		errorMsg := &AudioMessage{
-			Type:      MessageTypeError,
+		errorMsg := &ChatMessage{
+			Type:      MessageTypeSystem,
+			Role:      MessageRoleSystem,
 			ID:        uuid.New().String(),
 			Text:      fmt.Sprintf("Failed to execute %s command: %v", req.Command, err),
 			Timestamp: time.Now(),
@@ -237,8 +237,9 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 		log.Printf("claude-code-send (%s) executed successfully: %s", req.Command, response.Message)
 
 		// Send success message to client
-		successMsg := &AudioMessage{
-			Type:      MessageTypeText,
+		successMsg := &ChatMessage{
+			Type:      MessageTypeSystem,
+			Role:      MessageRoleSystem,
 			ID:        uuid.New().String(),
 			Text:      fmt.Sprintf("%s command executed: %s", req.Command, response.Message),
 			Timestamp: time.Now(),
@@ -253,8 +254,9 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 		log.Printf("claude-code-send (%s) failed: %s", req.Command, response.Error)
 
 		// Send error message to client
-		errorMsg := &AudioMessage{
-			Type:      MessageTypeError,
+		errorMsg := &ChatMessage{
+			Type:      MessageTypeSystem,
+			Role:      MessageRoleSystem,
 			ID:        uuid.New().String(),
 			Text:      fmt.Sprintf("%s command failed: %s", req.Command, response.Error),
 			Timestamp: time.Now(),

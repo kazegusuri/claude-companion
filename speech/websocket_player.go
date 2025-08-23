@@ -43,8 +43,10 @@ func (p *WebSocketPlayer) Play(audioData []byte, meta *AudioMeta) error {
 	}
 
 	// Create the message
-	message := &handler.AudioMessage{
-		Type:      handler.MessageTypeAudio,
+	message := &handler.ChatMessage{
+		Type:      handler.MessageTypeAssistant,
+		Role:      handler.MessageRoleAssistant,
+		SubType:   handler.AssistantMessageSubTypeAudio,
 		ID:        uuid.New().String(),
 		Text:      "",
 		AudioData: audioDataBase64,
@@ -63,7 +65,7 @@ func (p *WebSocketPlayer) Play(audioData []byte, meta *AudioMeta) error {
 	}
 
 	// Broadcast the message to all connected clients
-	p.server.Broadcast(message)
+	p.server.BroadcastChat(message)
 
 	return nil
 }
