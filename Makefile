@@ -3,20 +3,37 @@
 # Go source files (recursive)
 GO_FILES := $(shell find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*")
 
+# Binary output directory
+BIN_DIR := bin
+
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  build   - Build the claude-companion binary"
+	@echo "  build   - Build all binaries to bin/ directory"
 	@echo "  test    - Run tests"
 	@echo "  fmt     - Run gofmt on all Go files"
-	@echo "  clean   - Remove built binary"
-	@echo "  run     - Run with example arguments (requires PROJECT and SESSION env vars)"
+	@echo "  clean   - Remove all built binaries"
+	@echo "  run     - Run with --voice --ai"
+	@echo "  server  - Run with --voice --ai --server"
 	@echo "  help    - Show this help message"
 
-claude-companion: $(GO_FILES)
-	go build -o claude-companion .
+$(BIN_DIR):
+	@mkdir -p $(BIN_DIR)
 
-build: claude-companion
+build: $(BIN_DIR)
+	@echo "Building claude-companion..."
+	@go build -o $(BIN_DIR)/claude-companion .
+	@echo "Building claude-code-send..."
+	@go build -o $(BIN_DIR)/claude-code-send ./cmd/claude-code-send
+	@echo "Building openai-narrator-cli..."
+	@go build -o $(BIN_DIR)/openai-narrator-cli ./cmd/openai-narrator-cli
+	@echo "Building status-line..."
+	@go build -o $(BIN_DIR)/status-line ./cmd/status-line
+	@echo "Building test-ws-server..."
+	@go build -o $(BIN_DIR)/test-ws-server ./cmd/test-ws-server
+	@echo "Building voicevox-cli..."
+	@go build -o $(BIN_DIR)/voicevox-cli ./cmd/voicevox-cli
+	@echo "All binaries built successfully in $(BIN_DIR)/"
 
 test:
 	go test ./...
@@ -25,15 +42,12 @@ fmt:
 	gofmt -w $(GO_FILES)
 
 clean:
-	rm -f claude-companion
+	@echo "Cleaning built binaries..."
+	@rm -rf $(BIN_DIR)
+	@echo "Clean complete"
 
 run: build
-	@if [ -z "$(PROJECT)" ] || [ -z "$(SESSION)" ]; then \
-		echo "Usage: make run PROJECT=project_name SESSION=session_name [FULL=1]"; \
-		exit 1; \
-	fi
-	@if [ -n "$(FULL)" ]; then \
-		./claude-companion -project $(PROJECT) -session $(SESSION) -full; \
-	else \
-		./claude-companion -project $(PROJECT) -session $(SESSION); \
-	fi
+	$(BIN_DIR)/claude-companion --voice --ai
+
+server: build
+	$(BIN_DIR)/claude-companion --voice --ai --server
