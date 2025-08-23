@@ -15,6 +15,7 @@ type SessionGetter interface {
 // Session represents an active session
 type Session struct {
 	SessionID      string    `json:"sessionId"`
+	UUID           string    `json:"uuid"` // UUID of the event that created this session
 	CWD            string    `json:"cwd"`
 	TranscriptPath string    `json:"transcriptPath"` // Path to the transcript file
 	StartTime      time.Time `json:"startTime"`      // When the session started
@@ -34,19 +35,20 @@ func NewSessionManager() *SessionManager {
 }
 
 // CreateSession creates a new session and registers it
-func (sm *SessionManager) CreateSession(sessionID, cwd, transcriptPath string) *Session {
+func (sm *SessionManager) CreateSession(sessionID, uuid, cwd, transcriptPath string) *Session {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
 	session := &Session{
 		SessionID:      sessionID,
+		UUID:           uuid,
 		CWD:            cwd,
 		TranscriptPath: transcriptPath,
 		StartTime:      time.Now(),
 	}
 
 	sm.sessions[sessionID] = session
-	logger.LogInfo("New session created: %s (CWD: %s, Transcript: %s)", sessionID, cwd, transcriptPath)
+	logger.LogInfo("New session created: %s (UUID: %s, CWD: %s, Transcript: %s)", sessionID, uuid, cwd, transcriptPath)
 
 	return session
 }
