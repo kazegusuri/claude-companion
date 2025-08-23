@@ -403,10 +403,14 @@ func (h *Handler) handleBuffering(event Event) bool {
 				return false // Process normally
 			}
 
-			if session.UUID == baseEvent.UUID {
-				// Case 2: Same UUID - treat as new/normal start
+			if session.UUID == "" || session.UUID == baseEvent.UUID {
+				// Case 2: Empty UUID or Same UUID - treat as new/normal start
 				if h.debugMode {
-					logger.LogInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
+					if session.UUID == "" {
+						logger.LogInfo("Normal session start (empty UUID): %s", baseEvent.SessionID)
+					} else {
+						logger.LogInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
+					}
 				}
 				return false // Process normally
 			} else {

@@ -35,6 +35,8 @@ type MessageSender interface {
 type MessageEmitter interface {
 	// Broadcast sends a message to all connected clients
 	Broadcast(msg *AudioMessage)
+	// BroadcastChat sends a chat message to all connected clients
+	BroadcastChat(msg *ChatMessage)
 }
 
 // ClaudeCommandRequest represents the request to execute claude-code-send command

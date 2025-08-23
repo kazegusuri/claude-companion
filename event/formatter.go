@@ -66,10 +66,45 @@ func (f *Formatter) Format(event Event) (string, error) {
 }
 
 func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
+	// Skip meta messages unless in debug mode
+	if event.IsMeta && !f.debugMode {
+		return "", nil
+	}
+
 	var output strings.Builder
+
+	// Extract text content
+	textContent := f.extractTextFromUserContent(event.Message.Content)
+
+	// Check if this is a user command (XML tag format)
+	isUserCommand := f.isUserCommand(textContent)
+
+	// Send to WebSocket if emitter is available and it's not a user command or meta message
+	if f.emitter != nil && !isUserCommand && !event.IsMeta {
+		chatMsg := &handler.ChatMessage{
+			Type:      handler.MessageTypeUser,
+			ID:        event.UUID,
+			Role:      handler.MessageRoleUser,
+			Text:      textContent,
+			Priority:  1,
+			Timestamp: event.Timestamp,
+			Metadata: handler.Metadata{
+				EventType: "user_message",
+				SessionID: event.SessionID,
+				Role:      handler.MessageRoleUser,
+			},
+		}
+		f.emitter.BroadcastChat(chatMsg)
+	}
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] 👤 USER:", event.Timestamp.Format("15:04:05"))
+	if isUserCommand {
+		header += " [COMMAND]"
+	}
+	if event.IsMeta {
+		header += " [META]"
+	}
 	if f.debugMode {
 		header += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
@@ -150,6 +185,63 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 		result += "\n"
 	}
 	return result, nil
+}
+
+// extractTextFromUserContent extracts text from user message content
+func (f *Formatter) extractTextFromUserContent(content interface{}) string {
+	switch c := content.(type) {
+	case string:
+		return c
+	case []interface{}:
+		var texts []string
+		for _, item := range c {
+			if contentMap, ok := item.(map[string]interface{}); ok {
+				if contentType, ok := contentMap["type"].(string); ok && contentType == "text" {
+					if text, ok := contentMap["text"].(string); ok {
+						texts = append(texts, text)
+					}
+				}
+			}
+		}
+		return strings.Join(texts, "\n")
+	default:
+		return ""
+	}
+}
+
+// isUserCommand checks if the text content is a user command in XML tag format
+func (f *Formatter) isUserCommand(text string) bool {
+	if text == "" {
+		return false
+	}
+
+	// Get the first line
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 {
+		return false
+	}
+
+	firstLine := strings.TrimSpace(lines[0])
+
+	// Check if the first line looks like an XML tag: <tag>content</tag>
+	// Pattern: starts with <tag> and ends with </tag>
+	if len(firstLine) > 0 && firstLine[0] == '<' {
+		// Find the end of the opening tag
+		endIdx := strings.Index(firstLine, ">")
+		if endIdx > 1 { // Must have at least one character for tag name
+			// Extract tag name (between < and >)
+			tagName := firstLine[1:endIdx]
+
+			// Check if the line ends with the corresponding closing tag
+			expectedClosingTag := "</" + tagName + ">"
+			if strings.HasSuffix(firstLine, expectedClosingTag) {
+				// This is a valid XML command format
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, error) {
@@ -278,6 +370,24 @@ func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
 func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 	if event.IsMeta && !f.debugMode {
 		return "", nil // Skip meta messages unless in debug mode
+	}
+
+	// Send to WebSocket if emitter is available and it's not a meta message
+	if f.emitter != nil && !event.IsMeta {
+		chatMsg := &handler.ChatMessage{
+			Type:      handler.MessageTypeSystem,
+			ID:        event.UUID,
+			Role:      handler.MessageRoleSystem,
+			Text:      event.Content,
+			Priority:  1,
+			Timestamp: event.Timestamp,
+			Metadata: handler.Metadata{
+				EventType: "system_message",
+				SessionID: event.SessionID,
+				Role:      handler.MessageRoleSystem,
+			},
+		}
+		f.emitter.BroadcastChat(chatMsg)
 	}
 
 	levelStr := ""

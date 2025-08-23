@@ -20,6 +20,8 @@ interface MessageHistory {
   text: string;
   timestamp: Date;
   metadata?: AudioMessage["metadata"];
+  role?: "system" | "user" | "assistant";
+  subType?: "audio" | "text";
 }
 
 interface ChatDisplayProps {
@@ -83,6 +85,8 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
             text: displayText,
             timestamp: new Date(message.timestamp),
             metadata: message.metadata,
+            ...(message.metadata?.role && { role: message.metadata.role }),
+            ...(message.metadata?.subType && { subType: message.metadata.subType }),
           };
 
           // Add new message and limit to MAX_MESSAGES (keep only the latest 100)
@@ -202,6 +206,32 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
     }
   };
 
+  const getRoleIcon = (role?: string) => {
+    switch (role) {
+      case "user":
+        return "👤";
+      case "assistant":
+        return "🤖";
+      case "system":
+        return "⚙️";
+      default:
+        return "💬";
+    }
+  };
+
+  const getRoleColor = (role?: string) => {
+    switch (role) {
+      case "user":
+        return "blue";
+      case "assistant":
+        return "green";
+      case "system":
+        return "gray";
+      default:
+        return "gray";
+    }
+  };
+
   const getStatusColor = () => {
     switch (connectionStatus) {
       case "connected":
@@ -301,7 +331,17 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                   <Text size="xs" c="white" opacity={0.7}>
                     {formatTime(message.timestamp)}
                   </Text>
-                  {message.metadata?.eventType && (
+                  {message.role && (
+                    <Badge size="xs" variant="filled" color={getRoleColor(message.role)}>
+                      {getRoleIcon(message.role)} {message.role}
+                    </Badge>
+                  )}
+                  {message.subType && (
+                    <Badge size="xs" variant="light" color="violet">
+                      {message.subType === "audio" ? "🎤" : "📝"} {message.subType}
+                    </Badge>
+                  )}
+                  {message.metadata?.eventType && !message.role && (
                     <Badge
                       size="xs"
                       variant="light"
@@ -322,11 +362,6 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                   {message.metadata?.toolName && (
                     <Badge size="xs" variant="light" color="blue">
                       🔧 {message.metadata.toolName}
-                    </Badge>
-                  )}
-                  {message.metadata?.sessionId && (
-                    <Badge size="xs" variant="light" color="cyan">
-                      📍 {message.metadata.sessionId}
                     </Badge>
                   )}
                 </Group>

@@ -14,16 +14,18 @@ import (
 
 // Client represents a WebSocket client connection
 type Client struct {
-	conn   *websocket.Conn
-	send   chan *handler.AudioMessage
-	id     string
-	server *Server
+	conn     *websocket.Conn
+	send     chan *handler.AudioMessage
+	sendChat chan *handler.ChatMessage
+	id       string
+	server   *Server
 }
 
 // Server manages WebSocket connections and message broadcasting
 type Server struct {
 	clients       map[*Client]bool
 	broadcast     chan *handler.AudioMessage
+	broadcastChat chan *handler.ChatMessage
 	register      chan *Client
 	unregister    chan *Client
 	mu            sync.RWMutex
@@ -36,6 +38,7 @@ func NewServer(sessionGetter handler.SessionGetter) *Server {
 	return &Server{
 		clients:       make(map[*Client]bool),
 		broadcast:     make(chan *handler.AudioMessage, 256),
+		broadcastChat: make(chan *handler.ChatMessage, 256),
 		register:      make(chan *Client),
 		unregister:    make(chan *Client),
 		sessionGetter: sessionGetter,
@@ -66,6 +69,7 @@ func (s *Server) Run() {
 			if _, ok := s.clients[client]; ok {
 				delete(s.clients, client)
 				close(client.send)
+				close(client.sendChat)
 				s.mu.Unlock()
 				log.Printf("Client disconnected: %s", client.id)
 			} else {
@@ -80,6 +84,21 @@ func (s *Server) Run() {
 				default:
 					// Client's send channel is full, close it
 					close(client.send)
+					close(client.sendChat)
+					delete(s.clients, client)
+				}
+			}
+			s.mu.RUnlock()
+
+		case message := <-s.broadcastChat:
+			s.mu.RLock()
+			for client := range s.clients {
+				select {
+				case client.sendChat <- message:
+				default:
+					// Client's send channel is full, close it
+					close(client.send)
+					close(client.sendChat)
 					delete(s.clients, client)
 				}
 			}
@@ -97,10 +116,11 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		conn:   conn,
-		send:   make(chan *handler.AudioMessage, 256),
-		id:     uuid.New().String(),
-		server: s,
+		conn:     conn,
+		send:     make(chan *handler.AudioMessage, 256),
+		sendChat: make(chan *handler.ChatMessage, 256),
+		id:       uuid.New().String(),
+		server:   s,
 	}
 
 	s.register <- client
@@ -119,6 +139,17 @@ func (s *Server) Broadcast(message *handler.AudioMessage) {
 		message.Timestamp = time.Now()
 	}
 	s.broadcast <- message
+}
+
+// BroadcastChat sends a chat message to all connected clients
+func (s *Server) BroadcastChat(message *handler.ChatMessage) {
+	if message.ID == "" {
+		message.ID = uuid.New().String()
+	}
+	if message.Timestamp.IsZero() {
+		message.Timestamp = time.Now()
+	}
+	s.broadcastChat <- message
 }
 
 // GetClientCount returns the number of connected clients
@@ -220,6 +251,18 @@ func (c *Client) writePump() {
 			}
 
 			if err := c.conn.WriteJSON(message); err != nil {
+				return
+			}
+
+		case chatMessage, ok := <-c.sendChat:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The server closed the channel
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if err := c.conn.WriteJSON(chatMessage); err != nil {
 				return
 			}
 

@@ -89,6 +89,7 @@ type UserMessageContent struct {
 type UserMessage struct {
 	BaseEvent
 	Message UserMessageContent `json:"message"`
+	IsMeta  bool               `json:"isMeta,omitempty"`
 }
 
 // AssistantContent represents a content item in an assistant message

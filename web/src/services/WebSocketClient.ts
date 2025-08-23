@@ -1,6 +1,9 @@
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | "failed";
 
-export type MessageType = "audio" | "text" | "ping" | "pong" | "error";
+export type MessageType = "audio" | "text" | "ping" | "pong" | "error" | "system" | "user" | "assistant";
+
+export type MessageRole = "system" | "user" | "assistant";
+export type AssistantMessageSubType = "audio" | "text";
 
 export interface AudioMessage {
   type: MessageType;
@@ -16,6 +19,25 @@ export interface AudioMessage {
     sampleRate?: number;
     duration?: number;
     sessionId?: string;
+    role?: MessageRole;
+    subType?: AssistantMessageSubType;
+  };
+}
+
+export interface ChatMessage {
+  type: MessageType;
+  id: string;
+  role: MessageRole;
+  text: string;
+  audioData?: string; // Base64 encoded WAV data for audio messages
+  subType?: AssistantMessageSubType; // For assistant messages
+  priority: number;
+  timestamp: string;
+  metadata?: {
+    eventType: string;
+    sessionId?: string;
+    role?: MessageRole;
+    subType?: AssistantMessageSubType;
   };
 }
 
@@ -73,19 +95,45 @@ export class WebSocketAudioClient {
 
     this.ws.onmessage = (event) => {
       try {
-        const message: AudioMessage = JSON.parse(event.data);
+        const data = JSON.parse(event.data);
 
-        // Handle different message types
-        switch (message.type) {
-          case "audio":
-          case "text":
-            this.onMessage(message);
-            break;
-          case "pong":
-            // Heartbeat response received
-            break;
-          default:
-            console.warn("Unknown message type:", message.type);
+        // Check if it's a ChatMessage or AudioMessage
+        if (data.role) {
+          // It's a ChatMessage, convert to AudioMessage format for backward compatibility
+          const chatMessage = data as ChatMessage;
+          const audioMessage: AudioMessage = {
+            type: chatMessage.type,
+            id: chatMessage.id,
+            text: chatMessage.text,
+            ...(chatMessage.audioData && { audioData: chatMessage.audioData }),
+            priority: chatMessage.priority,
+            timestamp: chatMessage.timestamp,
+            metadata: {
+              ...chatMessage.metadata,
+              eventType: chatMessage.metadata?.eventType || "chat_message",
+              role: chatMessage.role,
+              ...(chatMessage.subType && { subType: chatMessage.subType }),
+            },
+          };
+          this.onMessage(audioMessage);
+        } else {
+          // It's a regular AudioMessage
+          const message: AudioMessage = data;
+          // Handle different message types
+          switch (message.type) {
+            case "audio":
+            case "text":
+            case "system":
+            case "user":
+            case "assistant":
+              this.onMessage(message);
+              break;
+            case "pong":
+              // Heartbeat response received
+              break;
+            default:
+              console.warn("Unknown message type:", message.type);
+          }
         }
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
