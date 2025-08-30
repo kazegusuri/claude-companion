@@ -1,6 +1,14 @@
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | "failed";
 
-export type MessageType = "audio" | "text" | "ping" | "pong" | "error" | "system" | "user" | "assistant";
+export type MessageType =
+  | "audio"
+  | "text"
+  | "ping"
+  | "pong"
+  | "error"
+  | "system"
+  | "user"
+  | "assistant";
 
 export type MessageRole = "system" | "user" | "assistant";
 export type AssistantMessageSubType = "audio" | "text";

@@ -34,7 +34,12 @@ export const Dashboard: React.FC = () => {
 
       // 音声データがある場合はキューに追加
       // Check for assistant messages with audio subtype or legacy audio type
-      if ((message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) && message.audioData && isAudioEnabled) {
+      if (
+        (message.type === "audio" ||
+          (message.type === "assistant" && message.subType === "audio")) &&
+        message.audioData &&
+        isAudioEnabled
+      ) {
         // 既存のメッセージがキューにないか確認
         if (!audioQueue.current.some((msg) => msg.id === message.id)) {
           audioQueue.current.push(message);

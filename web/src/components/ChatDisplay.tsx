@@ -27,11 +27,17 @@ interface MessageHistory {
 interface ChatDisplayProps {
   currentPlayingMessageId?: string | null;
   onMessagesUpdate?: (messages: ChatMessage[]) => void;
+  variant?: "default" | "mobile";
+  maxDisplayMessages?: number;
+  showInput?: boolean;
 }
 
 export const ChatDisplay: React.FC<ChatDisplayProps> = ({
   currentPlayingMessageId,
   onMessagesUpdate,
+  variant = "default",
+  maxDisplayMessages,
+  showInput = true,
 }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
@@ -43,7 +49,7 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null); // ScrollAreaのviewport参照
 
   // Configuration
-  const MAX_MESSAGES = 100;
+  const MAX_MESSAGES = variant === "mobile" ? 50 : 100;
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -259,13 +265,13 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       <Group
         gap="xs"
         justify="space-between"
-        p="xs"
+        p={variant === "mobile" ? "4px 8px" : "xs"}
         style={{
           flex: "0 0 auto", // 固定高さ
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <Text size="md" fw={600} c="white">
+        <Text size={variant === "mobile" ? "sm" : "md"} fw={600} c="white">
           Chat
         </Text>
         <Group gap="xs">
@@ -280,19 +286,22 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                     ? "再接続待機中"
                     : connectionStatus}
           </Badge>
-          {messages.length > 0 && (
+          {variant !== "mobile" && messages.length > 0 && (
             <Badge color="gray" variant="light" size="sm">
               メッセージ: {messages.length}/{MAX_MESSAGES}
             </Badge>
           )}
-          <Button size="xs" variant="subtle" onClick={handleClearHistory}>
-            クリア
-          </Button>
-          {(connectionStatus === "disconnected" || connectionStatus === "failed") && (
-            <Button size="xs" variant="light" onClick={handleReconnect}>
-              再接続
+          {variant !== "mobile" && (
+            <Button size="xs" variant="subtle" onClick={handleClearHistory}>
+              クリア
             </Button>
           )}
+          {variant !== "mobile" &&
+            (connectionStatus === "disconnected" || connectionStatus === "failed") && (
+              <Button size="xs" variant="light" onClick={handleReconnect}>
+                再接続
+              </Button>
+            )}
         </Group>
       </Group>
 
@@ -308,11 +317,12 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
         offsetScrollbars
         scrollbarSize={8}
       >
-        <Stack gap="xs" p="sm">
-          {messages.map((message) => (
+        <Stack gap={variant === "mobile" ? "4px" : "xs"} p={variant === "mobile" ? "4px" : "sm"}>
+          {/* モバイルの場合は最新N件のみ表示 */}
+          {(maxDisplayMessages ? messages.slice(-maxDisplayMessages) : messages).map((message) => (
             <Paper
               key={message.id}
-              p="sm"
+              p={variant === "mobile" ? "8px" : "sm"}
               style={{
                 background:
                   message.id === currentPlayingMessageId
@@ -326,18 +336,43 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                 transform: message.id === currentPlayingMessageId ? "scale(1.02)" : "scale(1)",
               }}
             >
-              <Group gap="xs" justify="space-between" mb="xs">
-                <Group gap="xs">
-                  <Text size="xs" c="white" opacity={0.7}>
+              <Group
+                gap={variant === "mobile" ? "4px" : "xs"}
+                justify="space-between"
+                mb={variant === "mobile" ? "4px" : "xs"}
+              >
+                <Group gap={variant === "mobile" ? "4px" : "xs"}>
+                  <Text
+                    size="xs"
+                    c="white"
+                    opacity={0.7}
+                    style={{ fontSize: variant === "mobile" ? "10px" : undefined }}
+                  >
                     {formatTime(message.timestamp)}
                   </Text>
                   {message.role && (
-                    <Badge size="xs" variant="filled" color={getRoleColor(message.role)}>
+                    <Badge
+                      size="xs"
+                      variant="filled"
+                      color={getRoleColor(message.role)}
+                      style={{
+                        fontSize: variant === "mobile" ? "10px" : undefined,
+                        padding: variant === "mobile" ? "2px 4px" : undefined,
+                      }}
+                    >
                       {getRoleIcon(message.role)} {message.role}
                     </Badge>
                   )}
                   {message.subType && (
-                    <Badge size="xs" variant="light" color="violet">
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color="violet"
+                      style={{
+                        fontSize: variant === "mobile" ? "10px" : undefined,
+                        padding: variant === "mobile" ? "2px 4px" : undefined,
+                      }}
+                    >
                       {message.subType === "audio" ? "🎤" : "📝"} {message.subType}
                     </Badge>
                   )}
@@ -366,12 +401,28 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                   )}
                 </Group>
                 {message.id === currentPlayingMessageId && (
-                  <Badge size="xs" color="violet" variant="filled">
+                  <Badge
+                    size="xs"
+                    color="violet"
+                    variant="filled"
+                    style={{
+                      fontSize: variant === "mobile" ? "10px" : undefined,
+                      padding: variant === "mobile" ? "2px 4px" : undefined,
+                    }}
+                  >
                     🔊 再生中
                   </Badge>
                 )}
               </Group>
-              <Text size="sm" c="white" style={{ lineHeight: 1.5 }}>
+              <Text
+                size={variant === "mobile" ? "xs" : "sm"}
+                c="white"
+                style={{
+                  lineHeight: variant === "mobile" ? 1.3 : 1.5,
+                  fontSize: variant === "mobile" ? "11px" : undefined,
+                  marginTop: variant === "mobile" ? "2px" : undefined,
+                }}
+              >
                 {message.text}
               </Text>
 
@@ -406,36 +457,38 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
         </Stack>
       </ScrollArea>
 
-      {/* メッセージ入力エリア */}
-      <Group
-        p="xs"
-        gap="xs"
-        style={{
-          flex: "0 0 auto",
-          borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <Textarea
-          style={{ flex: 1 }}
-          placeholder="メッセージを入力... (Enterで送信、Shift+Enterで改行)"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.currentTarget.value)}
-          onKeyDown={handleKeyPress}
-          minRows={3}
-          maxRows={6}
-          autosize
-          disabled={connectionStatus !== "connected" || !currentSessionId}
-        />
-        <ActionIcon
-          size="lg"
-          variant="filled"
-          color="blue"
-          onClick={handleSendMessage}
-          disabled={!inputMessage.trim() || connectionStatus !== "connected" || !currentSessionId}
+      {/* メッセージ入力エリア（showInputがtrueの場合のみ表示） */}
+      {showInput && (
+        <Group
+          p="xs"
+          gap="xs"
+          style={{
+            flex: "0 0 auto",
+            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
         >
-          <IconSend size={18} />
-        </ActionIcon>
-      </Group>
+          <Textarea
+            style={{ flex: 1 }}
+            placeholder="メッセージを入力... (Enterで送信、Shift+Enterで改行)"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.currentTarget.value)}
+            onKeyDown={handleKeyPress}
+            minRows={3}
+            maxRows={6}
+            autosize
+            disabled={connectionStatus !== "connected" || !currentSessionId}
+          />
+          <ActionIcon
+            size="lg"
+            variant="filled"
+            color="blue"
+            onClick={handleSendMessage}
+            disabled={!inputMessage.trim() || connectionStatus !== "connected" || !currentSessionId}
+          >
+            <IconSend size={18} />
+          </ActionIcon>
+        </Group>
+      )}
     </Box>
   );
 };

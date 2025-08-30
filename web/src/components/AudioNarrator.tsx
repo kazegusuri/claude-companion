@@ -92,7 +92,10 @@ export const AudioNarrator: React.FC = () => {
 
     // Add to audio queue if it contains audio data
     // Check for assistant messages with audio subtype or legacy audio type
-    if ((message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) && message.audioData) {
+    if (
+      (message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) &&
+      message.audioData
+    ) {
       setAudioQueue((prev) => {
         // Check if message with this ID already exists in queue
         if (prev.some((msg) => msg.id === message.id)) {

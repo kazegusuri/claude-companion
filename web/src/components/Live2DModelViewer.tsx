@@ -22,6 +22,8 @@ interface Live2DModelViewerProps {
   useCard?: boolean;
   cardTitle?: string;
   stageType?: StageType;
+  bubbleMaxWidth?: number;
+  specifiedWidth?: number;
 }
 
 export function Live2DModelViewer({
@@ -33,6 +35,8 @@ export function Live2DModelViewer({
   useCard = false,
   cardTitle = "ASSISTANT",
   stageType = "gold-card",
+  bubbleMaxWidth,
+  specifiedWidth,
 }: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
@@ -196,6 +200,9 @@ export function Live2DModelViewer({
           side={bubbleSide}
           withWave={true}
           typewriter={true}
+          maxWidth={bubbleMaxWidth || 600}
+          isMobile={window.location.pathname === "/mobile"}
+          specifiedWidth={specifiedWidth}
           style={{
             zIndex: 1000,
           }}
@@ -214,6 +221,9 @@ export function Live2DModelViewer({
         side={bubbleSide}
         withWave={true}
         typewriter={true}
+        maxWidth={bubbleMaxWidth || 600}
+        isMobile={window.location.pathname === "/mobile"}
+        specifiedWidth={specifiedWidth}
       />
     </Box>
   );

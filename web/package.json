@@ -23,7 +23,8 @@
     "pixi-live2d-display-lipsyncpatch": "^0.5.0-ls-8",
     "pixi.js": "7",
     "react": "18",
-    "react-dom": "18"
+    "react-dom": "18",
+    "react-router-dom": "^7.8.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",

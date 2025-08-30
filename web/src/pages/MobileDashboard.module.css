@@ -1,0 +1,39 @@
+/* モバイル専用のスタイル */
+.mobileContainer {
+  width: 100vw !important;
+  max-width: 400px;
+  height: 100vh !important;
+  max-height: 1280px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ビューポート調整 */
+@media screen and (max-width: 400px) {
+  .mobileContainer {
+    transform-origin: top left;
+    transform: scale(var(--scale-factor, 1));
+  }
+}
+
+/* Live2Dセクション */
+.live2dSection {
+  width: 100% !important;
+  max-width: 400px;
+  height: 60% !important;
+  max-height: 768px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* チャットセクション */
+.chatSection {
+  width: 100% !important;
+  max-width: 400px;
+  height: 40% !important;
+  max-height: 512px;
+  overflow: hidden;
+  position: relative;
+}
