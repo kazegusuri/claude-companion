@@ -2,15 +2,19 @@ export interface PlaybackOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: Error) => void;
+  onVolumeUpdate?: (volume: number) => void;
 }
 
 export class AudioPlayer {
   private audioContext: AudioContext | null = null;
   private currentSource: AudioBufferSourceNode | null = null;
   private gainNode: GainNode | null = null;
+  private analyserNode: AnalyserNode | null = null;
   private isPlaying = false;
   private volume = 1.0;
   private isInitialized = false;
+  private volumeUpdateInterval: number | null = null;
+  private dataArray: Uint8Array | null = null;
 
   constructor() {
     // Don't initialize context immediately, wait for first playback
@@ -63,8 +67,20 @@ export class AudioPlayer {
 
       // Create and connect gain node for volume control
       this.gainNode = this.audioContext.createGain();
-      this.gainNode.connect(this.audioContext.destination);
       this.gainNode.gain.value = this.volume;
+
+      // Create analyser node for lip sync
+      this.analyserNode = this.audioContext.createAnalyser();
+      this.analyserNode.fftSize = 256;
+      this.analyserNode.smoothingTimeConstant = 0.8;
+
+      // Connect: source -> gain -> analyser -> destination
+      this.gainNode.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioContext.destination);
+
+      // Initialize data array for frequency data
+      const bufferLength = this.analyserNode.frequencyBinCount;
+      this.dataArray = new Uint8Array(bufferLength);
 
       this.isInitialized = true;
       console.log("AudioContext initialized successfully, state:", this.audioContext.state);
@@ -128,12 +144,18 @@ export class AudioPlayer {
       this.currentSource.onended = () => {
         this.isPlaying = false;
         this.currentSource = null;
+        this.stopVolumeMonitoring();
         options?.onEnd?.();
       };
 
       // Start playback
       this.isPlaying = true;
       this.currentSource.start(0);
+
+      // Start volume monitoring for lip sync
+      if (options?.onVolumeUpdate) {
+        this.startVolumeMonitoring(options.onVolumeUpdate);
+      }
     } catch (error) {
       this.isPlaying = false;
       const err = error instanceof Error ? error : new Error("Audio playback failed");
@@ -157,7 +179,48 @@ export class AudioPlayer {
     return bytes.buffer;
   }
 
+  private startVolumeMonitoring(callback: (volume: number) => void): void {
+    if (!this.analyserNode || !this.dataArray) return;
+
+    const updateVolume = () => {
+      if (!this.isPlaying || !this.analyserNode || !this.dataArray) {
+        this.stopVolumeMonitoring();
+        return;
+      }
+
+      // Get frequency data
+      this.analyserNode.getByteFrequencyData(this.dataArray);
+
+      // Calculate average volume from frequency data
+      let sum = 0;
+      const length = this.dataArray.length;
+      for (let i = 0; i < length; i++) {
+        sum += this.dataArray[i];
+      }
+      const average = sum / length;
+
+      // Normalize to 0-1 range with some scaling for better lip sync
+      const normalizedVolume = Math.min(1, (average / 255) * 2);
+
+      // Apply smoothing
+      callback(normalizedVolume);
+
+      // Continue monitoring
+      this.volumeUpdateInterval = window.requestAnimationFrame(updateVolume);
+    };
+
+    updateVolume();
+  }
+
+  private stopVolumeMonitoring(): void {
+    if (this.volumeUpdateInterval !== null) {
+      window.cancelAnimationFrame(this.volumeUpdateInterval);
+      this.volumeUpdateInterval = null;
+    }
+  }
+
   stop(): void {
+    this.stopVolumeMonitoring();
     if (this.currentSource) {
       try {
         this.currentSource.stop();

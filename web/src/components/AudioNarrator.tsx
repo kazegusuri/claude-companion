@@ -12,7 +12,11 @@ interface MessageHistory {
   isPlaying?: boolean;
 }
 
-export const AudioNarrator: React.FC = () => {
+interface AudioNarratorProps {
+  onLipSyncUpdate?: (value: number) => void;
+}
+
+export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -157,11 +161,22 @@ export const AudioNarrator: React.FC = () => {
               prev.map((msg) => (msg.id === message?.id ? { ...msg, isPlaying: false } : msg)),
             );
 
+            // Reset lip sync
+            if (onLipSyncUpdate) {
+              onLipSyncUpdate(0);
+            }
+
             isProcessingQueue.current = false;
 
             // Process next item if available
             if (audioQueue.length > 1) {
               setTimeout(processNextInQueue, 100);
+            }
+          },
+          onVolumeUpdate: (volume) => {
+            // Update lip sync with audio volume
+            if (onLipSyncUpdate) {
+              onLipSyncUpdate(volume);
             }
           },
           onError: (error) => {
@@ -174,6 +189,11 @@ export const AudioNarrator: React.FC = () => {
             isProcessingQueue.current = false;
             setIsPlaying(false);
             setCurrentMessageId(null);
+
+            // Reset lip sync
+            if (onLipSyncUpdate) {
+              onLipSyncUpdate(0);
+            }
 
             // Process next item if available
             if (audioQueue.length > 1) {
@@ -202,6 +222,11 @@ export const AudioNarrator: React.FC = () => {
     setIsPlaying(false);
     setCurrentMessageId(null);
     setMessages((prev) => prev.map((msg) => ({ ...msg, isPlaying: false })));
+
+    // Reset lip sync
+    if (onLipSyncUpdate) {
+      onLipSyncUpdate(0);
+    }
   };
 
   const handleClearHistory = () => {

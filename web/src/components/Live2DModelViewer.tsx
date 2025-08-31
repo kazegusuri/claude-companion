@@ -49,6 +49,8 @@ export function Live2DModelViewer({
   const modelRef = useRef<Live2DModel | null>(null);
   const [modelId] = useState(() => `model-${Date.now()}`);
   const currentAudioUrlRef = useRef<string | null>(null);
+  const isMouseInViewRef = useRef(false);
+  const mouseEventCleanupRef = useRef<(() => void) | null>(null);
 
   // Audio playback using speak method
   useEffect(() => {
@@ -114,6 +116,7 @@ export function Live2DModelViewer({
       }
     };
   }, [audioData, onAudioEnd]);
+
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -197,6 +200,50 @@ export function Live2DModelViewer({
             // Store model reference
             modelRef.current = model;
 
+            // マウス追跡とフォーカス制御を設定
+            const handleMouseMove = (event: MouseEvent) => {
+              if (!model || !canvasRef.current) return;
+
+              const rect = canvasRef.current.getBoundingClientRect();
+              const x = event.clientX - rect.left;
+              const y = event.clientY - rect.top;
+
+              // カーソルが画面内にあるかチェック
+              if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+                isMouseInViewRef.current = true;
+                // モデルにフォーカスを設定
+                model.focus(x, y);
+              } else {
+                // カーソルが画面外の場合
+                if (isMouseInViewRef.current) {
+                  isMouseInViewRef.current = false;
+                  // 正面を向かせる（中心にフォーカス）
+                  model.focus(rect.width / 2, rect.height / 2);
+                }
+              }
+            };
+
+            const handleMouseLeave = () => {
+              if (!model || !canvasRef.current) return;
+              isMouseInViewRef.current = false;
+              
+              // マウスが画面外に出たら正面を向かせる
+              const rect = canvasRef.current.getBoundingClientRect();
+              model.focus(rect.width / 2, rect.height / 2);
+            };
+
+            // イベントリスナーを追加
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseleave', handleMouseLeave);
+            document.addEventListener('mouseleave', handleMouseLeave);
+
+            // クリーンアップ関数を保存
+            mouseEventCleanupRef.current = () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseleave', handleMouseLeave);
+              document.removeEventListener('mouseleave', handleMouseLeave);
+            };
+
             // Call callback if provided
             if (onModelLoaded) {
               onModelLoaded(model);
@@ -216,6 +263,13 @@ export function Live2DModelViewer({
     // クリーンアップ
     return () => {
       clearTimeout(initTimeout);
+      
+      // イベントリスナーを削除
+      if (mouseEventCleanupRef.current) {
+        mouseEventCleanupRef.current();
+        mouseEventCleanupRef.current = null;
+      }
+      
       if (model) {
         model.destroy();
       }
