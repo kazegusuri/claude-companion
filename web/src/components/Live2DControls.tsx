@@ -1,25 +1,9 @@
-import React, { useState } from "react";
-import {
-  Card,
-  Title,
-  Stack,
-  Button,
-  Text,
-  Group,
-  ScrollArea,
-  Badge,
-  Table,
-  Tabs,
-} from "@mantine/core";
-import {
-  IconPlayerPlay,
-  IconMoodSmile,
-  IconAdjustments,
-  IconSparkles,
-  IconMovie,
-} from "@tabler/icons-react";
-import type { ModelParameter, ModelMotion, ModelExpression } from "./Live2DModelViewer";
+import { Badge, Button, Card, Group, ScrollArea, Stack, Table, Tabs, Text } from "@mantine/core";
+import { IconMoodSmile, IconPlayerPlay } from "@tabler/icons-react";
 import type { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
+import type React from "react";
+import { useState } from "react";
+import type { ModelExpression, ModelMotion, ModelParameter } from "./Live2DModelViewer";
 
 interface Live2DControlsProps {
   parameters: ModelParameter[];

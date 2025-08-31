@@ -1,6 +1,6 @@
+import { Box } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Box } from "@mantine/core";
 import "./SpeechBubble.css";
 
 interface SpeechBubbleProps {
@@ -68,7 +68,7 @@ export function SpeechBubble({
       const isInMobileView = window.location.pathname === "/mobile" || isMobile;
 
       // モバイルビューでは吹き出し幅を調整
-      let bubbleWidth;
+      let bubbleWidth: number;
       if (isInMobileView) {
         // モバイルの場合、画面幅に応じて吹き出し幅を調整
         bubbleWidth = maxWidth || Math.min(360, viewportWidth - 40);
@@ -77,7 +77,7 @@ export function SpeechBubble({
       }
 
       // 画面上の絶対位置で配置
-      let positions;
+      let positions: Record<string, { left: number; top: number }>;
 
       if (isInMobileView) {
         // モバイルの場合
@@ -86,7 +86,7 @@ export function SpeechBubble({
         const viewportHeight = window.innerHeight;
 
         // 指定された幅がある場合はそれを使用、なければ実際の表示幅を取得
-        let mobileContainerWidth;
+        let mobileContainerWidth: number;
         if (specifiedWidth) {
           // URLパラメータで指定された幅を使用
           mobileContainerWidth = specifiedWidth;
@@ -103,7 +103,7 @@ export function SpeechBubble({
 
         // 横幅の中央配置を計算（指定幅または実際の表示幅を基準に）
         // 指定幅がある場合は、その幅の中央に配置
-        let centerLeft;
+        let centerLeft: number;
         if (specifiedWidth) {
           // 指定幅がある場合、実際のviewport幅に関係なく
           // 指定幅の中央に吹き出しを配置
@@ -201,7 +201,7 @@ export function SpeechBubble({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition);
     };
-  }, [anchorSelector, side, text, visible, isMobile, maxWidth, specifiedWidth]);
+  }, [anchorSelector, side, isMobile, maxWidth, specifiedWidth]);
 
   // モバイルビューの判定
   const isInMobileView = window.location.pathname === "/mobile" || isMobile;

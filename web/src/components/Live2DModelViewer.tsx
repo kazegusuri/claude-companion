@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Box } from "@mantine/core";
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
-import { Box } from "@mantine/core";
-import { SpeechBubble } from "./SpeechBubble";
-import { Live2DModelStage } from "./Live2DModelStage";
+import { useEffect, useRef, useState } from "react";
 import type { StageType } from "./Live2DModelStage";
+import { Live2DModelStage } from "./Live2DModelStage";
+import { SpeechBubble } from "./SpeechBubble";
 
 // Window型を拡張してLive2D関連の型を追加
 declare global {
@@ -255,7 +255,7 @@ export function Live2DModelViewer({
 
               try {
                 // Extract parameters
-                if (model.internalModel && model.internalModel.coreModel) {
+                if (model.internalModel?.coreModel) {
                   const coreModel = model.internalModel.coreModel as any;
                   const paramCount = coreModel.getParameterCount?.() || 0;
 
@@ -264,16 +264,16 @@ export function Live2DModelViewer({
                     let paramId = "";
                     try {
                       // Try different methods to get the parameter ID
-                      if (coreModel._parameterIds && coreModel._parameterIds[i]) {
+                      if (coreModel._parameterIds?.[i]) {
                         paramId = coreModel._parameterIds[i];
                       } else if (coreModel.getParameterId) {
                         paramId = coreModel.getParameterId(i);
-                      } else if (coreModel._model && coreModel._model._parameterIds) {
+                      } else if (coreModel._model?._parameterIds) {
                         paramId = coreModel._model._parameterIds[i];
                       } else {
                         paramId = `param_${i}`;
                       }
-                    } catch (e) {
+                    } catch (_e) {
                       paramId = `param_${i}`;
                     }
 
@@ -294,13 +294,13 @@ export function Live2DModelViewer({
                 }
 
                 // Extract motions from motion manager
-                if (model.internalModel && model.internalModel.motionManager) {
+                if (model.internalModel?.motionManager) {
                   const motionManager = model.internalModel.motionManager as any;
                   const motionGroups = motionManager.motionGroups || {};
 
                   for (const [group, groupMotions] of Object.entries(motionGroups)) {
                     if (Array.isArray(groupMotions)) {
-                      groupMotions.forEach((motion, index) => {
+                      groupMotions.forEach((_motion, index) => {
                         motions.push({
                           group,
                           index,
@@ -333,7 +333,7 @@ export function Live2DModelViewer({
                 }
 
                 // Extract expressions from expression manager
-                if (model.internalModel && model.internalModel.expressionManager) {
+                if (model.internalModel?.expressionManager) {
                   const expressionManager = model.internalModel.expressionManager as any;
                   const expressionDefinitions =
                     expressionManager.definitions || expressionManager.expressions || {};
@@ -374,7 +374,7 @@ export function Live2DModelViewer({
               if (!model) return;
 
               // まずFocusControllerを直接リセット
-              if (model.internalModel && model.internalModel.focusController) {
+              if (model.internalModel?.focusController) {
                 model.internalModel.focusController.focus(0, 0, true); // instant=true で即座に適用
               }
 
@@ -384,7 +384,7 @@ export function Live2DModelViewer({
                 model.motion(MOTION_FACE_FORWARD);
               } catch {
                 // face_forward モーションがない場合、パラメータを直接設定
-                if (model.internalModel && model.internalModel.coreModel) {
+                if (model.internalModel?.coreModel) {
                   const coreModel = model.internalModel.coreModel as any;
 
                   // まずGroupから"Focus"グループのパラメータを取得を試みる
@@ -395,12 +395,12 @@ export function Live2DModelViewer({
                       const focusGroup = model.internalModel.settings.groups.find(
                         (g: any) => g.Name === GROUP_NAME_FOCUS || g.name === GROUP_NAME_FOCUS,
                       );
-                      if (focusGroup && focusGroup.Ids) {
+                      if (focusGroup?.Ids) {
                         focusParams = focusGroup.Ids;
                         console.log("Focus group parameters from model3.json:", focusParams);
                       }
                     }
-                  } catch (e) {
+                  } catch (_e) {
                     console.log("Could not retrieve Focus group from model settings");
                   }
 
@@ -417,7 +417,7 @@ export function Live2DModelViewer({
                         // すべて0にリセット
                         coreModel.setParameterValueByIndex?.(paramIndex, 0);
                       }
-                    } catch (e) {
+                    } catch (_e) {
                       // パラメータが存在しない場合はスキップ
                     }
                   }
@@ -477,7 +477,7 @@ export function Live2DModelViewer({
             // アイドルモーションを開始
             model.motion(MOTION_IDLE);
           }
-        } catch (error) {
+        } catch (_error) {
           // モデルが見つからない場合は何も表示しない（エラーは出力しない）
         }
       } catch (error) {
@@ -506,7 +506,7 @@ export function Live2DModelViewer({
         appRef.current = null;
       }
     };
-  }, [width, height, onModelLoaded]);
+  }, [width, height, onModelLoaded, onModelInfoUpdate]);
 
   const modelContent = (
     <Box

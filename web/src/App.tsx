@@ -1,12 +1,12 @@
+import { AppShell, Box, createTheme, MantineProvider } from "@mantine/core";
 import { useState } from "react";
-import { MantineProvider, createTheme, AppShell, Box } from "@mantine/core";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "@mantine/core/styles.css";
 import { AudioNarrator } from "@components/AudioNarrator";
-import { Dashboard } from "./pages/Dashboard";
-import { MobileDashboard } from "./pages/MobileDashboard";
-import { Live2DViewer } from "./pages/Live2DViewer";
 import { AppHeader } from "./components/AppHeader";
+import { Dashboard } from "./pages/Dashboard";
+import { Live2DViewer } from "./pages/Live2DViewer";
+import { MobileDashboard } from "./pages/MobileDashboard";
 import "./App.css";
 
 const theme = createTheme({});

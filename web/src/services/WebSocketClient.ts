@@ -150,7 +150,7 @@ export class WebSocketAudioClient {
     this.reconnectAttempts++;
     // 指数バックオフ with 上限
     const delay = Math.min(
-      this.initialReconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.initialReconnectDelay * 2 ** (this.reconnectAttempts - 1),
       this.maxReconnectDelay,
     );
 

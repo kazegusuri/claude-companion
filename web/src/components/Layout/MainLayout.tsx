@@ -1,5 +1,5 @@
-import React from "react";
-import { Grid, Card, Title, Text, Stack, Box, ScrollArea } from "@mantine/core";
+import { Box, Card, Grid, ScrollArea, Stack, Text, Title } from "@mantine/core";
+import type React from "react";
 import "./MainLayout.css";
 
 interface MainLayoutProps {

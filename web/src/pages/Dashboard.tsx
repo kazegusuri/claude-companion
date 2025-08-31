@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MainLayout } from "../components/Layout/MainLayout";
-import { Live2DModelViewer } from "../components/Live2DModelViewer";
-import { ChatDisplay } from "../components/ChatDisplay";
 import { ActionIcon, Stack, Tooltip } from "@mantine/core";
 import { IconMessage, IconMessageDown, IconMessageOff } from "@tabler/icons-react";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatDisplay } from "../components/ChatDisplay";
+import { MainLayout } from "../components/Layout/MainLayout";
+import { Live2DModelViewer } from "../components/Live2DModelViewer";
+import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 
 type BubbleState = "right" | "bottom" | "hidden";
 
@@ -20,6 +21,31 @@ export const Dashboard: React.FC = () => {
   const wsClient = useRef<WebSocketAudioClient | null>(null);
   const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
+
+  // 音声キューを処理
+  const processAudioQueue = useCallback(async () => {
+    if (isProcessingQueue.current || audioQueue.current.length === 0) {
+      return;
+    }
+
+    if (!isAudioEnabled) {
+      audioQueue.current = [];
+      setCurrentAudioData(undefined);
+      return;
+    }
+
+    isProcessingQueue.current = true;
+    const message = audioQueue.current[0];
+
+    if (message?.audioData) {
+      setCurrentMessageId(message?.id || null);
+      // Live2DModelViewerのspeakメソッドで再生
+      setCurrentAudioData(message.audioData);
+    } else {
+      audioQueue.current.shift();
+      isProcessingQueue.current = false;
+    }
+  }, [isAudioEnabled]);
 
   // WebSocketメッセージハンドラー
   const handleWebSocketMessage = useCallback(
@@ -47,7 +73,7 @@ export const Dashboard: React.FC = () => {
         }
       }
     },
-    [isAudioEnabled],
+    [isAudioEnabled, processAudioQueue],
   );
 
   // 音声再生終了時の処理
@@ -62,32 +88,7 @@ export const Dashboard: React.FC = () => {
     if (audioQueue.current.length > 0) {
       setTimeout(processAudioQueue, 100);
     }
-  }, []);
-
-  // 音声キューを処理
-  const processAudioQueue = async () => {
-    if (isProcessingQueue.current || audioQueue.current.length === 0) {
-      return;
-    }
-
-    if (!isAudioEnabled) {
-      audioQueue.current = [];
-      setCurrentAudioData(undefined);
-      return;
-    }
-
-    isProcessingQueue.current = true;
-    const message = audioQueue.current[0];
-
-    if (message && message.audioData) {
-      setCurrentMessageId(message?.id || null);
-      // Live2DModelViewerのspeakメソッドで再生
-      setCurrentAudioData(message.audioData);
-    } else {
-      audioQueue.current.shift();
-      isProcessingQueue.current = false;
-    }
-  };
+  }, [processAudioQueue]);
 
   // WebSocket接続の初期化
   useEffect(() => {
@@ -98,7 +99,7 @@ export const Dashboard: React.FC = () => {
     }
 
     // WebSocketクライアントを作成
-    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
 
     // WebSocketに接続

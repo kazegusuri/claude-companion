@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 
 type Props = {
   title?: string;
@@ -93,7 +93,7 @@ const GoldFrameStage: React.FC<Props> = ({
   return (
     <div
       className={`gold-frame-stage ${className ?? ""}`}
-      style={{ ["--card-w" as any]: `${width}px` }}
+      style={{ "--card-w": `${width}px` } as React.CSSProperties}
     >
       <div className="gold-stage">
         <svg

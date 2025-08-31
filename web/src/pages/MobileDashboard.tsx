@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Box } from "@mantine/core";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Live2DModelViewer } from "../components/Live2DModelViewer";
 import { ChatDisplay } from "../components/ChatDisplay";
+import { Live2DModelViewer } from "../components/Live2DModelViewer";
+import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 import styles from "./MobileDashboard.module.css";
 
 export const MobileDashboard: React.FC = () => {
@@ -27,20 +28,6 @@ export const MobileDashboard: React.FC = () => {
   const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
 
-  // 音声再生終了時の処理
-  const handleAudioEnd = useCallback(() => {
-    // キューから削除
-    audioQueue.current.shift();
-    setCurrentMessageId(null);
-    setCurrentAudioData(undefined);
-    isProcessingQueue.current = false;
-
-    // 次のアイテムを処理
-    if (audioQueue.current.length > 0) {
-      setTimeout(processAudioQueue, 100);
-    }
-  }, []);
-
   // 音声キューを処理（useCallbackでメモ化）
   const processAudioQueue = useCallback(async () => {
     if (isProcessingQueue.current || audioQueue.current.length === 0) {
@@ -56,7 +43,7 @@ export const MobileDashboard: React.FC = () => {
     isProcessingQueue.current = true;
     const message = audioQueue.current[0];
 
-    if (message && message.audioData) {
+    if (message?.audioData) {
       setCurrentMessageId(message?.id || null);
       // Live2DModelViewerのspeakメソッドで再生
       setCurrentAudioData(message.audioData);
@@ -65,6 +52,20 @@ export const MobileDashboard: React.FC = () => {
       isProcessingQueue.current = false;
     }
   }, [isAudioEnabled]);
+
+  // 音声再生終了時の処理
+  const handleAudioEnd = useCallback(() => {
+    // キューから削除
+    audioQueue.current.shift();
+    setCurrentMessageId(null);
+    setCurrentAudioData(undefined);
+    isProcessingQueue.current = false;
+
+    // 次のアイテムを処理
+    if (audioQueue.current.length > 0) {
+      setTimeout(processAudioQueue, 100);
+    }
+  }, [processAudioQueue]);
 
   // WebSocketメッセージハンドラー
   const handleWebSocketMessage = useCallback(
@@ -120,7 +121,7 @@ export const MobileDashboard: React.FC = () => {
     }
 
     // WebSocketクライアントを作成
-    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
 
     // WebSocketに接続
@@ -159,7 +160,7 @@ export const MobileDashboard: React.FC = () => {
 
   return (
     <Box
-      className={styles["mobileContainer"] || ""}
+      className={styles.mobileContainer || ""}
       style={{
         backgroundColor: "#1a1b1e",
         display: "flex",
@@ -197,7 +198,7 @@ export const MobileDashboard: React.FC = () => {
       </Box>
       {/* 上段: Live2D Model (高さ768px = 60%) */}
       <Box
-        className={styles["live2dSection"] || ""}
+        className={styles.live2dSection || ""}
         style={{
           display: "flex",
           alignItems: "center",
@@ -222,7 +223,7 @@ export const MobileDashboard: React.FC = () => {
 
       {/* 下段: Chat Component (高さ512px = 40%) */}
       <Box
-        className={styles["chatSection"] || ""}
+        className={styles.chatSection || ""}
         style={{
           borderTop: "1px solid rgba(255, 255, 255, 0.1)",
           boxSizing: "border-box",

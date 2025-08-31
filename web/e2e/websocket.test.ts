@@ -1,4 +1,4 @@
-import { test, expect, Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 // WebSocketテストサーバーのURL
 const WS_TEST_SERVER = "http://localhost:8080";
@@ -195,7 +195,7 @@ test.describe("WebSocket Audio System", () => {
         const queueText = await queueStatus.textContent({ timeout: 1000 });
         expect(queueText).toMatch(/キュー: \d+件/);
       }
-    } catch (error) {
+    } catch (_error) {
       // キューステータスが表示されない場合は、すでに処理済みの可能性があるのでOK
       console.log("Queue status not visible or already processed");
     }

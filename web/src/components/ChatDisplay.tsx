@@ -1,19 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
 import {
-  Stack,
-  Text,
-  Paper,
+  ActionIcon,
   Badge,
-  ScrollArea,
+  Box,
   Button,
   Group,
-  Box,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
   Textarea,
-  ActionIcon,
 } from "@mantine/core";
-import { IconSend, IconCheck, IconX, IconVolume, IconVolumeOff } from "@tabler/icons-react";
+import { IconCheck, IconSend, IconVolume, IconVolumeOff, IconX } from "@tabler/icons-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 
 interface MessageHistory {
   id: string;
@@ -62,7 +63,7 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       wsClient.current = null;
     }
 
-    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(
       wsUrl,
       (message: ChatMessage) => {
@@ -128,7 +129,7 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
         wsClient.current = null;
       }
     };
-  }, [onMessagesUpdate]);
+  }, [onMessagesUpdate, MAX_MESSAGES]);
 
   const handleClearHistory = () => {
     setMessages([]);

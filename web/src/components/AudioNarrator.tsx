@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { WebSocketAudioClient } from "../services/WebSocketClient";
-import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioPlayer } from "../services/AudioPlayer";
+import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
+import { WebSocketAudioClient } from "../services/WebSocketClient";
 import "./AudioNarrator.css";
 
 interface MessageHistory {
@@ -43,7 +44,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
     }
 
     // Create WebSocket client
-    const wsUrl = import.meta.env["VITE_WS_URL"] || "ws://localhost:8080/ws/audio";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
     wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
 
     // Don't create audio player here - create it when needed
@@ -62,7 +63,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
         audioPlayer.current = null;
       }
     };
-  }, []); // Remove isAudioInitialized from dependencies to prevent re-initialization
+  }, [handleWebSocketMessage]); // Remove isAudioInitialized from dependencies to prevent re-initialization
 
   // Handle volume changes
   useEffect(() => {
@@ -74,7 +75,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
     if (audioQueue.length > 0 && !isProcessingQueue.current) {
       processNextInQueue();
     }
-  }, [audioQueue]);
+  }, [audioQueue, processNextInQueue]);
 
   const handleWebSocketMessage = useCallback((message: ChatMessage) => {
     // Add to message history (check for duplicates)
@@ -134,7 +135,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
     isProcessingQueue.current = true;
     const message = audioQueue[0];
 
-    if (message && message.audioData) {
+    if (message?.audioData) {
       // Create audio player if not exists
       if (!audioPlayer.current) {
         audioPlayer.current = new AudioPlayer();

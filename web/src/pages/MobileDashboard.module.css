@@ -1,8 +1,8 @@
 /* モバイル専用のスタイル */
 .mobileContainer {
-  width: 100vw !important;
+  width: 100vw;
   max-width: 400px;
-  height: 100vh !important;
+  height: 100vh;
   max-height: 1280px;
   margin: 0;
   padding: 0;
@@ -20,9 +20,9 @@
 
 /* Live2Dセクション */
 .live2dSection {
-  width: 100% !important;
+  width: 100%;
   max-width: 400px;
-  height: 60% !important;
+  height: 60%;
   max-height: 768px;
   overflow: hidden;
   position: relative;
@@ -30,9 +30,9 @@
 
 /* チャットセクション */
 .chatSection {
-  width: 100% !important;
+  width: 100%;
   max-width: 400px;
-  height: 40% !important;
+  height: 40%;
   max-height: 512px;
   overflow: hidden;
   position: relative;

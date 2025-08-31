@@ -1,6 +1,6 @@
-import React from "react";
-import { Group, Button, Text, Box, Tabs } from "@mantine/core";
+import { Box, Button, Group, Tabs, Text } from "@mantine/core";
 import { IconDashboard, IconMicrophone, IconRobot } from "@tabler/icons-react";
+import type React from "react";
 
 interface AppHeaderProps {
   currentView: "dashboard" | "narrator" | "live2d";

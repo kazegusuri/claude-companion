@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import GoldFrameStage from "./GoldFrameStage";
 
 export type StageType = "gold-card" | "simple" | "minimal";

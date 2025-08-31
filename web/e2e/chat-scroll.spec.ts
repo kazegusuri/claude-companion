@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const WS_TEST_SERVER = "http://localhost:8080";
 
@@ -23,7 +23,7 @@ test.describe
           },
           { timeout: 5000 },
         );
-      } catch (e) {
+      } catch (_e) {
         console.log("WebSocket connection wait timed out, proceeding anyway");
       }
 

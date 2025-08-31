@@ -16,10 +16,6 @@ export class AudioPlayer {
   private volumeUpdateInterval: number | null = null;
   private dataArray: Uint8Array | null = null;
 
-  constructor() {
-    // Don't initialize context immediately, wait for first playback
-  }
-
   // Public method to check if context is initialized
   isContextInitialized(): boolean {
     return this.isInitialized && this.audioContext !== null;
@@ -107,7 +103,7 @@ export class AudioPlayer {
         await this.initializeContext();
         // Successfully initialized, call onStart
         options?.onStart?.();
-      } catch (error) {
+      } catch (_error) {
         // Skip audio playback if initialization fails (likely due to autoplay policy)
         console.warn(
           "Skipping audio playback - AudioContext not initialized. User interaction required.",
@@ -133,10 +129,10 @@ export class AudioPlayer {
       const audioData = this.base64ToArrayBuffer(base64Data);
 
       // Decode audio data
-      const audioBuffer = await this.audioContext!.decodeAudioData(audioData);
+      const audioBuffer = await this.audioContext?.decodeAudioData(audioData);
 
       // Create and configure source
-      this.currentSource = this.audioContext!.createBufferSource();
+      this.currentSource = this.audioContext?.createBufferSource();
       this.currentSource.buffer = audioBuffer;
       this.currentSource.connect(this.gainNode!);
 
@@ -225,7 +221,7 @@ export class AudioPlayer {
       try {
         this.currentSource.stop();
         this.currentSource.disconnect();
-      } catch (error) {
+      } catch (_error) {
         // Ignore errors when stopping already stopped source
       }
       this.currentSource = null;
