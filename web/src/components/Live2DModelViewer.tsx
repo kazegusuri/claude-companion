@@ -13,6 +13,25 @@ declare global {
   }
 }
 
+export interface ModelParameter {
+  id: string;
+  name: string;
+  value: number;
+  min: number;
+  max: number;
+  default: number;
+}
+
+export interface ModelMotion {
+  group: string;
+  index: number;
+  name: string;
+}
+
+export interface ModelExpression {
+  name: string;
+}
+
 interface Live2DModelViewerProps {
   width?: number;
   height?: number;
@@ -25,8 +44,14 @@ interface Live2DModelViewerProps {
   bubbleMaxWidth?: number;
   specifiedWidth?: number;
   onModelLoaded?: (model: Live2DModel) => void;
+  onModelInfoUpdate?: (info: {
+    parameters: ModelParameter[];
+    motions: ModelMotion[];
+    expressions: ModelExpression[];
+  }) => void;
   audioData?: string; // Base64 encoded audio data
   onAudioEnd?: () => void;
+  modelRef?: React.MutableRefObject<Live2DModel | null>;
 }
 
 export function Live2DModelViewer({
@@ -41,12 +66,15 @@ export function Live2DModelViewer({
   bubbleMaxWidth,
   specifiedWidth,
   onModelLoaded,
+  onModelInfoUpdate,
   audioData,
   onAudioEnd,
+  modelRef: externalModelRef,
 }: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
-  const modelRef = useRef<Live2DModel | null>(null);
+  const internalModelRef = useRef<Live2DModel | null>(null);
+  const modelRef = externalModelRef || internalModelRef;
   const [modelId] = useState(() => `model-${Date.now()}`);
   const currentAudioUrlRef = useRef<string | null>(null);
   const isMouseInViewRef = useRef(false);
@@ -198,6 +226,128 @@ export function Live2DModelViewer({
 
             // Store model reference
             modelRef.current = model;
+
+            // Extract model information
+            const extractModelInfo = () => {
+              const parameters: ModelParameter[] = [];
+              const motions: ModelMotion[] = [];
+              const expressions: ModelExpression[] = [];
+
+              try {
+                // Extract parameters
+                if (model.internalModel && model.internalModel.coreModel) {
+                  const coreModel = model.internalModel.coreModel as any;
+                  const paramCount = coreModel.getParameterCount?.() || 0;
+
+                  for (let i = 0; i < paramCount; i++) {
+                    // Get parameter ID - this should return the actual parameter name
+                    let paramId = "";
+                    try {
+                      // Try different methods to get the parameter ID
+                      if (coreModel._parameterIds && coreModel._parameterIds[i]) {
+                        paramId = coreModel._parameterIds[i];
+                      } else if (coreModel.getParameterId) {
+                        paramId = coreModel.getParameterId(i);
+                      } else if (coreModel._model && coreModel._model._parameterIds) {
+                        paramId = coreModel._model._parameterIds[i];
+                      } else {
+                        paramId = `param_${i}`;
+                      }
+                    } catch (e) {
+                      paramId = `param_${i}`;
+                    }
+
+                    const value = coreModel.getParameterValueByIndex?.(i) || 0;
+                    const min = coreModel.getParameterMinimumValueByIndex?.(i) || 0;
+                    const max = coreModel.getParameterMaximumValueByIndex?.(i) || 1;
+                    const defaultValue = coreModel.getParameterDefaultValueByIndex?.(i) || 0;
+
+                    parameters.push({
+                      id: String(i), // Use index as ID
+                      name: paramId, // Use the actual parameter name
+                      value,
+                      min,
+                      max,
+                      default: defaultValue,
+                    });
+                  }
+                }
+
+                // Extract motions from motion manager
+                if (model.internalModel && model.internalModel.motionManager) {
+                  const motionManager = model.internalModel.motionManager as any;
+                  const motionGroups = motionManager.motionGroups || {};
+
+                  for (const [group, groupMotions] of Object.entries(motionGroups)) {
+                    if (Array.isArray(groupMotions)) {
+                      groupMotions.forEach((motion, index) => {
+                        motions.push({
+                          group,
+                          index,
+                          name: `${group}_${index}`,
+                        });
+                      });
+                    }
+                  }
+
+                  // Also check definitions if available
+                  if (motionManager.definitions) {
+                    for (const [group, groupDefs] of Object.entries(motionManager.definitions)) {
+                      if (Array.isArray(groupDefs)) {
+                        groupDefs.forEach((def: any, index) => {
+                          // Avoid duplicates
+                          const exists = motions.find(
+                            (m) => m.group === group && m.index === index,
+                          );
+                          if (!exists) {
+                            motions.push({
+                              group,
+                              index,
+                              name: def.file || `${group}_${index}`,
+                            });
+                          }
+                        });
+                      }
+                    }
+                  }
+                }
+
+                // Extract expressions from expression manager
+                if (model.internalModel && model.internalModel.expressionManager) {
+                  const expressionManager = model.internalModel.expressionManager as any;
+                  const expressionDefinitions =
+                    expressionManager.definitions || expressionManager.expressions || {};
+
+                  for (const expName of Object.keys(expressionDefinitions)) {
+                    expressions.push({ name: expName });
+                  }
+
+                  // Also check expression list if available
+                  if (expressionManager.expressionList) {
+                    expressionManager.expressionList.forEach((exp: any) => {
+                      const name = exp.name || exp.Name || exp.file;
+                      if (name && !expressions.find((e) => e.name === name)) {
+                        expressions.push({ name });
+                      }
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error("Error extracting model info:", error);
+              }
+
+              // Send info to parent
+              if (onModelInfoUpdate) {
+                onModelInfoUpdate({
+                  parameters,
+                  motions,
+                  expressions,
+                });
+              }
+            };
+
+            // Extract model info
+            extractModelInfo();
 
             // 正面を向かせる関数
             const lookForward = () => {
