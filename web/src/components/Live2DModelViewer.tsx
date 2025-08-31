@@ -48,6 +48,13 @@ export interface ModelMotion {
   name: string;
 }
 
+// Live2D Model3 Group定義
+interface Live2DModelGroup {
+  Name?: string;
+  name?: string;
+  Ids?: string[];
+}
+
 export interface ModelExpression {
   name: string;
 }
@@ -102,9 +109,8 @@ export function Live2DModelViewer({
 
   // Audio playback using speak method
   useEffect(() => {
-    if (modelRef.current && audioData) {
-      const model = modelRef.current;
-
+    const model = modelRef.current;
+    if (model && audioData) {
       // Convert base64 to blob URL
       try {
         // Stop current speaking if any
@@ -155,15 +161,16 @@ export function Live2DModelViewer({
 
     // Cleanup on unmount or when audioData changes
     return () => {
-      if (modelRef.current) {
-        modelRef.current.stopSpeaking();
+      const currentModel = modelRef.current;
+      if (currentModel) {
+        currentModel.stopSpeaking();
       }
       if (currentAudioUrlRef.current) {
         URL.revokeObjectURL(currentAudioUrlRef.current);
         currentAudioUrlRef.current = null;
       }
     };
-  }, [audioData, onAudioEnd]);
+  }, [audioData, onAudioEnd, modelRef]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -246,7 +253,8 @@ export function Live2DModelViewer({
             });
 
             // Store model reference
-            modelRef.current = model;
+            const currentModelRef = modelRef;
+            currentModelRef.current = model;
 
             // Extract model information
             const extractModelInfo = () => {
@@ -400,7 +408,8 @@ export function Live2DModelViewer({
                     // model3.jsonの設定からGroupsを取得
                     if (model.internalModel?.settings?.groups) {
                       const focusGroup = model.internalModel.settings.groups.find(
-                        (g: any) => g.Name === GROUP_NAME_FOCUS || g.name === GROUP_NAME_FOCUS,
+                        (g: Live2DModelGroup) =>
+                          g.Name === GROUP_NAME_FOCUS || g.name === GROUP_NAME_FOCUS,
                       );
                       if (focusGroup?.Ids) {
                         focusParams = focusGroup.Ids;
@@ -505,15 +514,16 @@ export function Live2DModelViewer({
       if (model) {
         model.destroy();
       }
-      if (modelRef.current) {
-        modelRef.current = null;
+      const currentModelRef = modelRef;
+      if (currentModelRef.current) {
+        currentModelRef.current = null;
       }
       if (appRef.current) {
         appRef.current.destroy(true);
         appRef.current = null;
       }
     };
-  }, [width, height, onModelLoaded, onModelInfoUpdate]);
+  }, [width, height, onModelLoaded, onModelInfoUpdate, modelRef]);
 
   const modelContent = (
     <Box

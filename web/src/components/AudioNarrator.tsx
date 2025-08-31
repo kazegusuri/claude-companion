@@ -31,53 +31,9 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
   const audioPlayer = useRef<AudioPlayer | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isProcessingQueue = useRef(false);
+  const processNextInQueueRef = useRef<() => Promise<void>>();
 
-  // Initialize services
-  useEffect(() => {
-    // Clean up any existing connections first
-    if (wsClient.current) {
-      wsClient.current.disconnect();
-      wsClient.current = null;
-    }
-    if (audioPlayer.current) {
-      audioPlayer.current.stop();
-      audioPlayer.current = null;
-    }
-
-    // Create WebSocket client
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
-    wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
-
-    // Don't create audio player here - create it when needed
-
-    // Connect to WebSocket
-    wsClient.current.connect();
-
-    // Cleanup on unmount
-    return () => {
-      if (wsClient.current) {
-        wsClient.current.disconnect();
-        wsClient.current = null;
-      }
-      if (audioPlayer.current) {
-        audioPlayer.current.stop();
-        audioPlayer.current = null;
-      }
-    };
-  }, [handleWebSocketMessage]); // Remove isAudioInitialized from dependencies to prevent re-initialization
-
-  // Handle volume changes
-  useEffect(() => {
-    audioPlayer.current?.setVolume(volume);
-  }, [volume]);
-
-  // Process audio queue
-  useEffect(() => {
-    if (audioQueue.length > 0 && !isProcessingQueue.current) {
-      processNextInQueue();
-    }
-  }, [audioQueue, processNextInQueue]);
-
+  // Define handleWebSocketMessage first
   const handleWebSocketMessage = useCallback((message: ChatMessage) => {
     // Add to message history (check for duplicates)
     setMessages((prev) => {
@@ -121,7 +77,8 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
     }, 100);
   }, []);
 
-  const processNextInQueue = async () => {
+  // Define processNextInQueue with useCallback
+  const processNextInQueue = useCallback(async () => {
     if (isProcessingQueue.current || audioQueue.length === 0) {
       return;
     }
@@ -172,7 +129,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
 
             // Process next item if available
             if (audioQueue.length > 1) {
-              setTimeout(processNextInQueue, 100);
+              setTimeout(() => processNextInQueueRef.current?.(), 100);
             }
           },
           onVolumeUpdate: (volume) => {
@@ -199,7 +156,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
 
             // Process next item if available
             if (audioQueue.length > 1) {
-              setTimeout(processNextInQueue, 100);
+              setTimeout(() => processNextInQueueRef.current?.(), 100);
             }
           },
         });
@@ -215,7 +172,56 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
       setAudioQueue((prev) => prev.slice(1));
       isProcessingQueue.current = false;
     }
-  };
+  }, [audioQueue, isAudioEnabled, volume, onLipSyncUpdate]);
+
+  // Store processNextInQueue in ref
+  processNextInQueueRef.current = processNextInQueue;
+
+  // Initialize services
+  useEffect(() => {
+    // Clean up any existing connections first
+    if (wsClient.current) {
+      wsClient.current.disconnect();
+      wsClient.current = null;
+    }
+    if (audioPlayer.current) {
+      audioPlayer.current.stop();
+      audioPlayer.current = null;
+    }
+
+    // Create WebSocket client
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
+    wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
+
+    // Don't create audio player here - create it when needed
+
+    // Connect to WebSocket
+    wsClient.current.connect();
+
+    // Cleanup on unmount
+    return () => {
+      if (wsClient.current) {
+        wsClient.current.disconnect();
+        wsClient.current = null;
+      }
+      if (audioPlayer.current) {
+        audioPlayer.current.stop();
+        audioPlayer.current = null;
+      }
+    };
+  }, [handleWebSocketMessage]); // Remove isAudioInitialized from dependencies to prevent re-initialization
+
+  // Handle volume changes
+  useEffect(() => {
+    audioPlayer.current?.setVolume(volume);
+  }, [volume]);
+
+  // Process audio queue
+  useEffect(() => {
+    if (audioQueue.length > 0 && !isProcessingQueue.current) {
+      processNextInQueue();
+    }
+  }, [audioQueue, processNextInQueue]);
 
   const handleStop = () => {
     audioPlayer.current?.stop();
