@@ -215,7 +215,7 @@ export const MobileDashboard: React.FC = () => {
           useCard={false}
           bubbleMaxWidth={360}
           specifiedWidth={specifiedDimensions.width}
-          audioData={currentAudioData}
+          {...(currentAudioData !== undefined && { audioData: currentAudioData })}
           onAudioEnd={handleAudioEnd}
         />
       </Box>

@@ -193,11 +193,11 @@ export class AudioPlayer {
 
       // Calculate average volume from frequency data
       let sum = 0;
-      const length = this.dataArray.length;
+      const length = this.dataArray?.length || 0;
       for (let i = 0; i < length; i++) {
-        sum += this.dataArray[i];
+        sum += this.dataArray?.[i] || 0;
       }
-      const average = sum / length;
+      const average = length > 0 ? sum / length : 0;
 
       // Normalize to 0-1 range with some scaling for better lip sync
       const normalizedVolume = Math.min(1, (average / 255) * 2);

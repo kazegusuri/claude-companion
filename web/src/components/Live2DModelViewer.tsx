@@ -215,7 +215,7 @@ export function Live2DModelViewer({
               } catch {
                 // face_forward モーションがない場合、パラメータを直接設定
                 if (model.internalModel && model.internalModel.coreModel) {
-                  const coreModel = model.internalModel.coreModel;
+                  const coreModel = model.internalModel.coreModel as any;
 
                   // 顔と目のX,Yパラメータを0に設定
                   const faceParams = [
@@ -238,10 +238,10 @@ export function Live2DModelViewer({
 
                   for (const paramName of faceParams) {
                     try {
-                      const paramIndex = coreModel.getParameterIndex(paramName);
+                      const paramIndex = coreModel.getParameterIndex?.(paramName);
                       if (paramIndex >= 0) {
                         // すべて0にリセット
-                        coreModel.setParameterValueByIndex(paramIndex, 0);
+                        coreModel.setParameterValueByIndex?.(paramIndex, 0);
                       }
                     } catch (e) {
                       // パラメータが存在しない場合はスキップ
@@ -257,9 +257,9 @@ export function Live2DModelViewer({
                   ];
                   for (const paramName of eyeOpenParams) {
                     try {
-                      const paramIndex = coreModel.getParameterIndex(paramName);
+                      const paramIndex = coreModel.getParameterIndex?.(paramName);
                       if (paramIndex >= 0) {
-                        coreModel.setParameterValueByIndex(paramIndex, 1);
+                        coreModel.setParameterValueByIndex?.(paramIndex, 1);
                       }
                     } catch (e) {
                       // パラメータが存在しない場合はスキップ
@@ -395,7 +395,7 @@ export function Live2DModelViewer({
           typewriter={true}
           maxWidth={bubbleMaxWidth || 600}
           isMobile={window.location.pathname === "/mobile"}
-          specifiedWidth={specifiedWidth}
+          {...(specifiedWidth !== undefined && { specifiedWidth })}
           style={{
             zIndex: 1000,
           }}
@@ -416,7 +416,7 @@ export function Live2DModelViewer({
         typewriter={true}
         maxWidth={bubbleMaxWidth || 600}
         isMobile={window.location.pathname === "/mobile"}
-        specifiedWidth={specifiedWidth}
+        {...(specifiedWidth !== undefined && { specifiedWidth })}
       />
     </Box>
   );

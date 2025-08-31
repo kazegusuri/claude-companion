@@ -191,7 +191,7 @@ export const Dashboard: React.FC = () => {
               bubbleSide={bubbleState === "hidden" ? "bottom" : bubbleState}
               useCard={true}
               cardTitle="ASSISTANT"
-              audioData={currentAudioData}
+              {...(currentAudioData !== undefined && { audioData: currentAudioData })}
               onAudioEnd={handleAudioEnd}
             />
           </div>

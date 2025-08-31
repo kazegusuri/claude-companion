@@ -2,10 +2,10 @@ import { useState } from "react";
 import { MantineProvider, createTheme, AppShell, Box } from "@mantine/core";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "@mantine/core/styles.css";
-import { Live2DModelViewer } from "@components/Live2DModelViewer";
 import { AudioNarrator } from "@components/AudioNarrator";
 import { Dashboard } from "./pages/Dashboard";
 import { MobileDashboard } from "./pages/MobileDashboard";
+import { Live2DViewer } from "./pages/Live2DViewer";
 import { AppHeader } from "./components/AppHeader";
 import "./App.css";
 
@@ -30,7 +30,7 @@ function DesktopApp() {
         >
           {currentView === "dashboard" && <Dashboard />}
           {currentView === "narrator" && <AudioNarrator />}
-          {currentView === "live2d" && <Live2DModelViewer width={1000} height={800} />}
+          {currentView === "live2d" && <Live2DViewer />}
         </Box>
       </AppShell.Main>
     </AppShell>
