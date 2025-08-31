@@ -6,7 +6,6 @@ import { ActionIcon, Stack, Tooltip } from "@mantine/core";
 import { IconMessage, IconMessageDown, IconMessageOff } from "@tabler/icons-react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
-import { AudioPlayer } from "../services/AudioPlayer";
 
 type BubbleState = "right" | "bottom" | "hidden";
 
@@ -16,17 +15,15 @@ export const Dashboard: React.FC = () => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [_connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
-  const audioPlayer = useRef<AudioPlayer | null>(null);
   const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
 
   // WebSocketメッセージハンドラー
   const handleWebSocketMessage = useCallback(
     (message: ChatMessage) => {
-      console.log("Received WebSocket message:", message);
-
       // テキストを更新（assistantメッセージのみ）
       if (message.text && message.role === "assistant") {
         setSpeechText(message.text);
@@ -53,6 +50,20 @@ export const Dashboard: React.FC = () => {
     [isAudioEnabled],
   );
 
+  // 音声再生終了時の処理
+  const handleAudioEnd = useCallback(() => {
+    // キューから削除
+    audioQueue.current.shift();
+    setCurrentMessageId(null);
+    setCurrentAudioData(undefined);
+    isProcessingQueue.current = false;
+
+    // 次のアイテムを処理
+    if (audioQueue.current.length > 0) {
+      setTimeout(processAudioQueue, 100);
+    }
+  }, []);
+
   // 音声キューを処理
   const processAudioQueue = async () => {
     if (isProcessingQueue.current || audioQueue.current.length === 0) {
@@ -61,6 +72,7 @@ export const Dashboard: React.FC = () => {
 
     if (!isAudioEnabled) {
       audioQueue.current = [];
+      setCurrentAudioData(undefined);
       return;
     }
 
@@ -68,45 +80,9 @@ export const Dashboard: React.FC = () => {
     const message = audioQueue.current[0];
 
     if (message && message.audioData) {
-      // AudioPlayerを初期化
-      if (!audioPlayer.current) {
-        audioPlayer.current = new AudioPlayer();
-        audioPlayer.current.setVolume(1.0);
-      }
-
       setCurrentMessageId(message?.id || null);
-
-      try {
-        await audioPlayer.current.playBase64Audio(message?.audioData || "", {
-          onEnd: () => {
-            // キューから削除
-            audioQueue.current.shift();
-            setCurrentMessageId(null);
-            isProcessingQueue.current = false;
-
-            // 次のアイテムを処理
-            if (audioQueue.current.length > 0) {
-              setTimeout(processAudioQueue, 100);
-            }
-          },
-          onError: (error) => {
-            console.warn("Audio playback error:", error);
-            audioQueue.current.shift();
-            setCurrentMessageId(null);
-            isProcessingQueue.current = false;
-
-            // 次のアイテムを処理
-            if (audioQueue.current.length > 0) {
-              setTimeout(processAudioQueue, 100);
-            }
-          },
-        });
-      } catch (error) {
-        console.error("Failed to play audio:", error);
-        audioQueue.current.shift();
-        isProcessingQueue.current = false;
-        setCurrentMessageId(null);
-      }
+      // Live2DModelViewerのspeakメソッドで再生
+      setCurrentAudioData(message.audioData);
     } else {
       audioQueue.current.shift();
       isProcessingQueue.current = false;
@@ -119,10 +95,6 @@ export const Dashboard: React.FC = () => {
     if (wsClient.current) {
       wsClient.current.disconnect();
       wsClient.current = null;
-    }
-    if (audioPlayer.current) {
-      audioPlayer.current.stop();
-      audioPlayer.current = null;
     }
 
     // WebSocketクライアントを作成
@@ -138,42 +110,18 @@ export const Dashboard: React.FC = () => {
         wsClient.current.disconnect();
         wsClient.current = null;
       }
-      if (audioPlayer.current) {
-        audioPlayer.current.stop();
-        audioPlayer.current = null;
-      }
     };
   }, [handleWebSocketMessage]);
 
   // 音声のトグル
   const handleToggleAudio = async () => {
     if (!isAudioEnabled) {
-      try {
-        // AudioPlayerを初期化
-        if (!audioPlayer.current) {
-          audioPlayer.current = new AudioPlayer();
-          audioPlayer.current.setVolume(1.0);
-        }
-        await audioPlayer.current.ensureInitialized();
-
-        if (audioPlayer.current.isContextSuspended()) {
-          console.warn("AudioContext is suspended");
-          alert("音声を有効にできません。ページをリロードしてください。");
-          return;
-        }
-
-        setIsAudioEnabled(true);
-        console.log("Audio enabled");
-      } catch (error) {
-        console.error("Failed to enable audio:", error);
-        alert("音声の初期化に失敗しました。");
-      }
+      setIsAudioEnabled(true);
     } else {
       setIsAudioEnabled(false);
-      audioPlayer.current?.stop();
       audioQueue.current = [];
       setCurrentMessageId(null);
-      console.log("Audio disabled");
+      setCurrentAudioData(undefined);
     }
   };
 
@@ -182,13 +130,10 @@ export const Dashboard: React.FC = () => {
     setBubbleState((prev) => {
       switch (prev) {
         case "right":
-          console.log("吹き出しを下側に表示");
           return "bottom";
         case "bottom":
-          console.log("吹き出しを非表示");
           return "hidden";
         case "hidden":
-          console.log("吹き出しを右側に表示");
           return "right";
       }
     });
@@ -246,6 +191,8 @@ export const Dashboard: React.FC = () => {
               bubbleSide={bubbleState === "hidden" ? "bottom" : bubbleState}
               useCard={true}
               cardTitle="ASSISTANT"
+              audioData={currentAudioData}
+              onAudioEnd={handleAudioEnd}
             />
           </div>
           <div

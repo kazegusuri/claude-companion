@@ -24,6 +24,9 @@ interface Live2DModelViewerProps {
   stageType?: StageType;
   bubbleMaxWidth?: number;
   specifiedWidth?: number;
+  onModelLoaded?: (model: Live2DModel) => void;
+  audioData?: string; // Base64 encoded audio data
+  onAudioEnd?: () => void;
 }
 
 export function Live2DModelViewer({
@@ -37,10 +40,80 @@ export function Live2DModelViewer({
   stageType = "gold-card",
   bubbleMaxWidth,
   specifiedWidth,
+  onModelLoaded,
+  audioData,
+  onAudioEnd,
 }: Live2DModelViewerProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
+  const modelRef = useRef<Live2DModel | null>(null);
   const [modelId] = useState(() => `model-${Date.now()}`);
+  const currentAudioUrlRef = useRef<string | null>(null);
+
+  // Audio playback using speak method
+  useEffect(() => {
+    if (modelRef.current && audioData) {
+      const model = modelRef.current;
+
+      // Convert base64 to blob URL
+      try {
+        // Stop current speaking if any
+        model.stopSpeaking();
+
+        // Clean up previous audio URL
+        if (currentAudioUrlRef.current) {
+          URL.revokeObjectURL(currentAudioUrlRef.current);
+          currentAudioUrlRef.current = null;
+        }
+
+        // Convert base64 to blob
+        const byteCharacters = atob(audioData.split(",")[1] || audioData);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: "audio/wav" });
+        const audioUrl = URL.createObjectURL(blob);
+        currentAudioUrlRef.current = audioUrl;
+
+        // Use speak method for lip sync
+        model.speak(audioUrl, {
+          volume: 1.0,
+          onFinish: () => {
+            if (currentAudioUrlRef.current) {
+              URL.revokeObjectURL(currentAudioUrlRef.current);
+              currentAudioUrlRef.current = null;
+            }
+            onAudioEnd?.();
+          },
+          onError: (error) => {
+            console.error("Error playing audio with speak:", error);
+            if (currentAudioUrlRef.current) {
+              URL.revokeObjectURL(currentAudioUrlRef.current);
+              currentAudioUrlRef.current = null;
+            }
+            onAudioEnd?.();
+          },
+          crossOrigin: "anonymous",
+        });
+      } catch (error) {
+        console.error("Error converting audio data:", error);
+        onAudioEnd?.();
+      }
+    }
+
+    // Cleanup on unmount or when audioData changes
+    return () => {
+      if (modelRef.current) {
+        modelRef.current.stopSpeaking();
+      }
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current);
+        currentAudioUrlRef.current = null;
+      }
+    };
+  }, [audioData, onAudioEnd]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -113,33 +186,27 @@ export function Live2DModelViewer({
             model.x = (containerWidth - scaledWidth) / 2;
             model.y = (containerHeight - scaledHeight) / 2 + containerHeight * 0.05; // 5%下にオフセット
 
-            console.log("Model dimensions:", {
-              containerWidth,
-              containerHeight,
-              originalWidth: modelWidth,
-              originalHeight: modelHeight,
-              scaledWidth,
-              scaledHeight,
-              scale,
-              x: model.x,
-              y: model.y,
-            });
-
             // インタラクション設定
             model.on("hit", (hitAreas: string[]) => {
-              console.log("Hit areas:", hitAreas);
               // タップされた部位に応じてモーションを再生
               if (hitAreas.includes("Body")) {
                 model?.motion("Tap");
               }
             });
 
+            // Store model reference
+            modelRef.current = model;
+
+            // Call callback if provided
+            if (onModelLoaded) {
+              onModelLoaded(model);
+            }
+
             // アイドルモーションを開始
             model.motion("Idle");
           }
         } catch (error) {
-          console.log("No model found or error loading model:", error);
-          // モデルが見つからない場合は何も表示しない
+          // モデルが見つからない場合は何も表示しない（エラーは出力しない）
         }
       } catch (error) {
         console.error("Failed to initialize Live2D viewer:", error);
@@ -152,12 +219,15 @@ export function Live2DModelViewer({
       if (model) {
         model.destroy();
       }
+      if (modelRef.current) {
+        modelRef.current = null;
+      }
       if (appRef.current) {
         appRef.current.destroy(true);
         appRef.current = null;
       }
     };
-  }, [width, height]);
+  }, [width, height, onModelLoaded]);
 
   const modelContent = (
     <Box

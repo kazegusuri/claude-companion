@@ -11,7 +11,7 @@ import {
   Textarea,
   ActionIcon,
 } from "@mantine/core";
-import { IconSend, IconCheck, IconX } from "@tabler/icons-react";
+import { IconSend, IconCheck, IconX, IconVolume, IconVolumeOff } from "@tabler/icons-react";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 import type { ConnectionStatus, ChatMessage } from "../services/WebSocketClient";
 
@@ -30,6 +30,8 @@ interface ChatDisplayProps {
   variant?: "default" | "mobile";
   maxDisplayMessages?: number;
   showInput?: boolean;
+  onAudioToggle?: () => void;
+  isAudioEnabled?: boolean;
 }
 
 export const ChatDisplay: React.FC<ChatDisplayProps> = ({
@@ -38,6 +40,8 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
   variant = "default",
   maxDisplayMessages,
   showInput = true,
+  onAudioToggle,
+  isAudioEnabled = false,
 }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
@@ -62,12 +66,9 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
     wsClient.current = new WebSocketAudioClient(
       wsUrl,
       (message: ChatMessage) => {
-        console.log("Received WebSocket message:", message);
-
         // Track sessionId from any message that has it
         if (message.metadata?.sessionId) {
           setCurrentSessionId(message.metadata.sessionId);
-          console.log("Session ID received:", message.metadata.sessionId);
         }
 
         // Add to message history with max limit
@@ -286,6 +287,17 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                     ? "再接続待機中"
                     : connectionStatus}
           </Badge>
+          {variant === "mobile" && onAudioToggle && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color={isAudioEnabled ? "green" : "gray"}
+              onClick={onAudioToggle}
+              title={isAudioEnabled ? "音声出力ON" : "音声出力OFF"}
+            >
+              {isAudioEnabled ? <IconVolume size={16} /> : <IconVolumeOff size={16} />}
+            </ActionIcon>
+          )}
           {variant !== "mobile" && messages.length > 0 && (
             <Badge color="gray" variant="light" size="sm">
               メッセージ: {messages.length}/{MAX_MESSAGES}
