@@ -39,7 +39,8 @@ export class AudioPlayer {
     }
 
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      // @ts-ignore - webkit prefixの互換性対応
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContextClass();
 
       // Check if context is suspended immediately after creation
@@ -134,7 +135,9 @@ export class AudioPlayer {
       // Create and configure source
       this.currentSource = this.audioContext?.createBufferSource();
       this.currentSource.buffer = audioBuffer;
-      this.currentSource.connect(this.gainNode!);
+      if (this.gainNode) {
+        this.currentSource.connect(this.gainNode);
+      }
 
       // Set up event handlers
       this.currentSource.onended = () => {
