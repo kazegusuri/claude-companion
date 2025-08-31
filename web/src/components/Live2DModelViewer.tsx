@@ -13,6 +13,26 @@ declare global {
   }
 }
 
+// グループ名の定数
+const GROUP_NAME_FOCUS = "Focus";
+
+// モーション名の定数
+const MOTION_IDLE = "Idle";
+const MOTION_TAP = "Tap";
+const MOTION_FACE_FORWARD = "FaceForward";
+
+// デフォルトのフォーカスパラメータ
+const DEFAULT_FOCUS_PARAMS = [
+  "ParamAngleX",
+  "ParamAngleY",
+  "ParamAngleZ",
+  "ParamEyeBallX",
+  "ParamEyeBallY",
+  "ParamBodyAngleX",
+  "ParamBodyAngleY",
+  "ParamBodyAngleZ",
+];
+
 export interface ModelParameter {
   id: string;
   name: string;
@@ -220,7 +240,7 @@ export function Live2DModelViewer({
             model.on("hit", (hitAreas: string[]) => {
               // タップされた部位に応じてモーションを再生
               if (hitAreas.includes("Body")) {
-                model?.motion("Tap");
+                model?.motion(MOTION_TAP);
               }
             });
 
@@ -361,55 +381,41 @@ export function Live2DModelViewer({
               // face_forward モーションがあるか確認
               try {
                 // モーションを試行
-                model.motion("face_forward");
+                model.motion(MOTION_FACE_FORWARD);
               } catch {
                 // face_forward モーションがない場合、パラメータを直接設定
                 if (model.internalModel && model.internalModel.coreModel) {
                   const coreModel = model.internalModel.coreModel as any;
 
-                  // 顔と目のX,Yパラメータを0に設定
-                  const faceParams = [
-                    "ParamAngleX",
-                    "ParamAngleY",
-                    "ParamAngleZ", // 顔の向き
-                    "ParamEyeBallX",
-                    "ParamEyeBallY", // 目の向き
-                    "ParamBodyAngleX",
-                    "ParamBodyAngleY",
-                    "ParamBodyAngleZ", // 体の向き
-                    "PARAM_ANGLE_X",
-                    "PARAM_ANGLE_Y",
-                    "PARAM_ANGLE_Z", // Cubism2用
-                    "PARAM_EYE_BALL_X",
-                    "PARAM_EYE_BALL_Y", // Cubism2用
-                    "PARAM_BODY_ANGLE_X",
-                    "PARAM_BODY_ANGLE_Y", // Cubism2用
-                  ];
+                  // まずGroupから"Focus"グループのパラメータを取得を試みる
+                  let focusParams: string[] = [];
+                  try {
+                    // model3.jsonの設定からGroupsを取得
+                    if (model.internalModel?.settings?.groups) {
+                      const focusGroup = model.internalModel.settings.groups.find(
+                        (g: any) => g.Name === GROUP_NAME_FOCUS || g.name === GROUP_NAME_FOCUS,
+                      );
+                      if (focusGroup && focusGroup.Ids) {
+                        focusParams = focusGroup.Ids;
+                        console.log("Focus group parameters from model3.json:", focusParams);
+                      }
+                    }
+                  } catch (e) {
+                    console.log("Could not retrieve Focus group from model settings");
+                  }
 
-                  for (const paramName of faceParams) {
+                  // Focusグループが見つからない場合はデフォルトのパラメータを使用
+                  if (focusParams.length === 0) {
+                    focusParams = DEFAULT_FOCUS_PARAMS;
+                  }
+
+                  // パラメータをリセット
+                  for (const paramName of focusParams) {
                     try {
                       const paramIndex = coreModel.getParameterIndex?.(paramName);
                       if (paramIndex >= 0) {
                         // すべて0にリセット
                         coreModel.setParameterValueByIndex?.(paramIndex, 0);
-                      }
-                    } catch (e) {
-                      // パラメータが存在しない場合はスキップ
-                    }
-                  }
-
-                  // 目の開きは1に設定
-                  const eyeOpenParams = [
-                    "ParamEyeLOpen",
-                    "ParamEyeROpen",
-                    "PARAM_EYE_L_OPEN",
-                    "PARAM_EYE_R_OPEN",
-                  ];
-                  for (const paramName of eyeOpenParams) {
-                    try {
-                      const paramIndex = coreModel.getParameterIndex?.(paramName);
-                      if (paramIndex >= 0) {
-                        coreModel.setParameterValueByIndex?.(paramIndex, 1);
                       }
                     } catch (e) {
                       // パラメータが存在しない場合はスキップ
@@ -469,7 +475,7 @@ export function Live2DModelViewer({
             }
 
             // アイドルモーションを開始
-            model.motion("Idle");
+            model.motion(MOTION_IDLE);
           }
         } catch (error) {
           // モデルが見つからない場合は何も表示しない（エラーは出力しない）
