@@ -48,7 +48,7 @@ export const Live2DControls: React.FC<Live2DControlsProps> = ({
       if (!acc[motion.group]) {
         acc[motion.group] = [];
       }
-      acc[motion.group].push(motion);
+      acc[motion.group]?.push(motion);
       return acc;
     },
     {} as Record<string, typeof motions>,
@@ -128,7 +128,7 @@ export const Live2DControls: React.FC<Live2DControlsProps> = ({
             offsetScrollbars
             scrollbarSize={8}
           >
-            <Table striped highlightOnHover fontSize="xs">
+            <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>パラメータ名</Table.Th>

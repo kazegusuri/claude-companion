@@ -62,8 +62,12 @@ This ensures all web code follows Biome formatting conventions.
 Before committing any changes to web files, you MUST run:
 ```bash
 cd web
-bun run check   # Run Biome linting
-bun run format  # Apply Biome formatting
+bun run typecheck  # Run TypeScript type checking
+bun run check      # Run Biome linting
+bun run format     # Apply Biome formatting
+
+# Or run all checks at once:
+bun run check:all  # Run both TypeScript and Biome checks
 ```
 
 #### Testing
@@ -84,6 +88,6 @@ test("hello world", () => {
    - For Web files: `cd web && bun run format`
 3. Run checks before committing:
    - For Go files: `make test`
-   - For Web files: `cd web && bun run check && bun run format`
+   - For Web files: `cd web && bun run check:all && bun run format`
 4. Ensure all checks pass
 5. Commit with meaningful commit messages

@@ -133,23 +133,27 @@ export class AudioPlayer {
       const audioBuffer = await this.audioContext?.decodeAudioData(audioData);
 
       // Create and configure source
-      this.currentSource = this.audioContext?.createBufferSource();
-      this.currentSource.buffer = audioBuffer;
-      if (this.gainNode) {
+      this.currentSource = this.audioContext?.createBufferSource() || null;
+      if (this.currentSource && audioBuffer) {
+        this.currentSource.buffer = audioBuffer;
+      }
+      if (this.currentSource && this.gainNode) {
         this.currentSource.connect(this.gainNode);
       }
 
       // Set up event handlers
-      this.currentSource.onended = () => {
-        this.isPlaying = false;
-        this.currentSource = null;
-        this.stopVolumeMonitoring();
-        options?.onEnd?.();
-      };
+      if (this.currentSource) {
+        this.currentSource.onended = () => {
+          this.isPlaying = false;
+          this.currentSource = null;
+          this.stopVolumeMonitoring();
+          options?.onEnd?.();
+        };
 
-      // Start playback
-      this.isPlaying = true;
-      this.currentSource.start(0);
+        // Start playback
+        this.isPlaying = true;
+        this.currentSource?.start(0);
+      }
 
       // Start volume monitoring for lip sync
       if (options?.onVolumeUpdate) {

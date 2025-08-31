@@ -160,8 +160,8 @@ export function SpeechBubble({
 
       // 画面端でのはみ出しを防ぐ
       const viewportHeight = window.innerHeight;
-      let finalLeft = p.left;
-      let finalTop = p.top;
+      let finalLeft = p?.left ?? 0;
+      let finalTop = p?.top ?? 0;
 
       // モバイルビューの場合は端のチェックをスキップ
       if (!isInMobileView) {

@@ -55,6 +55,56 @@ interface Live2DModelGroup {
   Ids?: string[];
 }
 
+// Live2D内部モデルの型定義
+interface Live2DCoreModel {
+  getParameterCount(): number;
+  getParameterId(index: number): string;
+  getParameterValueByIndex(index: number): number;
+  getParameterMinimumValueByIndex(index: number): number;
+  getParameterMaximumValueByIndex(index: number): number;
+  getParameterDefaultValueByIndex(index: number): number;
+  setParameterValueByIndex(index: number, value: number): void;
+  getParameterIndex(id: string): number;
+  _parameterIds?: string[];
+  _model?: {
+    getParameterCount(): number;
+    getParameterId(index: number): string;
+    getParameterValueByIndex(index: number): number;
+    getParameterMinimumValueByIndex(index: number): number;
+    getParameterMaximumValueByIndex(index: number): number;
+    getParameterDefaultValueByIndex(index: number): number;
+    setParameterValueByIndex(index: number, value: number): void;
+    getParameterIndex(id: string): number;
+    _parameterIds?: string[];
+  };
+}
+
+// Motion Manager型定義
+interface MotionManager {
+  motionGroups?: Record<string, unknown[]>;
+  definitions?: Record<string, unknown[]>;
+}
+
+// Expression Manager型定義
+interface ExpressionManager {
+  definitions?: Record<string, unknown>;
+  expressions?: Record<string, unknown>;
+  expressionList?: Array<{
+    name?: string;
+    Name?: string;
+    file?: string;
+  }>;
+}
+
+interface ExtendedInternalModel {
+  coreModel?: Live2DCoreModel;
+  motionManager?: MotionManager;
+  expressionManager?: ExpressionManager;
+  settings?: {
+    groups?: Live2DModelGroup[];
+  };
+}
+
 export interface ModelExpression {
   name: string;
 }
@@ -219,8 +269,7 @@ export function Live2DModelViewer({
             model = await Live2DModel.from(modelPath);
 
             // モデルをステージに追加（サイズ計算のため先に追加）
-            // @ts-expect-error - PIXI.Container型の互換性の問題
-            app.stage.addChild(model);
+            app.stage.addChild(model as unknown as PIXI.DisplayObject);
 
             // モデルのバウンディングボックスを取得
             const bounds = model.getLocalBounds();
@@ -264,9 +313,8 @@ export function Live2DModelViewer({
 
               try {
                 // Extract parameters
-                if (model.internalModel?.coreModel) {
-                  // @ts-expect-error - Live2D内部APIアクセス
-                  const coreModel = model.internalModel.coreModel;
+                if (model?.internalModel?.coreModel) {
+                  const coreModel = model.internalModel.coreModel as Live2DCoreModel;
                   const paramCount = coreModel.getParameterCount?.() || 0;
 
                   for (let i = 0; i < paramCount; i++) {
@@ -275,11 +323,11 @@ export function Live2DModelViewer({
                     try {
                       // Try different methods to get the parameter ID
                       if (coreModel._parameterIds?.[i]) {
-                        paramId = coreModel._parameterIds[i];
+                        paramId = coreModel._parameterIds[i] || `param_${i}`;
                       } else if (coreModel.getParameterId) {
                         paramId = coreModel.getParameterId(i);
-                      } else if (coreModel._model?._parameterIds) {
-                        paramId = coreModel._model._parameterIds[i];
+                      } else if (coreModel._model?._parameterIds?.[i]) {
+                        paramId = coreModel._model._parameterIds[i] || `param_${i}`;
                       } else {
                         paramId = `param_${i}`;
                       }
@@ -304,8 +352,7 @@ export function Live2DModelViewer({
                 }
 
                 // Extract motions from motion manager
-                if (model.internalModel?.motionManager) {
-                  // @ts-expect-error - Live2D内部APIアクセス
+                if (model?.internalModel?.motionManager) {
                   const motionManager = model.internalModel.motionManager;
                   const motionGroups = motionManager.motionGroups || {};
 
@@ -325,8 +372,7 @@ export function Live2DModelViewer({
                   if (motionManager.definitions) {
                     for (const [group, groupDefs] of Object.entries(motionManager.definitions)) {
                       if (Array.isArray(groupDefs)) {
-                        // @ts-expect-error - Live2D内部APIアクセス
-                        groupDefs.forEach((def, index) => {
+                        groupDefs.forEach((_def, index) => {
                           // Avoid duplicates
                           const exists = motions.find(
                             (m) => m.group === group && m.index === index,
@@ -335,7 +381,7 @@ export function Live2DModelViewer({
                             motions.push({
                               group,
                               index,
-                              name: def.file || `${group}_${index}`,
+                              name: `${group}_${index}`,
                             });
                           }
                         });
@@ -345,9 +391,9 @@ export function Live2DModelViewer({
                 }
 
                 // Extract expressions from expression manager
-                if (model.internalModel?.expressionManager) {
-                  // @ts-expect-error - Live2D内部APIアクセス
-                  const expressionManager = model.internalModel.expressionManager;
+                const extendedModel = model?.internalModel as ExtendedInternalModel;
+                if (extendedModel?.expressionManager) {
+                  const expressionManager = extendedModel.expressionManager;
                   const expressionDefinitions =
                     expressionManager.definitions || expressionManager.expressions || {};
 
@@ -357,7 +403,6 @@ export function Live2DModelViewer({
 
                   // Also check expression list if available
                   if (expressionManager.expressionList) {
-                    // @ts-expect-error - Live2D内部APIアクセス
                     expressionManager.expressionList.forEach((exp) => {
                       const name = exp.name || exp.Name || exp.file;
                       if (name && !expressions.find((e) => e.name === name)) {
@@ -399,15 +444,15 @@ export function Live2DModelViewer({
               } catch {
                 // face_forward モーションがない場合、パラメータを直接設定
                 if (model.internalModel?.coreModel) {
-                  // @ts-expect-error - Live2D内部APIアクセス
-                  const coreModel = model.internalModel.coreModel;
+                  const coreModel = model.internalModel.coreModel as Live2DCoreModel;
 
                   // まずGroupから"Focus"グループのパラメータを取得を試みる
                   let focusParams: string[] = [];
                   try {
                     // model3.jsonの設定からGroupsを取得
-                    if (model.internalModel?.settings?.groups) {
-                      const focusGroup = model.internalModel.settings.groups.find(
+                    const extendedModel = model.internalModel as ExtendedInternalModel;
+                    if (extendedModel?.settings?.groups) {
+                      const focusGroup = extendedModel.settings.groups.find(
                         (g: Live2DModelGroup) =>
                           g.Name === GROUP_NAME_FOCUS || g.name === GROUP_NAME_FOCUS,
                       );

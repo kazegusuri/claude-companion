@@ -10,6 +10,8 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
+    "typecheck": "tsc -b --noEmit",
+    "check:all": "bun run typecheck && bun run check",
     "preview": "bunx --bun vite preview",
     "serve": "bunx --bun vite preview --port 3001",
     "start": "bun run build && bun run serve",
