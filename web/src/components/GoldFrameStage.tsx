@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type React from "react";
 
 type Props = {
@@ -19,6 +20,11 @@ const GoldFrameStage: React.FC<Props> = ({
   className,
   children,
 }) => {
+  const id = useId();
+  const goldGradientId = `${id}-gold`;
+  const goldThinGradientId = `${id}-goldThin`;
+  const bgGradientId = `${id}-bgGradient`;
+
   // --- 基本寸法（SVG座標） ---
   // canvas: 360x480
   // フレームのマージン: 16px
@@ -104,7 +110,7 @@ const GoldFrameStage: React.FC<Props> = ({
         >
           <defs>
             {/* 金グラデ（外枠/プレート用） */}
-            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+            <linearGradient id={goldGradientId} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stopColor="#6b5120" />
               <stop offset="0.25" stopColor="#d2b05a" />
               <stop offset="0.5" stopColor="#f6e6b5" />
@@ -112,13 +118,13 @@ const GoldFrameStage: React.FC<Props> = ({
               <stop offset="1" stopColor="#6b5120" />
             </linearGradient>
             {/* 内側（凹ノッチ含む）細線用 */}
-            <linearGradient id="goldThin" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id={goldThinGradientId} x1="0" y1="0" x2="1" y2="0">
               <stop offset="0" stopColor="#6b5120" />
               <stop offset="0.5" stopColor="#e9d79f" />
               <stop offset="1" stopColor="#6b5120" />
             </linearGradient>
             {/* 背景のグラデーション（紫、下が明るい） */}
-            <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={bgGradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="#3d3b66" />
               <stop offset="1" stopColor="#5a5682" />
             </linearGradient>
@@ -133,7 +139,7 @@ const GoldFrameStage: React.FC<Props> = ({
               h: inner.h,
               R: inner.r,
             })}
-            fill="url(#bgGradient)"
+            fill={`url(#${bgGradientId})`}
             stroke="none"
           />
 
@@ -147,7 +153,7 @@ const GoldFrameStage: React.FC<Props> = ({
               R: outer.r,
             })}
             fill="none"
-            stroke="url(#gold)"
+            stroke={`url(#${goldGradientId})`}
             strokeWidth={lineW * 0.5}
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -164,7 +170,7 @@ const GoldFrameStage: React.FC<Props> = ({
               R: outerInner.r,
             })}
             fill="none"
-            stroke="url(#goldThin)"
+            stroke={`url(#${goldThinGradientId})`}
             strokeWidth={lineW * 0.6}
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -207,7 +213,7 @@ const GoldFrameStage: React.FC<Props> = ({
                       R: 14,
                     })}
                     fill="none"
-                    stroke="url(#goldThin)"
+                    stroke={`url(#${goldThinGradientId})`}
                     strokeWidth={1.5}
                     vectorEffect="non-scaling-stroke"
                   />
@@ -248,7 +254,7 @@ const GoldFrameStage: React.FC<Props> = ({
                       R: 13,
                     })}
                     fill="none"
-                    stroke="url(#goldThin)"
+                    stroke={`url(#${goldThinGradientId})`}
                     strokeWidth={1}
                     vectorEffect="non-scaling-stroke"
                   />

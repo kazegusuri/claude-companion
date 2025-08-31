@@ -297,7 +297,7 @@ export function Live2DModelViewer({
 
                 // Extract motions from motion manager
                 if (model.internalModel?.motionManager) {
-                  // @ts-expect-error - Live2D内部APIアクセス  
+                  // @ts-expect-error - Live2D内部APIアクセス
                   const motionManager = model.internalModel.motionManager;
                   const motionGroups = motionManager.motionGroups || {};
 

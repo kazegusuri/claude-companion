@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AudioPlayer } from "../services/AudioPlayer";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
@@ -18,6 +18,7 @@ interface AudioNarratorProps {
 }
 
 export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate }) => {
+  const volumeId = useId();
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -302,10 +303,19 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
           >
             {isAudioEnabled ? "🔊 音声ON" : "🔇 音声OFF"}
           </button>
-          <button type="button" onClick={handleStop} disabled={!isPlaying} className="control-button stop-button">
+          <button
+            type="button"
+            onClick={handleStop}
+            disabled={!isPlaying}
+            className="control-button stop-button"
+          >
             {isPlaying ? "■ 停止" : "■ 停止"}
           </button>
-          <button type="button" onClick={handleClearHistory} className="control-button clear-button">
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            className="control-button clear-button"
+          >
             履歴クリア
           </button>
         </div>
@@ -313,7 +323,7 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
         <div className="volume-control">
           <label htmlFor="volume">音量:</label>
           <input
-            id="volume"
+            id={volumeId}
             type="range"
             min="0"
             max="1"
