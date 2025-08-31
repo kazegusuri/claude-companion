@@ -117,7 +117,6 @@ export function Live2DModelViewer({
     };
   }, [audioData, onAudioEnd]);
 
-
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -200,6 +199,76 @@ export function Live2DModelViewer({
             // Store model reference
             modelRef.current = model;
 
+            // 正面を向かせる関数
+            const lookForward = () => {
+              if (!model) return;
+
+              // まずFocusControllerを直接リセット
+              if (model.internalModel && model.internalModel.focusController) {
+                model.internalModel.focusController.focus(0, 0, true); // instant=true で即座に適用
+              }
+
+              // face_forward モーションがあるか確認
+              try {
+                // モーションを試行
+                model.motion("face_forward");
+              } catch {
+                // face_forward モーションがない場合、パラメータを直接設定
+                if (model.internalModel && model.internalModel.coreModel) {
+                  const coreModel = model.internalModel.coreModel;
+
+                  // 顔と目のX,Yパラメータを0に設定
+                  const faceParams = [
+                    "ParamAngleX",
+                    "ParamAngleY",
+                    "ParamAngleZ", // 顔の向き
+                    "ParamEyeBallX",
+                    "ParamEyeBallY", // 目の向き
+                    "ParamBodyAngleX",
+                    "ParamBodyAngleY",
+                    "ParamBodyAngleZ", // 体の向き
+                    "PARAM_ANGLE_X",
+                    "PARAM_ANGLE_Y",
+                    "PARAM_ANGLE_Z", // Cubism2用
+                    "PARAM_EYE_BALL_X",
+                    "PARAM_EYE_BALL_Y", // Cubism2用
+                    "PARAM_BODY_ANGLE_X",
+                    "PARAM_BODY_ANGLE_Y", // Cubism2用
+                  ];
+
+                  for (const paramName of faceParams) {
+                    try {
+                      const paramIndex = coreModel.getParameterIndex(paramName);
+                      if (paramIndex >= 0) {
+                        // すべて0にリセット
+                        coreModel.setParameterValueByIndex(paramIndex, 0);
+                      }
+                    } catch (e) {
+                      // パラメータが存在しない場合はスキップ
+                    }
+                  }
+
+                  // 目の開きは1に設定
+                  const eyeOpenParams = [
+                    "ParamEyeLOpen",
+                    "ParamEyeROpen",
+                    "PARAM_EYE_L_OPEN",
+                    "PARAM_EYE_R_OPEN",
+                  ];
+                  for (const paramName of eyeOpenParams) {
+                    try {
+                      const paramIndex = coreModel.getParameterIndex(paramName);
+                      if (paramIndex >= 0) {
+                        coreModel.setParameterValueByIndex(paramIndex, 1);
+                      }
+                    } catch (e) {
+                      // パラメータが存在しない場合はスキップ
+                    }
+                  }
+                }
+              }
+            };
+
             // マウス追跡とフォーカス制御を設定
             const handleMouseMove = (event: MouseEvent) => {
               if (!model || !canvasRef.current) return;
@@ -217,31 +286,31 @@ export function Live2DModelViewer({
                 // カーソルが画面外の場合
                 if (isMouseInViewRef.current) {
                   isMouseInViewRef.current = false;
-                  // 正面を向かせる（中心にフォーカス）
-                  model.focus(rect.width / 2, rect.height / 2);
+                  // 正面を向かせる
+                  lookForward();
                 }
               }
             };
 
             const handleMouseLeave = () => {
               if (!model || !canvasRef.current) return;
+
               isMouseInViewRef.current = false;
-              
+
               // マウスが画面外に出たら正面を向かせる
-              const rect = canvasRef.current.getBoundingClientRect();
-              model.focus(rect.width / 2, rect.height / 2);
+              lookForward();
             };
 
             // イベントリスナーを追加
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseleave', handleMouseLeave);
-            document.addEventListener('mouseleave', handleMouseLeave);
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseleave", handleMouseLeave);
+            document.addEventListener("mouseleave", handleMouseLeave);
 
             // クリーンアップ関数を保存
             mouseEventCleanupRef.current = () => {
-              window.removeEventListener('mousemove', handleMouseMove);
-              window.removeEventListener('mouseleave', handleMouseLeave);
-              document.removeEventListener('mouseleave', handleMouseLeave);
+              window.removeEventListener("mousemove", handleMouseMove);
+              window.removeEventListener("mouseleave", handleMouseLeave);
+              document.removeEventListener("mouseleave", handleMouseLeave);
             };
 
             // Call callback if provided
@@ -263,13 +332,13 @@ export function Live2DModelViewer({
     // クリーンアップ
     return () => {
       clearTimeout(initTimeout);
-      
+
       // イベントリスナーを削除
       if (mouseEventCleanupRef.current) {
         mouseEventCleanupRef.current();
         mouseEventCleanupRef.current = null;
       }
-      
+
       if (model) {
         model.destroy();
       }
