@@ -296,15 +296,16 @@ export const AudioNarrator: React.FC<AudioNarratorProps> = ({ onLipSyncUpdate })
       <div className="narrator-controls">
         <div className="playback-controls">
           <button
+            type="button"
             onClick={handleToggleAudio}
             className={`control-button toggle-audio-button ${isAudioEnabled ? "enabled" : "disabled"}`}
           >
             {isAudioEnabled ? "🔊 音声ON" : "🔇 音声OFF"}
           </button>
-          <button onClick={handleStop} disabled={!isPlaying} className="control-button stop-button">
+          <button type="button" onClick={handleStop} disabled={!isPlaying} className="control-button stop-button">
             {isPlaying ? "■ 停止" : "■ 停止"}
           </button>
-          <button onClick={handleClearHistory} className="control-button clear-button">
+          <button type="button" onClick={handleClearHistory} className="control-button clear-button">
             履歴クリア
           </button>
         </div>
@@ -371,7 +372,7 @@ const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({ status, onRec
       <span className="status-dot" style={{ backgroundColor: getStatusColor() }} />
       <span className="status-text">{getStatusText()}</span>
       {(status === "disconnected" || status === "failed") && onReconnect && (
-        <button onClick={onReconnect} className="reconnect-button">
+        <button type="button" onClick={onReconnect} className="reconnect-button">
           再接続
         </button>
       )}

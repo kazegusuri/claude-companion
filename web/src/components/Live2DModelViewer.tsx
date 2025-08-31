@@ -212,7 +212,7 @@ export function Live2DModelViewer({
             model = await Live2DModel.from(modelPath);
 
             // モデルをステージに追加（サイズ計算のため先に追加）
-            // @ts-ignore - PIXI.Container型の互換性の問題
+            // @ts-expect-error - PIXI.Container型の互換性の問題
             app.stage.addChild(model);
 
             // モデルのバウンディングボックスを取得
@@ -257,7 +257,7 @@ export function Live2DModelViewer({
               try {
                 // Extract parameters
                 if (model.internalModel?.coreModel) {
-                  // @ts-ignore - Live2D内部APIアクセス
+                  // @ts-expect-error - Live2D内部APIアクセス
                   const coreModel = model.internalModel.coreModel;
                   const paramCount = coreModel.getParameterCount?.() || 0;
 
@@ -297,7 +297,7 @@ export function Live2DModelViewer({
 
                 // Extract motions from motion manager
                 if (model.internalModel?.motionManager) {
-                  // @ts-ignore - Live2D内部APIアクセス  
+                  // @ts-expect-error - Live2D内部APIアクセス  
                   const motionManager = model.internalModel.motionManager;
                   const motionGroups = motionManager.motionGroups || {};
 
@@ -317,7 +317,7 @@ export function Live2DModelViewer({
                   if (motionManager.definitions) {
                     for (const [group, groupDefs] of Object.entries(motionManager.definitions)) {
                       if (Array.isArray(groupDefs)) {
-                        // @ts-ignore - Live2D内部APIアクセス
+                        // @ts-expect-error - Live2D内部APIアクセス
                         groupDefs.forEach((def, index) => {
                           // Avoid duplicates
                           const exists = motions.find(
@@ -338,7 +338,7 @@ export function Live2DModelViewer({
 
                 // Extract expressions from expression manager
                 if (model.internalModel?.expressionManager) {
-                  // @ts-ignore - Live2D内部APIアクセス
+                  // @ts-expect-error - Live2D内部APIアクセス
                   const expressionManager = model.internalModel.expressionManager;
                   const expressionDefinitions =
                     expressionManager.definitions || expressionManager.expressions || {};
@@ -349,7 +349,7 @@ export function Live2DModelViewer({
 
                   // Also check expression list if available
                   if (expressionManager.expressionList) {
-                    // @ts-ignore - Live2D内部APIアクセス
+                    // @ts-expect-error - Live2D内部APIアクセス
                     expressionManager.expressionList.forEach((exp) => {
                       const name = exp.name || exp.Name || exp.file;
                       if (name && !expressions.find((e) => e.name === name)) {
@@ -391,7 +391,7 @@ export function Live2DModelViewer({
               } catch {
                 // face_forward モーションがない場合、パラメータを直接設定
                 if (model.internalModel?.coreModel) {
-                  // @ts-ignore - Live2D内部APIアクセス
+                  // @ts-expect-error - Live2D内部APIアクセス
                   const coreModel = model.internalModel.coreModel;
 
                   // まずGroupから"Focus"グループのパラメータを取得を試みる

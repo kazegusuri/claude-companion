@@ -262,7 +262,7 @@ const GoldFrameStage: React.FC<Props> = ({
                     fontSize={20}
                     fontWeight={500}
                     letterSpacing={3}
-                    fill="url(#gold)"
+                    fill={`url(#${goldGradientId})`}
                     fontFamily={`"Cinzel", "Marcellus SC", "EB Garamond", serif`}
                   >
                     {title}
