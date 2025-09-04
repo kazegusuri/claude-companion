@@ -7,6 +7,7 @@ import { MainLayout } from "../components/Layout/MainLayout";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
+import { resumeSharedAudioContext } from "../utils/live2d/audioContextPatch";
 
 type BubbleState = "right" | "bottom" | "hidden";
 
@@ -118,6 +119,8 @@ export const Dashboard: React.FC = () => {
   const handleToggleAudio = async () => {
     if (!isAudioEnabled) {
       setIsAudioEnabled(true);
+      // 共有AudioContextをresume（PWA対策）
+      await resumeSharedAudioContext();
     } else {
       setIsAudioEnabled(false);
       audioQueue.current = [];

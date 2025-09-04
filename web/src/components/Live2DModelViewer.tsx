@@ -1,17 +1,16 @@
 import { Box } from "@mantine/core";
 import * as PIXI from "pixi.js";
+import * as PixiLive2D from "pixi-live2d-display-lipsyncpatch/cubism4";
 import { Live2DModel } from "pixi-live2d-display-lipsyncpatch/cubism4";
 import { useEffect, useRef, useState } from "react";
+import { AudioPlayer } from "../services/AudioPlayer";
+import {
+  findAndPatchSoundManager,
+  resumeSharedAudioContext,
+} from "../utils/live2d/audioContextPatch";
 import type { StageType } from "./Live2DModelStage";
 import { Live2DModelStage } from "./Live2DModelStage";
 import { SpeechBubble } from "./SpeechBubble";
-
-// Window型を拡張してLive2D関連の型を追加
-declare global {
-  interface Window {
-    PIXI: typeof PIXI;
-  }
-}
 
 // グループ名の定数
 const GROUP_NAME_FOCUS = "Focus";
@@ -156,15 +155,144 @@ export function Live2DModelViewer({
   const currentAudioUrlRef = useRef<string | null>(null);
   const isMouseInViewRef = useRef(false);
   const mouseEventCleanupRef = useRef<(() => void) | null>(null);
+  const audioPlayerRef = useRef<AudioPlayer | null>(null);
+  const lipSyncIntervalRef = useRef<number | null>(null);
 
-  // Audio playback using speak method
+  // Fallback audio playback using AudioPlayer
+  const playWithAudioPlayer = async (base64Data: string) => {
+    try {
+      if (!audioPlayerRef.current) {
+        audioPlayerRef.current = new AudioPlayer();
+      }
+
+      // Initialize AudioPlayer if needed
+      if (!audioPlayerRef.current.isContextInitialized()) {
+        await audioPlayerRef.current.ensureInitialized();
+      }
+
+      // Clear any existing lip sync interval
+      if (lipSyncIntervalRef.current) {
+        clearInterval(lipSyncIntervalRef.current);
+        lipSyncIntervalRef.current = null;
+      }
+
+      // Play audio with lip sync simulation
+      await audioPlayerRef.current.playBase64Audio(base64Data, {
+        onStart: () => {
+          // Start lip sync simulation for PWA
+          if (modelRef.current?.internalModel) {
+            let mouthValue = 0;
+            let targetValue = 0;
+
+            lipSyncIntervalRef.current = window.setInterval(() => {
+              // Generate random mouth movements during playback
+              targetValue = Math.random() * 0.8 + 0.2; // 0.2 to 1.0 range
+              mouthValue += (targetValue - mouthValue) * 0.3; // Smooth transition
+
+              // Set mouth parameter directly
+              try {
+                const coreModel = modelRef.current?.internalModel?.coreModel;
+                if (coreModel) {
+                  // Common mouth parameter IDs
+                  const mouthParams = ["ParamMouthOpenY", "PARAM_MOUTH_OPEN_Y", "ParamMouthOpen"];
+                  for (const paramName of mouthParams) {
+                    const paramIndex = (coreModel as Live2DCoreModel).getParameterIndex?.(
+                      paramName,
+                    );
+                    if (paramIndex >= 0) {
+                      (coreModel as Live2DCoreModel).setParameterValueByIndex?.(
+                        paramIndex,
+                        mouthValue,
+                      );
+                      break;
+                    }
+                  }
+                }
+              } catch (_e) {
+                // Ignore parameter errors
+              }
+            }, 50); // Update every 50ms
+          }
+        },
+        onEnd: () => {
+          // Stop lip sync
+          if (lipSyncIntervalRef.current) {
+            clearInterval(lipSyncIntervalRef.current);
+            lipSyncIntervalRef.current = null;
+          }
+
+          // Reset mouth to closed
+          try {
+            const coreModel = modelRef.current?.internalModel?.coreModel;
+            if (coreModel) {
+              const mouthParams = ["ParamMouthOpenY", "PARAM_MOUTH_OPEN_Y", "ParamMouthOpen"];
+              for (const paramName of mouthParams) {
+                const paramIndex = (coreModel as Live2DCoreModel).getParameterIndex?.(paramName);
+                if (paramIndex >= 0) {
+                  (coreModel as Live2DCoreModel).setParameterValueByIndex?.(paramIndex, 0);
+                  break;
+                }
+              }
+            }
+          } catch (_e) {
+            // Ignore parameter errors
+          }
+
+          onAudioEnd?.();
+        },
+        onError: (error) => {
+          console.error("AudioPlayer: Error during playback", error);
+          if (lipSyncIntervalRef.current) {
+            clearInterval(lipSyncIntervalRef.current);
+            lipSyncIntervalRef.current = null;
+          }
+          onAudioEnd?.();
+        },
+        onVolumeUpdate: (volume) => {
+          // Use volume data for more accurate lip sync if available
+          if (modelRef.current?.internalModel?.coreModel) {
+            try {
+              const coreModel = modelRef.current.internalModel.coreModel;
+              const mouthParams = ["ParamMouthOpenY", "PARAM_MOUTH_OPEN_Y", "ParamMouthOpen"];
+              for (const paramName of mouthParams) {
+                const paramIndex = (coreModel as Live2DCoreModel).getParameterIndex?.(paramName);
+                if (paramIndex >= 0) {
+                  (coreModel as Live2DCoreModel).setParameterValueByIndex?.(paramIndex, volume);
+                  break;
+                }
+              }
+            } catch (_e) {
+              // Ignore parameter errors
+            }
+          }
+        },
+      });
+    } catch (error) {
+      console.error("AudioPlayer: Failed to play audio", error);
+      onAudioEnd?.();
+    }
+  };
+
+  // Audio playback using speak method with fallback
   useEffect(() => {
     const model = modelRef.current;
     if (model && audioData) {
       // Convert base64 to blob URL
       try {
+        // PWA対策: 音声再生前に共有AudioContextをresume
+        resumeSharedAudioContext();
+
         // Stop current speaking if any
         model.stopSpeaking();
+
+        // Stop AudioPlayer if playing
+        audioPlayerRef.current?.stop();
+
+        // Clear lip sync interval
+        if (lipSyncIntervalRef.current) {
+          clearInterval(lipSyncIntervalRef.current);
+          lipSyncIntervalRef.current = null;
+        }
 
         // Clean up previous audio URL
         if (currentAudioUrlRef.current) {
@@ -193,19 +321,24 @@ export function Live2DModelViewer({
             }
             onAudioEnd?.();
           },
-          onError: (error) => {
-            console.error("Error playing audio with speak:", error);
+          onError: (error: unknown) => {
+            console.error("model.speak failed, using AudioPlayer fallback:", error);
+
+            // Clean up blob URL
             if (currentAudioUrlRef.current) {
               URL.revokeObjectURL(currentAudioUrlRef.current);
               currentAudioUrlRef.current = null;
             }
-            onAudioEnd?.();
+
+            // Fallback to AudioPlayer
+            playWithAudioPlayer(audioData);
           },
           crossOrigin: "anonymous",
         });
       } catch (error) {
-        console.error("Error converting audio data:", error);
-        onAudioEnd?.();
+        console.error("Error setting up audio playback:", error);
+        // Try fallback
+        playWithAudioPlayer(audioData);
       }
     }
 
@@ -215,12 +348,28 @@ export function Live2DModelViewer({
       if (currentModel) {
         currentModel.stopSpeaking();
       }
+      audioPlayerRef.current?.stop();
+      if (lipSyncIntervalRef.current) {
+        clearInterval(lipSyncIntervalRef.current);
+        lipSyncIntervalRef.current = null;
+      }
       if (currentAudioUrlRef.current) {
         URL.revokeObjectURL(currentAudioUrlRef.current);
         currentAudioUrlRef.current = null;
       }
     };
-  }, [audioData, onAudioEnd, modelRef]);
+  }, [
+    audioData,
+    onAudioEnd,
+    modelRef, // Try fallback
+    playWithAudioPlayer,
+  ]);
+
+  // 初回レンダリング時にSoundManagerにパッチを適用
+  useEffect(() => {
+    // audioContextPatch.tsの便利関数を使用してSoundManagerを探してパッチを適用
+    findAndPatchSoundManager(PixiLive2D, Live2DModel);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -298,6 +447,16 @@ export function Live2DModelViewer({
               // タップされた部位に応じてモーションを再生
               if (hitAreas.includes("Body")) {
                 model?.motion(MOTION_TAP);
+              }
+              // iOS/PWA対策: タップ時にAudioContextを初期化
+              if (window.AudioContext || window.webkitAudioContext) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!window.audioContext) {
+                  window.audioContext = new AudioContextClass();
+                }
+                if (window.audioContext.state === "suspended") {
+                  window.audioContext.resume();
+                }
               }
             });
 
@@ -458,12 +617,9 @@ export function Live2DModelViewer({
                       );
                       if (focusGroup?.Ids) {
                         focusParams = focusGroup.Ids;
-                        console.log("Focus group parameters from model3.json:", focusParams);
                       }
                     }
-                  } catch (_e) {
-                    console.log("Could not retrieve Focus group from model settings");
-                  }
+                  } catch (_e) {}
 
                   // Focusグループが見つからない場合はデフォルトのパラメータを使用
                   if (focusParams.length === 0) {

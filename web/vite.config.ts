@@ -15,7 +15,7 @@ export default defineConfig({
 
   // プレビューサーバー設定
   preview: {
-    port: 3001,
+    port: 5550,
     strictPort: true,
   },
 

@@ -41,9 +41,9 @@ func NewServer(sessionGetter handler.SessionGetter) *Server {
 		sessionGetter: sessionGetter,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				// Allow connections from localhost in development
-				origin := r.Header.Get("Origin")
-				return origin == "http://localhost:3000" || origin == "http://localhost:3001"
+				// 開発環境では全てのオリジンを許可
+				// 本番環境では適切な制限を設定してください
+				return true
 			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,

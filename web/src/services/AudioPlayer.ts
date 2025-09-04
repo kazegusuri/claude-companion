@@ -39,7 +39,6 @@ export class AudioPlayer {
     }
 
     try {
-      // @ts-expect-error - webkit prefixの互換性対応
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContextClass();
 
