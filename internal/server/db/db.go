@@ -6,13 +6,16 @@ import (
 	"time"
 
 	_ "github.com/glebarez/go-sqlite"
+	"github.com/google/uuid"
 )
 
 // ClaudeAgent represents a claude agent record in the database
 type ClaudeAgent struct {
+	ID         string // UUID primary key
 	PID        int
 	SessionID  string
 	ProjectDir string
+	AgentType  string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -52,9 +55,11 @@ func (db *DB) Close() error {
 func (db *DB) CreateTables() error {
 	createTableSQL := `
 	CREATE TABLE IF NOT EXISTS claude_agents (
-		pid INTEGER PRIMARY KEY,
+		id TEXT PRIMARY KEY,
+		pid INTEGER NOT NULL UNIQUE,
 		session_id TEXT NOT NULL,
 		project_dir TEXT NOT NULL,
+		agent_type TEXT NOT NULL DEFAULT 'Claude Code',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	);
@@ -69,18 +74,26 @@ func (db *DB) CreateTables() error {
 
 // UpsertClaudeAgent inserts or updates a claude agent record
 func (db *DB) UpsertClaudeAgent(pid int, sessionID string, projectDir string) error {
-	now := time.Now()
+	return db.UpsertClaudeAgentWithType(pid, sessionID, projectDir, "Claude Code")
+}
 
+// UpsertClaudeAgentWithType inserts or updates a claude agent record with agent type
+func (db *DB) UpsertClaudeAgentWithType(pid int, sessionID string, projectDir string, agentType string) error {
+	now := time.Now()
+	id := uuid.New().String()
+
+	// Use ON CONFLICT with PID's UNIQUE constraint
 	upsertSQL := `
-	INSERT INTO claude_agents (pid, session_id, project_dir, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?)
+	INSERT INTO claude_agents (id, pid, session_id, project_dir, agent_type, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(pid) DO UPDATE SET
 		session_id = excluded.session_id,
 		project_dir = excluded.project_dir,
+		agent_type = excluded.agent_type,
 		updated_at = excluded.updated_at;
 	`
 
-	if _, err := db.conn.Exec(upsertSQL, pid, sessionID, projectDir, now, now); err != nil {
+	if _, err := db.conn.Exec(upsertSQL, id, pid, sessionID, projectDir, agentType, now, now); err != nil {
 		return fmt.Errorf("failed to insert/update record: %w", err)
 	}
 
@@ -90,16 +103,18 @@ func (db *DB) UpsertClaudeAgent(pid int, sessionID string, projectDir string) er
 // GetClaudeAgent retrieves a claude agent record by PID
 func (db *DB) GetClaudeAgent(pid int) (*ClaudeAgent, error) {
 	query := `
-	SELECT pid, session_id, project_dir, created_at, updated_at
+	SELECT id, pid, session_id, project_dir, agent_type, created_at, updated_at
 	FROM claude_agents
 	WHERE pid = ?
 	`
 
 	var agent ClaudeAgent
 	err := db.conn.QueryRow(query, pid).Scan(
+		&agent.ID,
 		&agent.PID,
 		&agent.SessionID,
 		&agent.ProjectDir,
+		&agent.AgentType,
 		&agent.CreatedAt,
 		&agent.UpdatedAt,
 	)
@@ -117,7 +132,7 @@ func (db *DB) GetClaudeAgent(pid int) (*ClaudeAgent, error) {
 // ListClaudeAgents returns all claude agents
 func (db *DB) ListClaudeAgents() ([]ClaudeAgent, error) {
 	query := `
-	SELECT pid, session_id, project_dir, created_at, updated_at
+	SELECT id, pid, session_id, project_dir, agent_type, created_at, updated_at
 	FROM claude_agents
 	ORDER BY updated_at DESC
 	`
@@ -132,9 +147,11 @@ func (db *DB) ListClaudeAgents() ([]ClaudeAgent, error) {
 	for rows.Next() {
 		var agent ClaudeAgent
 		err := rows.Scan(
+			&agent.ID,
 			&agent.PID,
 			&agent.SessionID,
 			&agent.ProjectDir,
+			&agent.AgentType,
 			&agent.CreatedAt,
 			&agent.UpdatedAt,
 		)
@@ -166,6 +183,35 @@ func (db *DB) DeleteOldAgents(olderThan time.Duration) (int64, error) {
 	}
 
 	return result.RowsAffected()
+}
+
+// GetClaudeAgentByID retrieves a claude agent record by ID
+func (db *DB) GetClaudeAgentByID(id string) (*ClaudeAgent, error) {
+	query := `
+	SELECT id, pid, session_id, project_dir, agent_type, created_at, updated_at
+	FROM claude_agents
+	WHERE id = ?
+	`
+
+	var agent ClaudeAgent
+	err := db.conn.QueryRow(query, id).Scan(
+		&agent.ID,
+		&agent.PID,
+		&agent.SessionID,
+		&agent.ProjectDir,
+		&agent.AgentType,
+		&agent.CreatedAt,
+		&agent.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query agent: %w", err)
+	}
+
+	return &agent, nil
 }
 
 // DeleteClaudeAgent deletes a claude agent record by PID

@@ -1,4 +1,4 @@
-.PHONY: build test clean run fmt help all generate generate-go
+.PHONY: build test clean run fmt help all generate generate-go generate-ts
 
 # Go source files (recursive)
 GO_FILES := $(shell find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*")
@@ -25,13 +25,16 @@ all: build
 
 help:
 	@echo "Available targets:"
-	@echo "  build   - Build all binaries to bin/ directory"
-	@echo "  test    - Run tests"
-	@echo "  fmt     - Run gofmt on all Go files"
-	@echo "  clean   - Remove all built binaries"
-	@echo "  run     - Run with --voice --ai"
-	@echo "  server  - Run with --voice --ai --server"
-	@echo "  help    - Show this help message"
+	@echo "  build        - Build all binaries to bin/ directory"
+	@echo "  test         - Run tests"
+	@echo "  fmt          - Run gofmt on all Go files"
+	@echo "  clean        - Remove all built binaries"
+	@echo "  run          - Run with --voice --ai"
+	@echo "  server       - Run with --voice --ai --server"
+	@echo "  generate     - Generate all code (TypeScript and Go) from TypeSpec"
+	@echo "  generate-go  - Generate Go API code from OpenAPI spec"
+	@echo "  generate-ts  - Generate TypeScript types from TypeSpec"
+	@echo "  help         - Show this help message"
 	@echo ""
 	@echo "Build specific binary:"
 	@echo "  build-<binary-name> - Build a specific binary (e.g., make build-claude-status-line)"
@@ -110,8 +113,18 @@ generate-go:
 		> internal/server/api/models.gen.go
 	@echo "✅ Go code generated successfully"
 
+# Generate TypeScript types
+generate-ts:
+	@echo "Generating TypeScript types..."
+	@cd web && bun run tsp:generate
+	@echo "✅ TypeScript types generated successfully"
+
 # Generate all code (TypeScript and Go)
-generate: generate-go
+generate: 
+	@echo "Compiling TypeSpec API definition..."
+	@cd api && npm run compile
 	@echo "Generating TypeScript types..."
 	@cd web && bun run tsp:types
+	@echo "Generating Go code..."
+	@cd internal/server/api && oapi-codegen -package api -generate strict-server,types -o generated.go ../../../api/tsp-output/@typespec/openapi3/openapi.yaml
 	@echo "✅ All code generation complete"

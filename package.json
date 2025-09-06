@@ -26,11 +26,6 @@
     "api:compile:watch": "npm run --workspace=api compile:watch",
     "api:format": "npm run --workspace=api format",
     "api:install": "npm install --workspace=api",
-    "backend:build": "make build",
-    "backend:run": "make run",
-    "backend:test": "make test",
-    "backend:fmt": "make fmt",
-    "generate-types": "npm run api:compile && bun run web:tsp:types",
     "install:all": "npm install --workspace=api && bun install --cwd web"
   },
   "devDependencies": {}

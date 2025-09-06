@@ -22,17 +22,16 @@ paths:
                 $ref: '#/components/schemas/AgentListResponse'
       tags:
         - Agents
-  /api/agents/{pid}:
+  /api/agents/{id}:
     get:
       operationId: Agents_read
-      description: Get a specific agent by PID
+      description: Get a specific agent by ID
       parameters:
-        - name: pid
+        - name: id
           in: path
           required: true
           schema:
-            type: integer
-            format: int32
+            type: string
       responses:
         '200':
           description: The request has succeeded.
@@ -53,13 +52,18 @@ components:
     Agent:
       type: object
       required:
+        - id
         - pid
         - sessionId
         - projectDir
         - projectName
+        - agentType
         - createdAt
         - updatedAt
       properties:
+        id:
+          type: string
+          description: Unique identifier (UUID) for the agent
         pid:
           type: integer
           format: int32
@@ -73,6 +77,9 @@ components:
         projectName:
           type: string
           description: Project name (extracted from projectDir)
+        agentType:
+          type: string
+          description: Type of the agent (e.g., "Claude Code")
         createdAt:
           type: string
           format: date-time

@@ -21,14 +21,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/agents/{pid}": {
+    "/api/agents/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** @description Get a specific agent by PID */
+        /** @description Get a specific agent by ID */
         get: operations["Agents_read"];
         put?: never;
         post?: never;
@@ -44,6 +44,8 @@ export interface components {
     schemas: {
         /** @description Agent information representing a Claude agent process */
         Agent: {
+            /** @description Unique identifier (UUID) for the agent */
+            id: string;
             /**
              * Format: int32
              * @description Process ID of the agent
@@ -55,6 +57,8 @@ export interface components {
             projectDir: string;
             /** @description Project name (extracted from projectDir) */
             projectName: string;
+            /** @description Type of the agent (e.g., "Claude Code") */
+            agentType: string;
             /**
              * Format: date-time
              * @description Timestamp when the agent was created
@@ -248,7 +252,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                pid: number;
+                id: string;
             };
             cookie?: never;
         };

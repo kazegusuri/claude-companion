@@ -40,10 +40,12 @@ func (h *APIHandler) AgentsList(ctx context.Context, request AgentsListRequestOb
 
 	for _, agent := range agents {
 		response.Agents = append(response.Agents, Agent{
+			Id:          agent.ID,
 			Pid:         int32(agent.PID),
 			SessionId:   agent.SessionID,
 			ProjectDir:  agent.ProjectDir,
 			ProjectName: extractProjectName(agent.ProjectDir),
+			AgentType:   agent.AgentType,
 			CreatedAt:   agent.CreatedAt,
 			UpdatedAt:   agent.UpdatedAt,
 		})
@@ -52,10 +54,10 @@ func (h *APIHandler) AgentsList(ctx context.Context, request AgentsListRequestOb
 	return AgentsList200JSONResponse(response), nil
 }
 
-// AgentsRead implements GET /api/agents/{pid}
+// AgentsRead implements GET /api/agents/{id}
 func (h *APIHandler) AgentsRead(ctx context.Context, request AgentsReadRequestObject) (AgentsReadResponseObject, error) {
-	// Get agent from database
-	agent, err := h.database.GetClaudeAgent(int(request.Pid))
+	// Get agent from database by ID
+	agent, err := h.database.GetClaudeAgentByID(request.Id)
 	if err != nil {
 		logger.LogError("Failed to get agent: %v", err)
 		return nil, err
@@ -68,10 +70,12 @@ func (h *APIHandler) AgentsRead(ctx context.Context, request AgentsReadRequestOb
 	}
 
 	return AgentsRead200JSONResponse{
+		Id:          agent.ID,
 		Pid:         int32(agent.PID),
 		SessionId:   agent.SessionID,
 		ProjectDir:  agent.ProjectDir,
 		ProjectName: extractProjectName(agent.ProjectDir),
+		AgentType:   agent.AgentType,
 		CreatedAt:   agent.CreatedAt,
 		UpdatedAt:   agent.UpdatedAt,
 	}, nil

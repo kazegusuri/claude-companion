@@ -10,17 +10,43 @@ This is a Go daemon that parses Claude's JSONL log files in real-time, with a we
 #### API Definition
 When modifying API endpoints or data structures:
 1. Edit the API definition in `api/main.tsp`
-2. Generate TypeScript types and OpenAPI spec:
-   ```bash
-   cd web && bun run tsp:generate
-   ```
+2. Generate code using Make commands (see Code Generation section below)
 3. Update the backend Go code to match the API specification
 4. Update the frontend to use the generated types from `web/src/types/api.ts`
 
 #### API Workflow
 - Always define APIs in TypeSpec first before implementing
-- Generated types are the source of truth - do not manually edit `web/src/types/api.ts`
+- Generated types are the source of truth - do not manually edit generated files
 - Keep the API definition synchronized between frontend and backend
+
+### Code Generation
+
+#### Quick Commands
+```bash
+# Generate everything (TypeScript + Go) - RECOMMENDED
+make generate
+
+# Generate only Go code (internal/server/api/models.gen.go)
+make generate-go
+
+# Generate only TypeScript types (web/src/types/api.ts)
+make generate-ts
+```
+
+#### What Gets Generated
+- **Go Code**: `internal/server/api/models.gen.go`
+  - API types and models
+  - Echo server interfaces
+  - Request/Response types
+- **TypeScript Types**: `web/src/types/api.ts`
+  - TypeScript interfaces for all API models
+  - Request/Response types for frontend
+
+#### Important Notes
+- Always run `make generate` after modifying `api/main.tsp`
+- Generated files (`*.gen.go`, `api.ts`) should NEVER be edited manually
+- The Go code generation uses `api/oapi-codegen.yaml` configuration
+- If you see compilation errors after API changes, run `make generate` first
 
 ### Go Development
 
@@ -102,7 +128,7 @@ test("hello world", () => {
 1. Make changes
 2. If API changes are made:
    - Update `api/main.tsp`
-   - Run `cd web && bun run tsp:generate` to generate types
+   - Run `make generate` to regenerate all types (TypeScript + Go)
 3. Run code formatting:
    - For Go files: `make fmt`
    - For Web files: `cd web && bun run format`

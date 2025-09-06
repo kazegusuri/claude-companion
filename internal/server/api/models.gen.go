@@ -17,8 +17,14 @@ import (
 
 // Agent Agent information representing a Claude agent process
 type Agent struct {
+	// AgentType Type of the agent (e.g., "Claude Code")
+	AgentType string `json:"agentType"`
+
 	// CreatedAt Timestamp when the agent was created
 	CreatedAt time.Time `json:"createdAt"`
+
+	// Id Unique identifier (UUID) for the agent
+	Id string `json:"id"`
 
 	// Pid Process ID of the agent
 	Pid int32 `json:"pid"`
@@ -54,8 +60,8 @@ type ServerInterface interface {
 	// (GET /api/agents)
 	AgentsList(ctx echo.Context) error
 
-	// (GET /api/agents/{pid})
-	AgentsRead(ctx echo.Context, pid int32) error
+	// (GET /api/agents/{id})
+	AgentsRead(ctx echo.Context, id string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -75,16 +81,16 @@ func (w *ServerInterfaceWrapper) AgentsList(ctx echo.Context) error {
 // AgentsRead converts echo context to params.
 func (w *ServerInterfaceWrapper) AgentsRead(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "pid" -------------
-	var pid int32
+	// ------------- Path parameter "id" -------------
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "pid", ctx.Param("pid"), &pid, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter pid: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.AgentsRead(ctx, pid)
+	err = w.Handler.AgentsRead(ctx, id)
 	return err
 }
 
@@ -117,7 +123,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.GET(baseURL+"/api/agents", wrapper.AgentsList)
-	router.GET(baseURL+"/api/agents/:pid", wrapper.AgentsRead)
+	router.GET(baseURL+"/api/agents/:id", wrapper.AgentsRead)
 
 }
 
@@ -138,7 +144,7 @@ func (response AgentsList200JSONResponse) VisitAgentsListResponse(w http.Respons
 }
 
 type AgentsReadRequestObject struct {
-	Pid int32 `json:"pid"`
+	Id string `json:"id"`
 }
 
 type AgentsReadResponseObject interface {
@@ -169,7 +175,7 @@ type StrictServerInterface interface {
 	// (GET /api/agents)
 	AgentsList(ctx context.Context, request AgentsListRequestObject) (AgentsListResponseObject, error)
 
-	// (GET /api/agents/{pid})
+	// (GET /api/agents/{id})
 	AgentsRead(ctx context.Context, request AgentsReadRequestObject) (AgentsReadResponseObject, error)
 }
 
@@ -209,10 +215,10 @@ func (sh *strictHandler) AgentsList(ctx echo.Context) error {
 }
 
 // AgentsRead operation middleware
-func (sh *strictHandler) AgentsRead(ctx echo.Context, pid int32) error {
+func (sh *strictHandler) AgentsRead(ctx echo.Context, id string) error {
 	var request AgentsReadRequestObject
 
-	request.Pid = pid
+	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.AgentsRead(ctx.Request().Context(), request.(AgentsReadRequestObject))

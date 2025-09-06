@@ -21,6 +21,11 @@ namespace ClaudeCompanion;
  */
 model Agent {
   /**
+   * Unique identifier (UUID) for the agent
+   */
+  id: string;
+
+  /**
    * Process ID of the agent
    */
   pid: int32;
@@ -39,6 +44,11 @@ model Agent {
    * Project name (extracted from projectDir)
    */
   projectName: string;
+
+  /**
+   * Type of the agent (e.g., "Claude Code")
+   */
+  agentType: string;
 
   /**
    * Timestamp when the agent was created
@@ -317,11 +327,11 @@ interface Agents {
   list(): AgentListResponse;
 
   /**
-   * Get a specific agent by PID
+   * Get a specific agent by ID
    */
   @get
-  @route("{pid}")
-  read(@path pid: int32): Agent | {
+  @route("{id}")
+  read(@path id: string): Agent | {
     @statusCode statusCode: 404;
     @body error: ErrorResponse;
   };
