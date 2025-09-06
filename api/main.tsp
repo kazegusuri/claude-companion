@@ -138,6 +138,11 @@ model MessageMetadata {
   sessionId?: string;
 
   /**
+   * Agent ID (PID) associated with this message
+   */
+  agentId?: int32;
+
+  /**
    * Role of the message
    */
   role?: "user" | "assistant" | "system";

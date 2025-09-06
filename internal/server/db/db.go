@@ -228,3 +228,26 @@ func (db *DB) DeleteClaudeAgent(pid int) error {
 
 	return nil
 }
+
+// GetAgentPIDBySessionID retrieves the agent PID for a given session ID
+func (db *DB) GetAgentPIDBySessionID(sessionID string) (*int, error) {
+	query := `
+	SELECT pid
+	FROM claude_agents
+	WHERE session_id = ?
+	ORDER BY updated_at DESC
+	LIMIT 1
+	`
+
+	var pid int
+	err := db.conn.QueryRow(query, sessionID).Scan(&pid)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // No agent found for this session
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query agent by session ID: %w", err)
+	}
+
+	return &pid, nil
+}

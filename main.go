@@ -132,9 +132,8 @@ func main() {
 	if enableServer {
 		// If voice is enabled, create WebSocket server
 		if enableVoice {
-			// Create WebSocket server with session manager
-			wsServer = websocket.NewServer(sessionManager)
-			wsServer.SetDatabase(database) // Set database for agent mode support
+			// Create WebSocket server with session manager and database
+			wsServer = websocket.NewServer(sessionManager, database)
 			go wsServer.Run()
 		}
 

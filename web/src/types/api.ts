@@ -178,6 +178,11 @@ export interface components {
             /** @description Session ID */
             sessionId?: string;
             /**
+             * Format: int32
+             * @description Agent ID (PID) associated with this message
+             */
+            agentId?: number;
+            /**
              * @description Role of the message
              * @enum {string}
              */

@@ -51,6 +51,7 @@ type Metadata struct {
 	SampleRate int                     `json:"sampleRate,omitempty"`
 	Duration   float64                 `json:"duration,omitempty"`
 	SessionID  string                  `json:"sessionId,omitempty"`
+	AgentID    *int                    `json:"agentId,omitempty"` // Agent PID associated with this message
 	Role       MessageRole             `json:"role,omitempty"`
 	SubType    AssistantMessageSubType `json:"subType,omitempty"` // For assistant messages
 }

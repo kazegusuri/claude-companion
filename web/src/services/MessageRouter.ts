@@ -42,13 +42,13 @@ export class MessageRouter {
       return true;
     }
 
-    // In agent mode, filter by session ID
+    // In agent mode, filter by agent ID
     if (this.state.mode === "agent" && this.state.selectedAgent) {
-      const messageSessionId = message.metadata?.sessionId;
-      const agentSessionId = this.state.selectedAgent.sessionId;
+      const messageAgentId = message.metadata?.agentId;
+      const selectedAgentPid = this.state.selectedAgent.pid;
 
-      // Only accept messages from the selected agent's session
-      return messageSessionId === agentSessionId;
+      // Only accept messages from the selected agent
+      return messageAgentId === selectedAgentPid;
     }
 
     // Default to accepting the message

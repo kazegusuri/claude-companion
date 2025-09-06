@@ -38,13 +38,14 @@ type Server struct {
 }
 
 // NewServer creates a new WebSocket server
-func NewServer(sessionGetter handler.SessionGetter) *Server {
+func NewServer(sessionGetter handler.SessionGetter, database *db.DB) *Server {
 	return &Server{
 		clients:       make(map[*Client]bool),
 		broadcast:     make(chan *handler.ChatMessage, 256),
 		register:      make(chan *Client),
 		unregister:    make(chan *Client),
 		sessionGetter: sessionGetter,
+		database:      database,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				// 開発環境では全てのオリジンを許可
@@ -55,11 +56,6 @@ func NewServer(sessionGetter handler.SessionGetter) *Server {
 			WriteBufferSize: 1024,
 		},
 	}
-}
-
-// SetDatabase sets the database for agent session lookups
-func (s *Server) SetDatabase(database *db.DB) {
-	s.database = database
 }
 
 // Run starts the server's main loop
@@ -142,6 +138,16 @@ func (s *Server) BroadcastChat(message *handler.ChatMessage) {
 	if message.Timestamp.IsZero() {
 		message.Timestamp = time.Now()
 	}
+
+	// WORKAROUND: Resolve agent ID from session ID here
+	// TODO: Move this logic to event/handler for better separation of concerns
+	if s.database != nil && message.Metadata.SessionID != "" {
+		agentPID, err := s.database.GetAgentPIDBySessionID(message.Metadata.SessionID)
+		if err == nil && agentPID != nil {
+			message.Metadata.AgentID = agentPID
+		}
+	}
+
 	s.broadcast <- message
 }
 

@@ -17,8 +17,8 @@ import (
 )
 
 func main() {
-	// Create WebSocket server (nil SessionGetter for test)
-	wsServer := websocket.NewServer(nil)
+	// Create WebSocket server (nil SessionGetter and database for test)
+	wsServer := websocket.NewServer(nil, nil)
 	go wsServer.Run()
 
 	// Create WebSocket player for audio messages

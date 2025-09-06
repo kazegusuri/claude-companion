@@ -246,6 +246,10 @@ components:
         sessionId:
           type: string
           description: Session ID
+        agentId:
+          type: integer
+          format: int32
+          description: Agent ID (PID) associated with this message
         role:
           type: string
           enum:
