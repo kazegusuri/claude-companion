@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +14,7 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/server/websocket"
 	"github.com/kazegusuri/claude-companion/internal/session/event"
 	"github.com/kazegusuri/claude-companion/internal/speech"
+	"github.com/labstack/echo/v4"
 	"github.com/spf13/pflag"
 )
 
@@ -130,9 +130,6 @@ func main() {
 
 	// Start HTTP server if server mode is enabled (for both WebSocket and API)
 	if enableServer {
-		// Create Echo server with API routes
-		echoServer := api.SetupEchoServer(database)
-
 		// If voice is enabled, create WebSocket server
 		if enableVoice {
 			// Create WebSocket server with session manager
@@ -140,19 +137,20 @@ func main() {
 			go wsServer.Run()
 		}
 
-		// Start HTTP server for both WebSocket (if voice enabled) and API endpoints
+		// Create Echo server with API routes and WebSocket if enabled
+		var echoServer *echo.Echo
+		if wsServer != nil {
+			echoServer = api.SetupEchoServerWithWebSocket(database, wsServer)
+			logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
+		} else {
+			echoServer = api.SetupEchoServer(database)
+		}
+
+		// Start HTTP server with Echo handling all routes
 		go func() {
-			if wsServer != nil {
-				http.HandleFunc("/ws/audio", wsServer.HandleWebSocket)
-				logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
-			}
-
-			// Mount Echo handler for API routes
-			http.Handle("/", echoServer)
-
 			logger.LogInfo("HTTP server listening on %s", serverPort)
 			logger.LogInfo("API endpoint: http://localhost%s/api/agents", serverPort)
-			if err := http.ListenAndServe(serverPort, nil); err != nil {
+			if err := echoServer.Start(serverPort); err != nil {
 				logger.LogError("Failed to start HTTP server: %v", err)
 			}
 		}()
