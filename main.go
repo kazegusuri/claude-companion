@@ -7,7 +7,9 @@ import (
 	"syscall"
 
 	"github.com/kazegusuri/claude-companion/event"
+	"github.com/kazegusuri/claude-companion/internal/server/db"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/watcher"
 	"github.com/kazegusuri/claude-companion/internal/server/websocket"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
@@ -29,6 +31,7 @@ func main() {
 	var projectsRoot string
 	var enableServer bool
 	var serverPort string
+	var dbFile string
 
 	pflag.StringVarP(&project, "project", "p", "", "Project name")
 	pflag.StringVarP(&session, "session", "s", "", "Session name")
@@ -44,6 +47,7 @@ func main() {
 	pflag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
 	pflag.BoolVar(&enableServer, "server", false, "Enable WebSocket server for audio streaming")
 	pflag.StringVar(&serverPort, "server-port", ":8080", "WebSocket server port (default: :8080)")
+	pflag.StringVar(&dbFile, "db-file", "/run/claude-companion/db.sqlite", "Path to SQLite database file (default: /run/claude-companion/db.sqlite)")
 	// watchProjects is now the default behavior
 	pflag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects")
 	pflag.Parse()
@@ -70,6 +74,43 @@ func main() {
 	if useAINarrator && openaiAPIKey == "" {
 		logger.LogError("AI narrator requires OpenAI API key. Please set OPENAI_API_KEY environment variable or use --openai-key flag.")
 		os.Exit(1)
+	}
+
+	// Initialize database if server mode is enabled
+	var database *db.DB
+	if enableServer {
+		logger.LogInfo("Initializing database at: %s", dbFile)
+		var err error
+		database, err = db.Open(dbFile)
+		if err != nil {
+			logger.LogError("Failed to open database: %v", err)
+			logger.LogError("Make sure the directory exists and has proper permissions:")
+			logger.LogError("  sudo mkdir -p $(dirname %s)", dbFile)
+			logger.LogError("  sudo chmod 777 $(dirname %s)", dbFile)
+			os.Exit(1)
+		}
+		defer func() {
+			if database != nil {
+				database.Close()
+			}
+		}()
+		logger.LogInfo("Database initialized successfully")
+
+		// Start watcher manager
+		watcherManager := watcher.NewManager(database, logger.NewSlogLogger())
+
+		// Set up callbacks for agent changes
+		watcherManager.SetOnAgentAdded(func(pid int, agent db.ClaudeAgent) {
+			logger.LogInfo("New Claude agent started: PID=%d, Project=%s, Session=%s",
+				pid, agent.ProjectDir, agent.SessionID)
+		})
+		watcherManager.SetOnAgentRemoved(func(pid int) {
+			logger.LogInfo("Claude agent stopped: PID=%d", pid)
+		})
+
+		// Start all watchers
+		watcherManager.Start()
+		defer watcherManager.Stop()
 	}
 
 	// Create session manager early as it's needed by multiple components

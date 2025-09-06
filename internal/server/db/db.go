@@ -167,3 +167,18 @@ func (db *DB) DeleteOldAgents(olderThan time.Duration) (int64, error) {
 
 	return result.RowsAffected()
 }
+
+// DeleteClaudeAgent deletes a claude agent record by PID
+func (db *DB) DeleteClaudeAgent(pid int) error {
+	deleteSQL := `
+	DELETE FROM claude_agents
+	WHERE pid = ?
+	`
+
+	_, err := db.conn.Exec(deleteSQL, pid)
+	if err != nil {
+		return fmt.Errorf("failed to delete agent: %w", err)
+	}
+
+	return nil
+}
