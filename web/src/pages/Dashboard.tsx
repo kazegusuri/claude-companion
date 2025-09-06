@@ -1,5 +1,3 @@
-import { ActionIcon, Stack, Tooltip } from "@mantine/core";
-import { IconMessage, IconMessageDown, IconMessageOff } from "@tabler/icons-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatDisplay } from "../components/ChatDisplay";
@@ -7,21 +5,33 @@ import { MainLayout } from "../components/Layout/MainLayout";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
-import { resumeSharedAudioContext } from "../utils/live2d/audioContextPatch";
 
-type BubbleState = "right" | "bottom" | "hidden";
+interface DashboardProps {
+  isAudioEnabled: boolean;
+}
 
-export const Dashboard: React.FC = () => {
+export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
   const [speechText, setSpeechText] = useState("音声を待機中...");
-  const [bubbleState, setBubbleState] = useState<BubbleState>("bottom"); // 初期状態で下側表示
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [_connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
+  // オーバーレイの位置管理
+  const [overlayPosition, setOverlayPosition] = useState({ x: 250, y: window.innerHeight - 300 }); // オーバーレイの位置（初期は左下）
+  const [isDragging, setIsDragging] = useState(false); // ドラッグ中かどうか
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 }); // ドラッグのオフセット
 
   const wsClient = useRef<WebSocketAudioClient | null>(null);
   const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
+
+  // 音声が無効になったらキューをクリア
+  useEffect(() => {
+    if (!isAudioEnabled) {
+      audioQueue.current = [];
+      setCurrentMessageId(null);
+      setCurrentAudioData(undefined);
+    }
+  }, [isAudioEnabled]);
 
   // 音声キューを処理
   const processAudioQueue = useCallback(async () => {
@@ -115,135 +125,133 @@ export const Dashboard: React.FC = () => {
     };
   }, [handleWebSocketMessage]);
 
-  // 音声のトグル
-  const handleToggleAudio = async () => {
-    if (!isAudioEnabled) {
-      setIsAudioEnabled(true);
-      // 共有AudioContextをresume（PWA対策）
-      await resumeSharedAudioContext();
-    } else {
-      setIsAudioEnabled(false);
-      audioQueue.current = [];
-      setCurrentMessageId(null);
-      setCurrentAudioData(undefined);
-    }
-  };
+  // オーバーレイの位置に基づいて吹き出しの位置を決定（ドラッグ中も追従）
+  const [overlayBubbleSide, setOverlayBubbleSide] = useState<"top" | "bottom" | "left" | "right">(
+    "top",
+  );
 
-  // 3段階トグル: 右側 → 下側 → 非表示 → 右側...
-  const toggleBubble = () => {
-    setBubbleState((prev) => {
-      switch (prev) {
-        case "right":
-          return "bottom";
-        case "bottom":
-          return "hidden";
-        case "hidden":
-          return "right";
-      }
+  useEffect(() => {
+    const centerY = window.innerHeight / 2;
+
+    // 画面を上下で分割して、オーバーレイがどの位置にあるか判定
+    if (overlayPosition.y < centerY) {
+      // 上半分にある場合は下に吹き出しを表示
+      setOverlayBubbleSide("bottom");
+    } else {
+      // 下半分にある場合は上に吹き出しを表示
+      setOverlayBubbleSide("top");
+    }
+  }, [overlayPosition]);
+
+  // ドラッグ開始処理
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+    // 現在のオーバーレイ位置とマウス位置の差分を保存
+    setDragOffset({
+      x: e.clientX - overlayPosition.x,
+      y: e.clientY - overlayPosition.y,
     });
   };
 
-  // アイコンとツールチップのテキストを決定
-  const getIconAndTooltip = () => {
-    switch (bubbleState) {
-      case "right":
-        return {
-          icon: <IconMessage size={18} />,
-          tooltip: "吹き出し：右側表示中 → クリックで下側へ",
-        };
-      case "bottom":
-        return {
-          icon: <IconMessageDown size={18} />,
-          tooltip: "吹き出し：下側表示中 → クリックで非表示",
-        };
-      case "hidden":
-        return {
-          icon: <IconMessageOff size={18} />,
-          tooltip: "吹き出し：非表示 → クリックで右側へ",
-        };
-    }
-  };
+  // マウス移動処理（ドラッグ中）
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const newX = e.clientX - dragOffset.x;
+        const newY = e.clientY - dragOffset.y;
 
-  const { icon, tooltip } = getIconAndTooltip();
+        setOverlayPosition({
+          x: newX,
+          y: newY,
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+    return undefined;
+  }, [isDragging, dragOffset]);
 
   return (
-    <MainLayout
-      modelComponent={
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-between",
-            padding: "10px",
-          }}
-        >
+    <>
+      {/* オーバーレイLive2D（常に前面表示） */}
+      <div
+        style={{
+          position: "fixed",
+          left: `${overlayPosition.x}px`,
+          top: `${overlayPosition.y}px`,
+          transform: "translate(-50%, -50%)",
+          zIndex: 9999,
+          width: "500px",
+          height: "600px",
+          pointerEvents: "none", // クリックイベントを透過
+          cursor: isDragging ? "grabbing" : "grab",
+        }}
+      >
+        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+          {/* ドラッグ用の透明なハンドル領域（上部） */}
+          {/* biome-ignore lint/a11y/useSemanticElements: ドラッグハンドル用の透明領域 */}
+          <div
+            role="button"
+            tabIndex={-1}
+            onMouseDown={handleMouseDown}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "120px", // ドラッグ可能エリアの高さ
+              pointerEvents: "auto",
+              cursor: isDragging ? "grabbing" : "grab",
+              zIndex: 9998,
+              backgroundColor: "transparent", // 完全に透明
+            }}
+          />
+          <Live2DModelViewer
+            width={500}
+            height={600}
+            speechText={speechText}
+            isSpeaking={true}
+            bubbleSide={overlayBubbleSide}
+            useCard={true}
+            cardTitle="ASSISTANT"
+            {...(currentAudioData ? { audioData: currentAudioData } : {})}
+            onAudioEnd={handleAudioEnd}
+          />
+        </div>
+      </div>
+
+      <MainLayout
+        modelComponent={
           <div
             style={{
               flex: 1,
-              height: "100%",
               minHeight: 0,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              padding: "10px",
             }}
           >
-            <Live2DModelViewer
-              speechText={speechText}
-              isSpeaking={bubbleState !== "hidden"}
-              bubbleSide={bubbleState === "hidden" ? "bottom" : bubbleState}
-              useCard={true}
-              cardTitle="ASSISTANT"
-              {...(currentAudioData !== undefined && { audioData: currentAudioData })}
-              onAudioEnd={handleAudioEnd}
-            />
+            {/* 左側のmodel componentは空にする（オーバーレイで表示するため） */}
           </div>
-          <div
-            style={{
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              justifyContent: "flex-end",
-              paddingBottom: "5px",
-            }}
-          >
-            <Stack gap="xs">
-              <Tooltip label={isAudioEnabled ? "音声ON" : "音声OFF"} position="top" withArrow>
-                <ActionIcon
-                  onClick={handleToggleAudio}
-                  size="sm"
-                  radius="xl"
-                  variant={isAudioEnabled ? "filled" : "light"}
-                  color={isAudioEnabled ? "green" : "gray"}
-                  style={{
-                    zIndex: 1001,
-                  }}
-                >
-                  {isAudioEnabled ? "🔊" : "🔇"}
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label={tooltip} position="top" withArrow>
-                <ActionIcon
-                  onClick={toggleBubble}
-                  size="sm"
-                  radius="xl"
-                  variant="filled"
-                  style={{
-                    zIndex: 1001,
-                  }}
-                >
-                  {icon}
-                </ActionIcon>
-              </Tooltip>
-            </Stack>
-          </div>
-        </div>
-      }
-      scheduleComponent={null}
-      textComponent={null}
-      chatComponent={<ChatDisplay currentPlayingMessageId={currentMessageId} />}
-    />
+        }
+        scheduleComponent={null}
+        textComponent={null}
+        chatComponent={<ChatDisplay currentPlayingMessageId={currentMessageId} />}
+      />
+    </>
   );
 };

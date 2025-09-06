@@ -1,4 +1,4 @@
-import { Box, Card, Grid, ScrollArea, Stack, Text, Title } from "@mantine/core";
+import { Box, Card, Grid, Stack, Text } from "@mantine/core";
 import type React from "react";
 import "./MainLayout.css";
 
@@ -15,7 +15,7 @@ const TextHeight = "0px";
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   modelComponent,
-  scheduleComponent,
+  scheduleComponent: _scheduleComponent,
   textComponent: _textComponent,
   chatComponent,
 }) => {
@@ -33,10 +33,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       {/* 画面高を確保（ヘッダー＆パディングを差し引く）
           重要: 100dvh を使用（モバイルのアドレスバー対策）
           重要: align="stretch" で左右カラムの高さを自動的に揃える
-          横幅制限: App.tsxの AppShell.Main > Box で maw={1440} mx="auto" px="md" */}
+          横幅制限: App.tsxの AppShell.Main > Box で maw={1800} mx="auto" px="md" */}
       <Grid gutter="md" align="stretch" style={{ flex: 1, minHeight: 0 }}>
-        {/* 左カラム (span=5 で 5:7 の比率)*/}
-        <Grid.Col span={5} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+        {/* 左カラム (span=3 で 3:6:3 の比率)*/}
+        <Grid.Col span={3} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
           <Stack gap="md" h="100%" style={{ flex: 1, minHeight: 0 }}>
             <Box
               style={{
@@ -71,99 +71,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 </Box>
               </Card>
             </Box>
-
-            {/* 下段 - Speech to Text / Translation カード  */}
-            {/*
-            <Box style={{ height: TextHeight }}>
-              <Card
-                withBorder
-                radius="md"
-                className="layout-frame text-frame"
-                h="100%"
-                style={{ display: "flex", flexDirection: "column" }}
-              >
-                <Title order={5} className="frame-title">
-                  Speech to Text / Translation
-                </Title>
-                <Box
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {textComponent || (
-                    <Stack align="center" justify="center">
-                      <Text size="sm" c="dimmed">
-                        音声認識待機中...
-                      </Text>
-                      <Text size="xs" c="dimmed" opacity={0.7}>
-                        モデルが話すとここに内容が表示されます
-                      </Text>
-                    </Stack>
-                  )}
-                </Box>
-              </Card>
-            </Box>
-          */}
-
-            {/* 中段 - Schedule カード  */}
-            <Box style={{ height: ScheduleHeight, marginBottom: "16px" }}>
-              <Card
-                withBorder
-                radius="md"
-                className="layout-frame schedule-frame"
-                h="100%"
-                style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
-              >
-                <Title order={5} className="frame-title">
-                  Schedule
-                </Title>
-                <ScrollArea style={{ flex: 1, minHeight: 0 }} offsetScrollbars>
-                  {scheduleComponent || (
-                    <Stack gap="xs" mt="sm">
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          10:00
-                        </Text>
-                      </Card>
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          11:00
-                        </Text>
-                      </Card>
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          12:00
-                        </Text>
-                      </Card>
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          12:00
-                        </Text>
-                      </Card>
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          12:00
-                        </Text>
-                      </Card>
-                      <Card p="xs" style={{ background: "rgba(255, 255, 255, 0.2)" }}>
-                        <Text size="sm" c="white">
-                          12:00
-                        </Text>
-                      </Card>
-                    </Stack>
-                  )}
-                </ScrollArea>
-              </Card>
-            </Box>
           </Stack>
         </Grid.Col>
 
-        {/* 右カラム (span=7) - チャット*/}
+        {/* 中央カラム (span=6) - チャット*/}
         <Grid.Col
-          span={7}
+          span={6}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -195,6 +108,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               </Box>
             </Card>
           </Box>
+        </Grid.Col>
+
+        {/* 右カラム (span=3) */}
+        <Grid.Col span={3} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <Card
+            withBorder
+            radius="md"
+            className="layout-frame model-frame"
+            style={{
+              padding: 0,
+              flex: 1,
+              overflow: "hidden", // コンテンツを適切に収める
+              position: "relative",
+            }}
+          >
+            <Box></Box>
+          </Card>
         </Grid.Col>
       </Grid>
     </Box>

@@ -194,14 +194,48 @@ export function SpeechBubble({
     ro.observe(anchor);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, { passive: true });
+
+    // MutationObserverでアンカー要素の属性変更を監視（位置変更の検知）
+    const mo = new MutationObserver(updatePosition);
+    mo.observe(anchor, {
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+
+    // アンカー要素の親要素も監視（親要素の位置変更も検知）
+    if (anchor.parentElement) {
+      mo.observe(anchor.parentElement, {
+        attributes: true,
+        attributeFilter: ["style"],
+        subtree: false,
+      });
+    }
+
+    // AnimationFrameで継続的に位置を更新（ドラッグ中の滑らかな追従）
+    let animationFrameId: number;
+    const continuousUpdate = () => {
+      updatePosition();
+      animationFrameId = requestAnimationFrame(continuousUpdate);
+    };
+
+    // 初回位置設定
     updatePosition();
 
+    // visible状態の時のみ継続更新を有効化
+    if (visible) {
+      animationFrameId = requestAnimationFrame(continuousUpdate);
+    }
+
     return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      mo.disconnect();
       ro.disconnect();
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition);
     };
-  }, [anchorSelector, side, isMobile, maxWidth, specifiedWidth]);
+  }, [anchorSelector, side, isMobile, maxWidth, specifiedWidth, visible]);
 
   // モバイルビューの判定
   const isInMobileView = window.location.pathname === "/mobile" || isMobile;

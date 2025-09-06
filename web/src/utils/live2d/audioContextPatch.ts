@@ -257,7 +257,7 @@ export function findAndPatchSoundManager(
       // Live2DModelクラスのSoundManagerも置き換える
       if (Live2DModel && typeof Live2DModel === "function") {
         try {
-          const modelConstructor = Live2DModel as any;
+          const modelConstructor = Live2DModel as { SoundManager?: SoundManagerType };
           if (modelConstructor.SoundManager) {
             modelConstructor.SoundManager = patchedContext.proxy;
           }
@@ -307,7 +307,7 @@ function createPatchedSoundManagerProxy(OriginalSoundManager: SoundManagerType):
     get(target, prop, receiver) {
       // addContextメソッドをオーバーライド
       if (prop === "addContext") {
-        return function (audio: HTMLAudioElement): AudioContext {
+        return (audio: HTMLAudioElement): AudioContext => {
           if (!sharedAudioContext || sharedAudioContext.state === "closed") {
             sharedAudioContext = new AudioContext();
             sharedAudioContextInstance = sharedAudioContext;
@@ -330,7 +330,7 @@ function createPatchedSoundManagerProxy(OriginalSoundManager: SoundManagerType):
 
       // disposeメソッドをオーバーライド
       if (prop === "dispose") {
-        return function (audio: HTMLAudioElement): void {
+        return (audio: HTMLAudioElement): void => {
           const context = patchedAudioContextWeakMap.get(audio);
 
           if (context === sharedAudioContext) {

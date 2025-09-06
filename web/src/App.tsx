@@ -13,22 +13,28 @@ const theme = createTheme({});
 
 function DesktopApp() {
   const [currentView, setCurrentView] = useState<"dashboard" | "narrator" | "live2d">("dashboard");
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
 
   return (
     <AppShell header={{ height: 60 }} padding={0} style={{ height: "100dvh", overflow: "hidden" }}>
       <AppShell.Header p={0}>
-        <AppHeader currentView={currentView} onViewChange={setCurrentView} />
+        <AppHeader
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          isAudioEnabled={isAudioEnabled}
+          onAudioToggle={setIsAudioEnabled}
+        />
       </AppShell.Header>
 
       <AppShell.Main style={{ display: "flex", minHeight: 0, overflow: "hidden" }}>
         <Box
-          maw={1440}
+          maw={1800}
           w="100%"
           mx="auto"
           px="md"
           style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
         >
-          {currentView === "dashboard" && <Dashboard />}
+          {currentView === "dashboard" && <Dashboard isAudioEnabled={isAudioEnabled} />}
           {currentView === "narrator" && <AudioNarrator />}
           {currentView === "live2d" && <Live2DViewer />}
         </Box>

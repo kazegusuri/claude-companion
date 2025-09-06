@@ -1,13 +1,30 @@
-import { Box, Button, Group, Tabs, Text } from "@mantine/core";
+import { ActionIcon, Box, Button, Group, Tabs, Text, Tooltip } from "@mantine/core";
 import { IconDashboard, IconMicrophone, IconRobot } from "@tabler/icons-react";
 import type React from "react";
+import { resumeSharedAudioContext } from "../utils/live2d/audioContextPatch";
 
 interface AppHeaderProps {
   currentView: "dashboard" | "narrator" | "live2d";
   onViewChange: (view: "dashboard" | "narrator" | "live2d") => void;
+  isAudioEnabled: boolean;
+  onAudioToggle: (enabled: boolean) => void;
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, onViewChange }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({
+  currentView,
+  onViewChange,
+  isAudioEnabled,
+  onAudioToggle,
+}) => {
+  const handleToggleAudio = async () => {
+    if (!isAudioEnabled) {
+      onAudioToggle(true);
+      // 共有AudioContextをresume（PWA対策）
+      await resumeSharedAudioContext();
+    } else {
+      onAudioToggle(false);
+    }
+  };
   return (
     <Box
       component="header"
@@ -50,6 +67,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, onViewChange 
         </Tabs>
 
         <Group gap="xs">
+          <Tooltip label={isAudioEnabled ? "音声ON" : "音声OFF"} position="bottom" withArrow>
+            <ActionIcon
+              onClick={handleToggleAudio}
+              size="md"
+              radius="xl"
+              variant={isAudioEnabled ? "filled" : "light"}
+              color={isAudioEnabled ? "green" : "gray"}
+            >
+              {isAudioEnabled ? "🔊" : "🔇"}
+            </ActionIcon>
+          </Tooltip>
           <Button variant="subtle" size="sm">
             Settings
           </Button>
