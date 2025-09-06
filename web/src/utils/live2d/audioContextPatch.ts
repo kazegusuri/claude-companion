@@ -13,19 +13,38 @@ export function patchSoundManager(SoundManager: SoundManagerType): AudioContext 
   }
 
   // 既にパッチ済みかチェック
-  if (SoundManager._isPatched) {
-    return sharedAudioContextInstance;
+  try {
+    if (SoundManager._isPatched) {
+      return sharedAudioContextInstance;
+    }
+  } catch {
+    // _isPatchedが追加できない場合は続行
   }
 
   let sharedAudioContext: AudioContext | null = null;
   const patchedAudioContextWeakMap = new WeakMap<HTMLAudioElement, AudioContext>();
 
-  // contextsとaudiosの配列を確保
-  if (!SoundManager.contexts) {
-    SoundManager.contexts = [];
+  // オブジェクトが拡張可能かチェック
+  if (!Object.isExtensible(SoundManager)) {
+    console.warn("[patchSoundManager] SoundManager is not extensible, skipping patch");
+    // パッチできない場合でも、共有AudioContextを作成して返す
+    if (!sharedAudioContextInstance) {
+      sharedAudioContextInstance = new AudioContext();
+    }
+    return sharedAudioContextInstance;
   }
-  if (!SoundManager.audios) {
-    SoundManager.audios = [];
+
+  // contextsとaudiosの配列を確保
+  try {
+    if (!SoundManager.contexts) {
+      SoundManager.contexts = [];
+    }
+    if (!SoundManager.audios) {
+      SoundManager.audios = [];
+    }
+  } catch (error) {
+    console.warn("[patchSoundManager] Cannot add properties to SoundManager:", error);
+    // プロパティを追加できない場合でも続行
   }
 
   const originalDispose = SoundManager.dispose?.bind(SoundManager);
@@ -35,62 +54,75 @@ export function patchSoundManager(SoundManager: SoundManagerType): AudioContext 
     return null;
   }
 
-  SoundManager.addContext = function (audio: HTMLAudioElement): AudioContext {
-    if (!sharedAudioContext || sharedAudioContext.state === "closed") {
-      sharedAudioContext = new AudioContext();
+  try {
+    SoundManager.addContext = function (audio: HTMLAudioElement): AudioContext {
+      if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+        sharedAudioContext = new AudioContext();
+      }
+
+      patchedAudioContextWeakMap.set(audio, sharedAudioContext);
+
+      if (this.contexts && !this.contexts.includes(sharedAudioContext)) {
+        this.contexts.push(sharedAudioContext);
+      }
+
+      return sharedAudioContext;
+    };
+
+    SoundManager.dispose = function (audio: HTMLAudioElement): void {
+      const context = patchedAudioContextWeakMap.get(audio);
+
+      if (context === sharedAudioContext) {
+        patchedAudioContextWeakMap.delete(audio);
+
+        if (this.contexts) {
+          const index = this.contexts.indexOf(context);
+          if (index > -1) {
+            this.contexts.splice(index, 1);
+          }
+        }
+
+        audio.pause();
+        audio.removeAttribute("src");
+
+        if (this.audios) {
+          const audioIndex = this.audios.indexOf(audio);
+          if (audioIndex > -1) {
+            this.audios.splice(audioIndex, 1);
+          }
+        }
+      } else {
+        originalDispose?.call(this, audio);
+      }
+    };
+
+    window.addEventListener("beforeunload", () => {
+      if (sharedAudioContext && sharedAudioContext.state !== "closed") {
+        sharedAudioContext.close();
+      }
+    });
+
+    // パッチ済みフラグを設定
+    try {
+      SoundManager._isPatched = true;
+    } catch {
+      // _isPatchedが追加できない場合は無視
     }
 
-    patchedAudioContextWeakMap.set(audio, sharedAudioContext);
+    // グローバル変数に保存（デバッグ用）
+    sharedAudioContextInstance = sharedAudioContext;
 
-    if (this.contexts && !this.contexts.includes(sharedAudioContext)) {
-      this.contexts.push(sharedAudioContext);
-    }
+    isPatchApplied = true;
 
     return sharedAudioContext;
-  };
-
-  SoundManager.dispose = function (audio: HTMLAudioElement): void {
-    const context = patchedAudioContextWeakMap.get(audio);
-
-    if (context === sharedAudioContext) {
-      patchedAudioContextWeakMap.delete(audio);
-
-      if (this.contexts) {
-        const index = this.contexts.indexOf(context);
-        if (index > -1) {
-          this.contexts.splice(index, 1);
-        }
-      }
-
-      audio.pause();
-      audio.removeAttribute("src");
-
-      if (this.audios) {
-        const audioIndex = this.audios.indexOf(audio);
-        if (audioIndex > -1) {
-          this.audios.splice(audioIndex, 1);
-        }
-      }
-    } else {
-      originalDispose?.call(this, audio);
+  } catch (error) {
+    console.error("[patchSoundManager] Failed to apply patch:", error);
+    // パッチが失敗しても共有AudioContextを返す
+    if (!sharedAudioContextInstance) {
+      sharedAudioContextInstance = new AudioContext();
     }
-  };
-
-  window.addEventListener("beforeunload", () => {
-    if (sharedAudioContext && sharedAudioContext.state !== "closed") {
-      sharedAudioContext.close();
-    }
-  });
-
-  // パッチ済みフラグを設定
-  SoundManager._isPatched = true;
-
-  // グローバル変数に保存（デバッグ用）
-  sharedAudioContextInstance = sharedAudioContext;
-
-  isPatchApplied = true;
-
-  return sharedAudioContext;
+    return sharedAudioContextInstance;
+  }
 }
 
 let isPatchApplied = false;
@@ -206,7 +238,36 @@ export function findAndPatchSoundManager(
   const SoundManager = findSoundManager(PixiLive2D, Live2DModel);
 
   if (SoundManager) {
+    // まず通常のパッチを試みる
     const context = patchSoundManager(SoundManager);
+
+    // パッチが失敗した場合、プロキシラッパーを使用
+    if (!context && !Object.isExtensible(SoundManager)) {
+      console.warn("[findAndPatchSoundManager] Using proxy wrapper for frozen SoundManager");
+      const patchedContext = createPatchedSoundManagerProxy(SoundManager);
+
+      // PIXIにプロキシを設定
+      if (window.PIXI) {
+        if (!window.PIXI.live2d) {
+          window.PIXI.live2d = {};
+        }
+        window.PIXI.live2d.SoundManager = patchedContext.proxy;
+      }
+
+      // Live2DModelクラスのSoundManagerも置き換える
+      if (Live2DModel && typeof Live2DModel === "function") {
+        try {
+          const modelConstructor = Live2DModel as any;
+          if (modelConstructor.SoundManager) {
+            modelConstructor.SoundManager = patchedContext.proxy;
+          }
+        } catch (e) {
+          console.warn("Could not replace Live2DModel.SoundManager:", e);
+        }
+      }
+
+      return patchedContext.context;
+    }
 
     // PIXIにも設定
     if (window.PIXI) {
@@ -223,6 +284,118 @@ export function findAndPatchSoundManager(
     );
     return null;
   }
+}
+
+/**
+ * frozenなSoundManagerのためのプロキシラッパーを作成
+ */
+function createPatchedSoundManagerProxy(OriginalSoundManager: SoundManagerType): {
+  proxy: SoundManagerType;
+  context: AudioContext;
+} {
+  let sharedAudioContext: AudioContext | null = null;
+  const patchedAudioContextWeakMap = new WeakMap<HTMLAudioElement, AudioContext>();
+
+  // 共有AudioContextを作成
+  if (!sharedAudioContextInstance) {
+    sharedAudioContextInstance = new AudioContext();
+  }
+  sharedAudioContext = sharedAudioContextInstance;
+
+  // プロキシハンドラー
+  const handler: ProxyHandler<SoundManagerType> = {
+    get(target, prop, receiver) {
+      // addContextメソッドをオーバーライド
+      if (prop === "addContext") {
+        return function (audio: HTMLAudioElement): AudioContext {
+          if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+            sharedAudioContext = new AudioContext();
+            sharedAudioContextInstance = sharedAudioContext;
+          }
+
+          patchedAudioContextWeakMap.set(audio, sharedAudioContext);
+
+          // 元のcontexts配列にも追加を試みる（可能な場合）
+          try {
+            if (target.contexts && !target.contexts.includes(sharedAudioContext)) {
+              target.contexts.push(sharedAudioContext);
+            }
+          } catch {
+            // 追加できない場合は無視
+          }
+
+          return sharedAudioContext;
+        };
+      }
+
+      // disposeメソッドをオーバーライド
+      if (prop === "dispose") {
+        return function (audio: HTMLAudioElement): void {
+          const context = patchedAudioContextWeakMap.get(audio);
+
+          if (context === sharedAudioContext) {
+            patchedAudioContextWeakMap.delete(audio);
+
+            // 元のcontexts配列からも削除を試みる
+            try {
+              if (target.contexts) {
+                const index = target.contexts.indexOf(context);
+                if (index > -1) {
+                  target.contexts.splice(index, 1);
+                }
+              }
+            } catch {
+              // 削除できない場合は無視
+            }
+
+            audio.pause();
+            audio.removeAttribute("src");
+
+            // 元のaudios配列からも削除を試みる
+            try {
+              if (target.audios) {
+                const audioIndex = target.audios.indexOf(audio);
+                if (audioIndex > -1) {
+                  target.audios.splice(audioIndex, 1);
+                }
+              }
+            } catch {
+              // 削除できない場合は無視
+            }
+          } else if (target.dispose) {
+            // 元のdisposeメソッドを呼ぶ
+            target.dispose.call(target, audio);
+          }
+        };
+      }
+
+      // _isPatchedプロパティ
+      if (prop === "_isPatched") {
+        return true;
+      }
+
+      // その他のプロパティは元のオブジェクトから取得
+      return Reflect.get(target, prop, receiver);
+    },
+
+    set(target, prop, value) {
+      // frozenオブジェクトへの書き込みは無視
+      if (prop === "_isPatched") {
+        return true;
+      }
+      try {
+        return Reflect.set(target, prop, value);
+      } catch {
+        return true; // エラーを無視
+      }
+    },
+  };
+
+  const proxy = new Proxy(OriginalSoundManager, handler);
+
+  isPatchApplied = true;
+
+  return { proxy, context: sharedAudioContext };
 }
 
 export function ensureSoundManagerPatch(): void {

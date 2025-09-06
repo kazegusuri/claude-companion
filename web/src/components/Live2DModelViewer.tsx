@@ -367,8 +367,13 @@ export function Live2DModelViewer({
 
   // 初回レンダリング時にSoundManagerにパッチを適用
   useEffect(() => {
-    // audioContextPatch.tsの便利関数を使用してSoundManagerを探してパッチを適用
-    findAndPatchSoundManager(PixiLive2D, Live2DModel);
+    try {
+      // audioContextPatch.tsの便利関数を使用してSoundManagerを探してパッチを適用
+      findAndPatchSoundManager(PixiLive2D, Live2DModel);
+    } catch (error) {
+      console.warn("Failed to patch SoundManager:", error);
+      // パッチが失敗してもアプリケーションは続行
+    }
   }, []);
 
   useEffect(() => {
