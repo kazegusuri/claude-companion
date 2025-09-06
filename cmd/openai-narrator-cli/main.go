@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 func main() {

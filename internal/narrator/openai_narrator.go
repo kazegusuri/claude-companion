@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // OpenAINarrator uses OpenAI API for narration

@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/server/websocket"
-	"github.com/kazegusuri/claude-companion/speech"
+	"github.com/kazegusuri/claude-companion/internal/speech"
 	"github.com/rs/cors"
 )
 

@@ -8,8 +8,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/kazegusuri/claude-companion/narrator"
-	"github.com/kazegusuri/claude-companion/speech"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
+	"github.com/kazegusuri/claude-companion/internal/speech"
 )
 
 func main() {

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // OpenAITranslator uses OpenAI API for English to Japanese translation

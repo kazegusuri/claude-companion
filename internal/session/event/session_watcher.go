@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // SessionWatcher watches session log files

@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // ProjectsWatcher watches the ~/.claude/projects directory for changes

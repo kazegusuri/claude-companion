@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 // Formatter handles formatting of parsed events

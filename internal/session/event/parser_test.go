@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 func TestParser_Parse(t *testing.T) {

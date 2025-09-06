@@ -11,7 +11,7 @@ import (
 
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 // mockNarrator is a simple test narrator

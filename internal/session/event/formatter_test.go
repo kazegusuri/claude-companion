@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kazegusuri/claude-companion/narrator"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 func TestFormatAssistantText(t *testing.T) {

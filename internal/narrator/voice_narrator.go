@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kazegusuri/claude-companion/logger"
-	"github.com/kazegusuri/claude-companion/speech"
+	"github.com/kazegusuri/claude-companion/internal/logger"
+	"github.com/kazegusuri/claude-companion/internal/speech"
 )
 
 // VoiceNarrator wraps a narrator and adds voice output

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/logger"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // SessionFileManager manages multiple SessionWatcher instances
