@@ -88,14 +88,16 @@ func (hn *HybridNarrator) NarrateToolUse(toolName string, input map[string]inter
 	hn.cacheMu.RUnlock()
 
 	// Try each narrator in sequence
-	for _, narrator := range hn.narrators {
+	for i, narrator := range hn.narrators {
 		narration, shouldFallback := narrator.NarrateToolUse(toolName, input)
 		if !shouldFallback {
-			// Cache the result
-			hn.cacheMu.Lock()
-			hn.cache[cacheKey] = narration
-			hn.cacheTime[cacheKey] = time.Now()
-			hn.cacheMu.Unlock()
+			// Cache the result only if not the first narrator
+			if i > 0 {
+				hn.cacheMu.Lock()
+				hn.cache[cacheKey] = narration
+				hn.cacheTime[cacheKey] = time.Now()
+				hn.cacheMu.Unlock()
+			}
 			return narration, false
 		}
 	}
@@ -179,4 +181,17 @@ func (hn *HybridNarrator) NarrateTaskCompletion(description string, subagentType
 	}
 	// Fallback
 	return "タスクが完了しました", false
+}
+
+// NarrateAPIError narrates an API error
+func (hn *HybridNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	// Try each narrator in sequence
+	for _, narrator := range hn.narrators {
+		narration, shouldFallback := narrator.NarrateAPIError(statusCode, errorType, message)
+		if !shouldFallback {
+			return narration, false
+		}
+	}
+	// Fallback
+	return fmt.Sprintf("APIエラー %d: %s", statusCode, message), false
 }

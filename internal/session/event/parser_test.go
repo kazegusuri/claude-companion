@@ -37,6 +37,12 @@ func TestParser_Parse(t *testing.T) {
 			description: "Parse assistant message with thinking content",
 		},
 		{
+			name:        "assistant_api_error_message",
+			input:       `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","isApiErrorMessage":true,"message":{"id":"msg_123","type":"message","role":"assistant","model":"<synthetic>","content":[{"type":"text","text":"API Error: 503 {\"type\":\"error\",\"error\":{\"type\":\"service_unavailable\",\"message\":\"Service temporarily unavailable\"}}"}]}}`,
+			wantType:    "AssistantMessage",
+			description: "Parse assistant API error message",
+		},
+		{
 			name:        "system_message",
 			input:       `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution completed","isMeta":false}`,
 			wantType:    "SystemMessage",
@@ -282,6 +288,84 @@ func TestFormatter_Format(t *testing.T) {
 			},
 			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50\n",
 			description: "Assistant message with text and token usage",
+		},
+		{
+			name: "assistant_api_error_503",
+			event: &AssistantMessage{
+				BaseEvent: BaseEvent{
+					TypeString: EventTypeAssistant,
+					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
+					UUID:       "123",
+				},
+				RequestID:         "req_123",
+				IsApiErrorMessage: true,
+				Message: AssistantMessageContent{
+					ID:    "msg_123",
+					Type:  "message",
+					Role:  "assistant",
+					Model: "<synthetic>",
+					Content: []AssistantContent{
+						{
+							Type: "text",
+							Text: "API Error: 503 {\"type\":\"error\",\"error\":{\"type\":\"service_unavailable\",\"message\":\"Service temporarily unavailable\"}}",
+						},
+					},
+				},
+			},
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (<synthetic>):\n  ❌ API Error 503: service_unavailable - Service temporarily unavailable\n",
+			description: "Assistant API error message with 503 status",
+		},
+		{
+			name: "assistant_api_error_429",
+			event: &AssistantMessage{
+				BaseEvent: BaseEvent{
+					TypeString: EventTypeAssistant,
+					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
+					UUID:       "456",
+				},
+				RequestID:         "req_456",
+				IsApiErrorMessage: true,
+				Message: AssistantMessageContent{
+					ID:    "msg_456",
+					Type:  "message",
+					Role:  "assistant",
+					Model: "<synthetic>",
+					Content: []AssistantContent{
+						{
+							Type: "text",
+							Text: "API Error: 429 {\"type\":\"error\",\"error\":{\"type\":\"rate_limit_error\",\"message\":\"Too many requests\"}}",
+						},
+					},
+				},
+			},
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (<synthetic>):\n  ❌ API Error 429: rate_limit_error - Too many requests\n",
+			description: "Assistant API error message with 429 rate limit",
+		},
+		{
+			name: "assistant_api_error_without_json",
+			event: &AssistantMessage{
+				BaseEvent: BaseEvent{
+					TypeString: EventTypeAssistant,
+					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
+					UUID:       "789",
+				},
+				RequestID:         "req_789",
+				IsApiErrorMessage: true,
+				Message: AssistantMessageContent{
+					ID:    "msg_789",
+					Type:  "message",
+					Role:  "assistant",
+					Model: "<synthetic>",
+					Content: []AssistantContent{
+						{
+							Type: "text",
+							Text: "API Error: Connection timeout",
+						},
+					},
+				},
+			},
+			wantOutput:  "[15:30:45] 🤖 ASSISTANT (<synthetic>):\n  ❌ API Error: Connection timeout\n",
+			description: "Assistant API error message without JSON",
 		},
 		{
 			name: "assistant_message_with_tool_use",

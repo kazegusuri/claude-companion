@@ -6,13 +6,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kazegusuri/claude-companion/internal/session/event"
+	"github.com/kazegusuri/claude-companion/internal/logger"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/db"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/server/watcher"
 	"github.com/kazegusuri/claude-companion/internal/server/websocket"
-	"github.com/kazegusuri/claude-companion/internal/logger"
-	"github.com/kazegusuri/claude-companion/internal/narrator"
+	"github.com/kazegusuri/claude-companion/internal/session/event"
 	"github.com/kazegusuri/claude-companion/internal/speech"
 	"github.com/spf13/pflag"
 )

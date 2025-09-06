@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // BufferInfo holds information about buffered events for a session

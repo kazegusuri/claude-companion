@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 func TestSessionFileManager(t *testing.T) {

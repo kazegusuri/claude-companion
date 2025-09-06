@@ -32,6 +32,7 @@ type Narrator interface {
 	NarrateText(text string, isThinking bool, meta *EventMeta) (string, bool)
 	NarrateNotification(notificationType NotificationType) (string, bool)
 	NarrateTaskCompletion(description string, subagentType string) (string, bool)
+	NarrateAPIError(statusCode int, errorType string, message string) (string, bool)
 }
 
 // Helper function to extract domain from URL
@@ -85,5 +86,10 @@ func (n *NoOpNarrator) NarrateNotification(notificationType NotificationType) (s
 
 // NarrateTaskCompletion returns empty string
 func (n *NoOpNarrator) NarrateTaskCompletion(description string, subagentType string) (string, bool) {
+	return "", true
+}
+
+// NarrateAPIError returns empty string
+func (n *NoOpNarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
 	return "", true
 }

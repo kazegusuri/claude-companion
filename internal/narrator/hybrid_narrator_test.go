@@ -32,6 +32,10 @@ func (m *mockAINarrator) NarrateTaskCompletion(description string, subagentType 
 	return "", false
 }
 
+func (m *mockAINarrator) NarrateAPIError(statusCode int, errorType string, message string) (string, bool) {
+	return "", false
+}
+
 func TestHybridNarrator_NarrateToolUse(t *testing.T) {
 	// Define test cases that will be tested under different AI configurations
 	testCases := []struct {
