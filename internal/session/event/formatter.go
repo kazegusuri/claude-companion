@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
@@ -17,7 +18,6 @@ import (
 // Formatter handles formatting of parsed events
 type Formatter struct {
 	narrator       narrator.Narrator
-	debugMode      bool
 	fileOperations []string
 	currentTool    string
 	emitter        handler.MessageEmitter
@@ -27,7 +27,6 @@ type Formatter struct {
 func NewFormatter(narrator narrator.Narrator) *Formatter {
 	return &Formatter{
 		narrator:       narrator,
-		debugMode:      false,
 		fileOperations: make([]string, 0),
 	}
 }
@@ -37,9 +36,9 @@ func (f *Formatter) SetMessageEmitter(emitter handler.MessageEmitter) {
 	f.emitter = emitter
 }
 
-// SetDebugMode enables or disables debug mode
+// SetDebugMode enables or disables debug mode (deprecated - uses global logger debug mode)
 func (f *Formatter) SetDebugMode(enabled bool) {
-	f.debugMode = enabled
+	// This method is kept for compatibility but now uses global logger debug mode
 }
 
 // Format formats an event for display
@@ -68,7 +67,7 @@ func (f *Formatter) Format(event Event) (string, error) {
 
 func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 	// Skip meta messages unless in debug mode
-	if event.IsMeta && !f.debugMode {
+	if event.IsMeta && !logger.IsDebugMode() {
 		return "", nil
 	}
 
@@ -109,7 +108,7 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 	if event.IsMeta {
 		header += " [META]"
 	}
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		header += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
 	output.WriteString(header + "\n")
@@ -131,7 +130,7 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 			}
 		}
 		// Add full content in debug mode
-		if f.debugMode && len(lines) > 3 {
+		if logger.IsDebugMode() && len(lines) > 3 {
 			output.WriteString(fmt.Sprintf("  [DEBUG] Full content: %d lines, %d chars\n", len(lines), len(content)))
 		}
 	case []interface{}:
@@ -178,7 +177,7 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 		}
 	default:
 		output.WriteString(fmt.Sprintf("  %v\n", event.Message.Content))
-		if f.debugMode {
+		if logger.IsDebugMode() {
 			output.WriteString(fmt.Sprintf("  [DEBUG] Unknown content type: %T\n", event.Message.Content))
 		}
 	}
@@ -277,7 +276,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] 🤖 ASSISTANT (%s):", event.Timestamp.Format("15:04:05"), event.Message.Model)
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		header += fmt.Sprintf(" [ID: %s, ReqID: %s]", event.Message.ID, event.RequestID)
 		if event.Message.StopReason != nil {
 			header += fmt.Sprintf(" [Stop: %s]", *event.Message.StopReason)
@@ -378,7 +377,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 			formatted := f.FormatToolUse(content.Name, meta, inputMap)
 			output.WriteString(formatted)
 			// Add debug info showing tool use details
-			if f.debugMode {
+			if logger.IsDebugMode() {
 				output.WriteString(fmt.Sprintf("  [DEBUG] Tool Use: %s (id: %s)\n", content.Name, content.ID))
 				if content.Input != nil {
 					inputJSON, _ := json.MarshalIndent(content.Input, "    ", "  ")
@@ -416,7 +415,7 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 }
 
 func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
-	if event.IsMeta && !f.debugMode {
+	if event.IsMeta && !logger.IsDebugMode() {
 		return "", nil // Skip meta messages unless in debug mode
 	}
 
@@ -424,7 +423,7 @@ func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
 
 	// Build header
 	header := fmt.Sprintf("[%s] 🪝 HOOK [%s]", event.Timestamp.Format("15:04:05"), event.HookEventType)
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		debugInfo := fmt.Sprintf(" [UUID: %s, Tool: %s]", event.UUID, event.ToolUseID)
 		header += debugInfo
 	}
@@ -435,7 +434,7 @@ func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
 	output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", event.HookStatus))
 
 	// Add debug info
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		output.WriteString(fmt.Sprintf("  🏷️  Level: %s\n", event.Level))
 		output.WriteString(fmt.Sprintf("  📂 CWD: %s\n", event.CWD))
 		output.WriteString(fmt.Sprintf("  🌳 Branch: %s\n", event.GitBranch))
@@ -445,7 +444,7 @@ func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
 }
 
 func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
-	if event.IsMeta && !f.debugMode {
+	if event.IsMeta && !logger.IsDebugMode() {
 		return "", nil // Skip meta messages unless in debug mode
 	}
 
@@ -474,7 +473,7 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] 📣 SYSTEM%s", event.Timestamp.Format("15:04:05"), levelStr)
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		debugInfo := fmt.Sprintf(" [UUID: %s", event.UUID)
 		if event.IsMeta {
 			debugInfo += ", META"
@@ -509,7 +508,7 @@ func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
 func (f *Formatter) formatSummaryEvent(event *SummaryEvent) (string, error) {
 	// Build message with optional debug info
 	message := fmt.Sprintf("📋 [SUMMARY] %s", event.Summary)
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		message += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
 	}
 	return message + "\n", nil
@@ -518,7 +517,7 @@ func (f *Formatter) formatSummaryEvent(event *SummaryEvent) (string, error) {
 func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
 	// Build message with optional debug info
 	message := fmt.Sprintf("[%s] %s event", event.Timestamp.Format("15:04:05"), event.TypeString)
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		message += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
 	return message + "\n", nil
@@ -559,14 +558,14 @@ func (f *Formatter) formatPreCompactEvent(event *NotificationEvent) string {
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
-	if f.debugMode && len(event.SessionID) >= 8 {
+	if logger.IsDebugMode() && len(event.SessionID) >= 8 {
 		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
 	header += fmt.Sprintf(": %s\n", formattedMessage)
 	output.WriteString(header)
 
 	// Add debug info if enabled
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		output.WriteString(fmt.Sprintf("  [DEBUG] Trigger: %s\n", event.Trigger))
 		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
 		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))
@@ -603,14 +602,14 @@ func (f *Formatter) formatSessionStartEvent(event *NotificationEvent) string {
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
-	if f.debugMode && len(event.SessionID) >= 8 {
+	if logger.IsDebugMode() && len(event.SessionID) >= 8 {
 		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
 	header += fmt.Sprintf(" (source: %s)\n", event.Source)
 	output.WriteString(header)
 
 	// Add debug info if enabled
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		output.WriteString(fmt.Sprintf("  [DEBUG] Source: %s\n", event.Source))
 		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
 		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))
@@ -657,14 +656,14 @@ func (f *Formatter) formatGeneralNotificationEvent(event *NotificationEvent) str
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", timeNow().Format("15:04:05"), emoji, event.HookEventName)
-	if f.debugMode && len(event.SessionID) >= 8 {
+	if logger.IsDebugMode() && len(event.SessionID) >= 8 {
 		header += fmt.Sprintf(" [Session: %s]", event.SessionID[:8])
 	}
 	header += fmt.Sprintf(": %s\n", formattedMessage)
 	output.WriteString(header)
 
 	// Add debug info if enabled
-	if f.debugMode {
+	if logger.IsDebugMode() {
 		output.WriteString(fmt.Sprintf("  [DEBUG] Original: %s\n", event.Message))
 		output.WriteString(fmt.Sprintf("  [DEBUG] CWD: %s\n", event.CWD))
 		output.WriteString(fmt.Sprintf("  [DEBUG] Transcript: %s\n", event.TranscriptPath))

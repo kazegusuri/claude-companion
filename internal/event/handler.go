@@ -7,30 +7,22 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
-// EventProcessor is an interface for processing events
-type EventProcessor interface {
-	SendEventInterface(event interface{})
-}
-
 // Handler is the central event handler that processes all events
 type Handler struct {
-	sessionManager   *handler.SessionManager
-	sessionProcessor EventProcessor
-	eventChan        chan Event
-	wg               sync.WaitGroup
-	done             chan struct{}
-	debugMode        bool
-	mu               sync.RWMutex
-	subscribers      map[Type][]func(Event)
+	sessionManager *handler.SessionManager
+	eventChan      chan Event
+	wg             sync.WaitGroup
+	done           chan struct{}
+	mu             sync.RWMutex
+	subscribers    map[Type][]func(Event)
 }
 
 // NewHandler creates a new central event handler
-func NewHandler(sessionManager *handler.SessionManager, debugMode bool) *Handler {
+func NewHandler(sessionManager *handler.SessionManager) *Handler {
 	return &Handler{
 		sessionManager: sessionManager,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
-		debugMode:      debugMode,
 		subscribers:    make(map[Type][]func(Event)),
 	}
 }
@@ -44,16 +36,24 @@ func (h *Handler) Start() {
 // Stop stops the event handler
 func (h *Handler) Stop() {
 	close(h.done)
-	close(h.eventChan)
+	// Don't close eventChan here to prevent panic on send
+	// The processEvents goroutine will exit when done is closed
 	h.wg.Wait()
 }
 
 // SendEvent sends an event to be processed
 func (h *Handler) SendEvent(event Event) {
 	select {
-	case h.eventChan <- event:
 	case <-h.done:
 		// Handler is stopping, discard event
+		return
+	default:
+		// Try to send event
+		select {
+		case h.eventChan <- event:
+		case <-h.done:
+			// Handler stopped while sending, discard event
+		}
 	}
 }
 
@@ -100,14 +100,8 @@ func (h *Handler) processEvent(event Event) {
 	switch e := event.(type) {
 	case *NotificationEvent:
 		h.handleNotificationEvent(e)
-	case *SessionEvent:
-		h.handleSessionEvent(e)
-	case *FrontendEvent:
-		h.handleFrontendEvent(e)
 	default:
-		if h.debugMode {
-			logger.LogWarning("Unknown event type in central handler: %T", event)
-		}
+		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
 
 	// Notify subscribers
@@ -121,50 +115,7 @@ func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 		h.sessionManager.CreateSession(event.SessionID, "", event.CWD, event.TranscriptPath)
 	}
 
-	// Forward to session processor if available
-	if h.sessionProcessor != nil {
-		h.sessionProcessor.SendEventInterface(event)
-	}
-
-	if h.debugMode {
-		logger.LogInfo("Processed NotificationEvent: %s - %s", event.HookEventName, event.SessionID)
-	}
-}
-
-// handleSessionEvent processes session-related events
-func (h *Handler) handleSessionEvent(event *SessionEvent) {
-	switch event.EventType {
-	case "create":
-		h.sessionManager.CreateSession(event.SessionID, event.UUID, event.CWD, event.TranscriptPath)
-	case "update":
-		// Handle session updates if needed
-		if h.debugMode {
-			logger.LogInfo("Session update event: %s", event.SessionID)
-		}
-	case "delete":
-		// Handle session deletion if needed
-		if h.debugMode {
-			logger.LogInfo("Session delete event: %s", event.SessionID)
-		}
-	}
-}
-
-// handleFrontendEvent processes events from the frontend
-func (h *Handler) handleFrontendEvent(event *FrontendEvent) {
-	// Process frontend events based on their type
-	if h.debugMode {
-		logger.LogInfo("Frontend event: %s", event.EventType)
-	}
-
-	// Example: Handle specific frontend event types
-	switch event.EventType {
-	case "session_request":
-		// Handle session request from frontend
-	case "command":
-		// Handle command from frontend
-	default:
-		// Handle other frontend events
-	}
+	logger.DebugInfo("Processed NotificationEvent: %s - %s", event.HookEventName, event.SessionID)
 }
 
 // notifySubscribers notifies all subscribers of an event type
@@ -184,14 +135,4 @@ func (h *Handler) notifySubscribers(eventType Type, event Event) {
 			handler(event)
 		}(subscriber)
 	}
-}
-
-// GetSessionManager returns the session manager
-func (h *Handler) GetSessionManager() *handler.SessionManager {
-	return h.sessionManager
-}
-
-// SetSessionProcessor sets the session event processor
-func (h *Handler) SetSessionProcessor(processor EventProcessor) {
-	h.sessionProcessor = processor
 }

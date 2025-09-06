@@ -21,7 +21,7 @@ import (
 
 func main() {
 	var project, session, file string
-	var headMode, debugMode bool
+	var headMode bool
 	var useAINarrator bool
 	var openaiAPIKey string
 	var narratorConfigPath string
@@ -40,6 +40,7 @@ func main() {
 	pflag.StringVarP(&file, "file", "f", "", "Direct path to session file")
 	pflag.StringVar(&notificationLog, "notification-log", "/var/log/claude-notification.log", "Path to notification log file to watch")
 	pflag.BoolVar(&headMode, "head", false, "Read entire file from beginning to end instead of tailing")
+	var debugMode bool
 	pflag.BoolVarP(&debugMode, "debug", "d", false, "Enable debug mode with detailed information")
 	pflag.BoolVar(&useAINarrator, "ai", false, "Use AI narrator (requires OpenAI API key)")
 	pflag.StringVar(&openaiAPIKey, "openai-key", os.Getenv("OPENAI_API_KEY"), "OpenAI API key (can also use OPENAI_API_KEY env var)")
@@ -56,6 +57,9 @@ func main() {
 
 	// Default behavior is to watch projects
 	watchProjects = true
+
+	// Set global debug mode in logger
+	logger.SetDebugMode(debugMode)
 
 	// Determine input sources
 	hasNotificationInput := notificationLog != ""
@@ -182,14 +186,11 @@ func main() {
 		defer voiceNarrator.Close()
 	}
 
-	// Create central event handler first
-	centralEventHandler := internalevent.NewHandler(sessionManager, debugMode)
+	// Create central event handler
+	centralEventHandler := internalevent.NewHandler(sessionManager)
 
-	// Create session event handler with central handler injected
-	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler, debugMode)
-
-	// Set session processor in central handler
-	centralEventHandler.SetSessionProcessor(sessionEventHandler)
+	// Create session event handler with central handler
+	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler)
 
 	// Set message emitter in formatter if server is enabled
 	if wsServer != nil {

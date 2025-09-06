@@ -16,7 +16,6 @@ type SessionFileManager struct {
 	// Configuration
 	idleTimeout   time.Duration
 	checkInterval time.Duration
-	debugMode     bool
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -36,7 +35,6 @@ func NewSessionFileManager(handler *Handler) *SessionFileManager {
 		handler:       handler,
 		idleTimeout:   1 * time.Hour,   // Remove watchers after 1 hour of inactivity
 		checkInterval: 1 * time.Minute, // Check for idle watchers every minute
-		debugMode:     handler.debugMode,
 		done:          make(chan struct{}),
 	}
 }
@@ -70,7 +68,7 @@ func (m *SessionFileManager) AddOrUpdateWatcher(filePath string) error {
 	// Check if watcher already exists
 	if mw, exists := m.watchers[filePath]; exists {
 		mw.lastActivity = time.Now()
-		if m.debugMode {
+		if logger.IsDebugMode() {
 			logger.LogInfo("Updated activity time for watcher: %s", filePath)
 		}
 		return nil
@@ -88,7 +86,7 @@ func (m *SessionFileManager) AddOrUpdateWatcher(filePath string) error {
 		filePath:     filePath,
 	}
 
-	if m.debugMode {
+	if logger.IsDebugMode() {
 		logger.LogInfo("Created new session watcher for: %s", filePath)
 	}
 	return nil
@@ -129,13 +127,13 @@ func (m *SessionFileManager) cleanupIdleWatchers() {
 		if mw, exists := m.watchers[path]; exists {
 			mw.watcher.Stop()
 			delete(m.watchers, path)
-			if m.debugMode {
+			if logger.IsDebugMode() {
 				logger.LogInfo("Removed idle session watcher for: %s", path)
 			}
 		}
 	}
 
-	if m.debugMode && len(toRemove) > 0 {
+	if logger.IsDebugMode() && len(toRemove) > 0 {
 		logger.LogInfo("Cleaned up %d idle watchers", len(toRemove))
 	}
 }

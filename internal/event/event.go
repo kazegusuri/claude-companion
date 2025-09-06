@@ -1,9 +1,5 @@
 package event
 
-import (
-	"time"
-)
-
 // Type represents the type of event
 type Type string
 
@@ -38,31 +34,4 @@ type NotificationEvent struct {
 // Type returns the event type
 func (e *NotificationEvent) Type() Type {
 	return Type(EventTypeNotification)
-}
-
-// SessionEvent represents an event related to session creation/updates
-type SessionEvent struct {
-	SessionID      string
-	UUID           string
-	CWD            string
-	TranscriptPath string
-	EventType      string // "create", "update", "delete"
-	Timestamp      time.Time
-}
-
-// Type returns the event type
-func (e *SessionEvent) Type() Type {
-	return Type("session")
-}
-
-// FrontendEvent represents an event from the frontend
-type FrontendEvent struct {
-	EventType string                 `json:"type"`
-	Payload   map[string]interface{} `json:"payload"`
-	Timestamp time.Time              `json:"timestamp"`
-}
-
-// Type returns the event type
-func (e *FrontendEvent) Type() Type {
-	return Type("frontend")
 }

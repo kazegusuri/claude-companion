@@ -29,7 +29,6 @@ type FormatterInterface interface {
 type Handler struct {
 	narrator       narrator.Narrator
 	formatter      FormatterInterface
-	debugMode      bool
 	eventChan      chan Event
 	wg             sync.WaitGroup
 	done           chan struct{}
@@ -43,15 +42,13 @@ type Handler struct {
 }
 
 // NewHandler creates a new event handler
-func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler *internalevent.Handler, debugMode bool) *Handler {
+func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler *internalevent.Handler) *Handler {
 	formatter := NewFormatter(narrator)
-	formatter.SetDebugMode(debugMode)
 	taskTracker := NewTaskTracker()
 
 	return &Handler{
 		narrator:       narrator,
 		formatter:      formatter,
-		debugMode:      debugMode,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    taskTracker,
@@ -83,16 +80,24 @@ func (h *Handler) Start() {
 // Stop stops the event handler
 func (h *Handler) Stop() {
 	close(h.done)
-	close(h.eventChan)
+	// Don't close eventChan here to prevent panic on send
+	// The processEvents goroutine will exit when done is closed
 	h.wg.Wait()
 }
 
 // SendEvent sends an event to be processed
 func (h *Handler) SendEvent(event Event) {
 	select {
-	case h.eventChan <- event:
 	case <-h.done:
 		// Handler is stopping, discard event
+		return
+	default:
+		// Try to send event
+		select {
+		case h.eventChan <- event:
+		case <-h.done:
+			// Handler stopped while sending, discard event
+		}
 	}
 }
 
@@ -127,14 +132,10 @@ func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
 			h.sessionManager.CreateSession(event.SessionID, event.UUID, event.CWD, event.Session.Path)
 			// If session doesn't exist during warmup, we might want to create it
 			// but for now, just log it
-			if h.debugMode {
-				logger.LogInfo("Warmup: Session %s not found for event type %s", event.SessionID, event.TypeString)
-			}
+			logger.DebugInfo("Warmup: Session %s not found for event type %s", event.SessionID, event.TypeString)
 		} else {
 			// Update session with warmup information if needed
-			if h.debugMode {
-				logger.LogInfo("Warmup: Processing event type %s for session %s (CWD: %s)", event.TypeString, event.SessionID, session.CWD)
-			}
+			logger.DebugInfo("Warmup: Processing event type %s for session %s (CWD: %s)", event.TypeString, event.SessionID, session.CWD)
 		}
 	}
 
@@ -181,37 +182,27 @@ func (h *Handler) processEvent(event Event) {
 	switch e := event.(type) {
 	case *UserMessage:
 		if e.IsSidechain {
-			if h.debugMode {
-				logger.LogInfo("Ignoring sidechain UserMessage")
-			}
+			logger.DebugInfo("Ignoring sidechain UserMessage")
 			return
 		}
 	case *AssistantMessage:
 		if e.IsSidechain {
-			if h.debugMode {
-				logger.LogInfo("Ignoring sidechain AssistantMessage")
-			}
+			logger.DebugInfo("Ignoring sidechain AssistantMessage")
 			return
 		}
 	case *SystemMessage:
 		if e.IsSidechain {
-			if h.debugMode {
-				logger.LogInfo("Ignoring sidechain SystemMessage")
-			}
+			logger.DebugInfo("Ignoring sidechain SystemMessage")
 			return
 		}
 	case *HookEvent:
 		if e.IsSidechain {
-			if h.debugMode {
-				logger.LogInfo("Ignoring sidechain HookEvent")
-			}
+			logger.DebugInfo("Ignoring sidechain HookEvent")
 			return
 		}
 	case *BaseEvent:
 		if e.IsSidechain {
-			if h.debugMode {
-				logger.LogInfo("Ignoring sidechain BaseEvent")
-			}
+			logger.DebugInfo("Ignoring sidechain BaseEvent")
 			return
 		}
 	}
@@ -302,9 +293,7 @@ func (h *Handler) processEvent(event Event) {
 			fmt.Print(output)
 		}
 	default:
-		if h.debugMode {
-			logger.LogWarning("Unknown event type: %T", event)
-		}
+		logger.DebugWarning("Unknown event type: %T", event)
 	}
 }
 
@@ -327,10 +316,8 @@ func (h *Handler) trackTaskToolUses(msg *AssistantMessage) {
 				// Track the Task execution
 				h.taskTracker.TrackTask(content.ID, description, subagentType)
 
-				if h.debugMode {
-					logger.LogInfo("Tracking Task: ID=%s, Description=%s, Agent=%s",
-						content.ID, description, subagentType)
-				}
+				logger.DebugInfo("Tracking Task: ID=%s, Description=%s, Agent=%s",
+					content.ID, description, subagentType)
 			}
 		}
 	}
@@ -359,10 +346,8 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 							TaskInfo:  taskInfo,
 						}
 
-						if h.debugMode {
-							logger.LogInfo("Task completed: ID=%s, Description=%s, Agent=%s",
-								toolUseID, taskInfo.Description, taskInfo.SubagentType)
-						}
+						logger.DebugInfo("Task completed: ID=%s, Description=%s, Agent=%s",
+							toolUseID, taskInfo.Description, taskInfo.SubagentType)
 
 						return taskCompletion
 					}
@@ -428,9 +413,7 @@ func (h *Handler) handleBuffering(event Event) bool {
 
 			// if !exists {
 			// 	// Case 1: No session exists - treat as completely new
-			// 	if h.debugMode {
-			// 		logger.LogInfo("New session (not registered): %s", baseEvent.SessionID)
-			// 	}
+			// 	logger.DebugInfo("New session (not registered): %s", baseEvent.SessionID)
 			// 	return false // Process normally
 			// }
 			var sessionUUID string
@@ -440,21 +423,17 @@ func (h *Handler) handleBuffering(event Event) bool {
 
 			if exists && sessionUUID == "" || sessionUUID == baseEvent.UUID {
 				// Case 2: Empty UUID or Same UUID - treat as new/normal start
-				if h.debugMode {
-					if sessionUUID == "" {
-						logger.LogInfo("Normal session start (empty UUID): %s", baseEvent.SessionID)
-					} else {
-						logger.LogInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
-					}
+				if sessionUUID == "" {
+					logger.DebugInfo("Normal session start (empty UUID): %s", baseEvent.SessionID)
+				} else {
+					logger.DebugInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
 				}
 				return false // Process normally
 			}
 
 			// Case 3: Different UUID - this is a resume scenario
-			if h.debugMode {
-				logger.LogInfo("Resume detected (UUID mismatch) for session: %s, stored UUID: %s, event UUID: %s",
-					baseEvent.SessionID, sessionUUID, baseEvent.UUID)
-			}
+			logger.DebugInfo("Resume detected (UUID mismatch) for session: %s, stored UUID: %s, event UUID: %s",
+				baseEvent.SessionID, sessionUUID, baseEvent.UUID)
 
 			h.bufferMutex.Lock()
 			defer h.bufferMutex.Unlock()
@@ -480,9 +459,7 @@ func (h *Handler) handleBuffering(event Event) bool {
 		}
 
 		// Not a SessionStart event with ParentUUID=nil - might be an issue
-		if h.debugMode {
-			logger.LogInfo("Non-SessionStart event with ParentUUID=nil: %T", event)
-		}
+		logger.DebugInfo("Non-SessionStart event with ParentUUID=nil: %T", event)
 		return false // Process normally for backward compatibility
 	}
 
@@ -514,10 +491,8 @@ func (h *Handler) releaseBuffer(sessionName string, reason string) {
 		buffer.timer.Stop()
 	}
 
-	if h.debugMode {
-		logger.LogInfo("Releasing buffer for session %s: %s (events: %d, duration: %v)",
-			sessionName, reason, len(buffer.events), time.Since(buffer.startTime))
-	}
+	logger.DebugInfo("Releasing buffer for session %s: %s (events: %d, duration: %v)",
+		sessionName, reason, len(buffer.events), time.Since(buffer.startTime))
 
 	// Remove buffer and discard buffered events
 	delete(h.buffers, sessionName)

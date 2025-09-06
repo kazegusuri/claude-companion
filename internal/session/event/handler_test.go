@@ -433,7 +433,6 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		formatter:      mockFormatter,
-		debugMode:      true,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -505,7 +504,6 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		formatter:      mockFormatter,
-		debugMode:      true,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -563,7 +561,6 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		formatter:      mockFormatter,
-		debugMode:      true,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -631,7 +628,6 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		formatter:      mockFormatter,
-		debugMode:      true,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),

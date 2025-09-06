@@ -15,7 +15,6 @@ type ProjectsWatcher struct {
 	rootPath       string
 	watcher        *fsnotify.Watcher
 	sessionManager *SessionFileManager
-	debugMode      bool
 	done           chan struct{}
 	wg             sync.WaitGroup
 	projectFilter  string
@@ -44,7 +43,6 @@ func NewProjectsWatcher(rootPath string, handler *Handler) (*ProjectsWatcher, er
 		rootPath:       rootPath,
 		watcher:        watcher,
 		sessionManager: sessionManager,
-		debugMode:      handler.debugMode,
 		done:           make(chan struct{}),
 	}, nil
 }
@@ -63,7 +61,7 @@ func (w *ProjectsWatcher) Start() error {
 	w.wg.Add(1)
 	go w.watch()
 
-	if w.debugMode {
+	if logger.IsDebugMode() {
 		logger.LogInfo("Started watching projects directory: %s", w.rootPath)
 	}
 	return nil
@@ -120,11 +118,11 @@ func (w *ProjectsWatcher) addDirectoryTree(root string) error {
 			}
 
 			if err := w.watcher.Add(path); err != nil {
-				if w.debugMode {
+				if logger.IsDebugMode() {
 					logger.LogError("Error adding directory to watcher: %s - %v", path, err)
 				}
 			} else {
-				if w.debugMode {
+				if logger.IsDebugMode() {
 					logger.LogInfo("Watching directory: %s", path)
 				}
 			}
@@ -218,7 +216,7 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 	// Handle .jsonl file events
 	switch {
 	case event.Op&fsnotify.Create == fsnotify.Create:
-		if w.debugMode {
+		if logger.IsDebugMode() {
 			logger.LogInfo("New session file created: %s", event.Name)
 		}
 		if err := w.sessionManager.AddOrUpdateWatcher(event.Name); err != nil {
@@ -226,7 +224,7 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 		}
 
 	case event.Op&fsnotify.Write == fsnotify.Write:
-		if w.debugMode {
+		if logger.IsDebugMode() {
 			logger.LogInfo("Session file updated: %s", event.Name)
 		}
 		if err := w.sessionManager.AddOrUpdateWatcher(event.Name); err != nil {
@@ -234,7 +232,7 @@ func (w *ProjectsWatcher) handleEvent(event fsnotify.Event) {
 		}
 
 	case event.Op&fsnotify.Remove == fsnotify.Remove:
-		if w.debugMode {
+		if logger.IsDebugMode() {
 			logger.LogInfo("Session file removed: %s", event.Name)
 		}
 		// The session manager will clean it up automatically on idle timeout

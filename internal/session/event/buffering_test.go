@@ -47,7 +47,6 @@ func TestBufferingNormalStartup(t *testing.T) {
 		sessionManager: sessionManager,
 		formatter:      formatter,
 		buffers:        make(map[string]*BufferInfo),
-		debugMode:      false,
 		taskTracker:    NewTaskTracker(),
 	}
 
@@ -163,7 +162,6 @@ func TestBufferingWithResume(t *testing.T) {
 		sessionManager: sessionManager,
 		formatter:      formatter,
 		buffers:        make(map[string]*BufferInfo),
-		debugMode:      false,
 		taskTracker:    NewTaskTracker(),
 	}
 
