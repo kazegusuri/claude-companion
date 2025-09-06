@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 )

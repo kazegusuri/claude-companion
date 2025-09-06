@@ -3,7 +3,7 @@ package event
 import (
 	"testing"
 
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // mockFormatter is a simple formatter for testing

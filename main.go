@@ -7,11 +7,11 @@ import (
 	"syscall"
 
 	"github.com/kazegusuri/claude-companion/event"
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/websocket"
 	"github.com/kazegusuri/claude-companion/logger"
 	"github.com/kazegusuri/claude-companion/narrator"
 	"github.com/kazegusuri/claude-companion/speech"
-	"github.com/kazegusuri/claude-companion/websocket"
 	"github.com/spf13/pflag"
 )
 

@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // Client represents a WebSocket client connection

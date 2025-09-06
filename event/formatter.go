@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/narrator"
 )
 
@@ -71,10 +71,8 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 		return "", nil
 	}
 
-	// Skip messages that contain only tool_result
-	if f.hasOnlyToolResult(event.Message.Content) {
-		return "", nil
-	}
+	// Note: We don't skip tool_result only messages anymore
+	// They should be formatted and displayed
 
 	var output strings.Builder
 

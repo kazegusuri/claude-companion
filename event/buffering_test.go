@@ -3,7 +3,7 @@ package event
 import (
 	"testing"
 
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // mockFormatterWithTracking tracks which events were formatted

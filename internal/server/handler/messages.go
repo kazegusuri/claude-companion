@@ -42,7 +42,6 @@ const (
 	AssistantMessageSubTypeText  AssistantMessageSubType = "text"
 )
 
-
 // Metadata contains additional information about the message
 type Metadata struct {
 	EventType  string                  `json:"eventType"`

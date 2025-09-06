@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kazegusuri/claude-companion/handler"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 
 	"github.com/kazegusuri/claude-companion/narrator"
 )
@@ -379,6 +379,7 @@ func createTestUserMessage(sessionName string, parentUUID *string) *UserMessage 
 			UUID:        fmt.Sprintf("user-%d", time.Now().UnixNano()),
 			Timestamp:   time.Now(),
 			ParentUUID:  parentUUID,
+			SessionID:   sessionName,
 			Session: &SessionFile{
 				Path:    "/test/path.jsonl",
 				Project: "test-project",
@@ -399,6 +400,7 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 			TypeString:  EventTypeSystem,
 			UUID:        fmt.Sprintf("hook-%d", time.Now().UnixNano()),
 			Timestamp:   time.Now(),
+			SessionID:   sessionName,
 			Session: &SessionFile{
 				Path:    "/test/path.jsonl",
 				Project: "test-project",
@@ -419,19 +421,24 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 	// Create handler with mock formatter
 	mockFormatter := &mockFormatterWithRecording{}
+	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
-		narrator:    &mockNarrator{},
-		formatter:   mockFormatter,
-		debugMode:   true,
-		eventChan:   make(chan Event, 100),
-		done:        make(chan struct{}),
-		taskTracker: NewTaskTracker(),
-		buffers:     make(map[string]*BufferInfo),
+		narrator:       &mockNarrator{},
+		formatter:      mockFormatter,
+		debugMode:      true,
+		eventChan:      make(chan Event, 100),
+		done:           make(chan struct{}),
+		taskTracker:    NewTaskTracker(),
+		buffers:        make(map[string]*BufferInfo),
+		sessionManager: sessionManager,
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	sessionName := "test-session"
+
+	// Register the session with a different UUID to trigger resume scenario
+	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
 
 	// Send event with ParentUUID==nil
 	event1 := createTestUserMessage(sessionName, nil)
@@ -486,19 +493,24 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 // Test buffer release on SessionStart:resume
 func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 	mockFormatter := &mockFormatterWithRecording{}
+	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
-		narrator:    &mockNarrator{},
-		formatter:   mockFormatter,
-		debugMode:   true,
-		eventChan:   make(chan Event, 100),
-		done:        make(chan struct{}),
-		taskTracker: NewTaskTracker(),
-		buffers:     make(map[string]*BufferInfo),
+		narrator:       &mockNarrator{},
+		formatter:      mockFormatter,
+		debugMode:      true,
+		eventChan:      make(chan Event, 100),
+		done:           make(chan struct{}),
+		taskTracker:    NewTaskTracker(),
+		buffers:        make(map[string]*BufferInfo),
+		sessionManager: sessionManager,
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	sessionName := "resume-test"
+
+	// Register the session with a different UUID to trigger resume scenario
+	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
 
 	// Send event with ParentUUID==nil to trigger buffering
 	event1 := createTestUserMessage(sessionName, nil)
@@ -539,19 +551,24 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 // Test buffer release on timeout
 func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 	mockFormatter := &mockFormatterWithRecording{}
+	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
-		narrator:    &mockNarrator{},
-		formatter:   mockFormatter,
-		debugMode:   true,
-		eventChan:   make(chan Event, 100),
-		done:        make(chan struct{}),
-		taskTracker: NewTaskTracker(),
-		buffers:     make(map[string]*BufferInfo),
+		narrator:       &mockNarrator{},
+		formatter:      mockFormatter,
+		debugMode:      true,
+		eventChan:      make(chan Event, 100),
+		done:           make(chan struct{}),
+		taskTracker:    NewTaskTracker(),
+		buffers:        make(map[string]*BufferInfo),
+		sessionManager: sessionManager,
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	sessionName := "timeout-test"
+
+	// Register the session with a different UUID to trigger resume scenario
+	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
 
 	// Send event with ParentUUID==nil
 	event1 := createTestUserMessage(sessionName, nil)
@@ -602,20 +619,26 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 // Test multiple sessions buffering independently
 func TestHandler_MultipleSessionBuffering(t *testing.T) {
 	mockFormatter := &mockFormatterWithRecording{}
+	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
-		narrator:    &mockNarrator{},
-		formatter:   mockFormatter,
-		debugMode:   true,
-		eventChan:   make(chan Event, 100),
-		done:        make(chan struct{}),
-		taskTracker: NewTaskTracker(),
-		buffers:     make(map[string]*BufferInfo),
+		narrator:       &mockNarrator{},
+		formatter:      mockFormatter,
+		debugMode:      true,
+		eventChan:      make(chan Event, 100),
+		done:           make(chan struct{}),
+		taskTracker:    NewTaskTracker(),
+		buffers:        make(map[string]*BufferInfo),
+		sessionManager: sessionManager,
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	session1 := "session-1"
 	session2 := "session-2"
+
+	// Register both sessions with different UUIDs to trigger resume scenario
+	sessionManager.CreateSession(session1, "existing-uuid-1", "/test/workspace", "/test/transcript1.jsonl")
+	sessionManager.CreateSession(session2, "existing-uuid-2", "/test/workspace", "/test/transcript2.jsonl")
 
 	// Send ParentUUID==nil events for both sessions
 	event1 := createTestUserMessage(session1, nil)
