@@ -25,22 +25,22 @@ Add to your Claude settings file `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "/usr/local/bin/cc-status-line-wrapper --log-file /var/log/claude-status-line.log --db-file /run/claude-companion/db.sqlite -- /usr/local/bin/claude-status-line"
+    "command": "/usr/local/bin/cc-status-line-wrapper --log-file /var/log/claude-status-line.log --db-file /var/lib/claude-companion/db.sqlite -- /usr/local/bin/claude-status-line"
   }
 }
 ```
 
 This configuration:
 - Logs session information to `/var/log/claude-status-line.log`
-- Stores data in SQLite database at `/run/claude-companion/db.sqlite`
+- Stores data in SQLite database at `/var/lib/claude-companion/db.sqlite`
 - Executes the original `claude-status-line` command with the JSON input
 
 **Note:** When using system directories, you need to prepare them first:
 
 For the database directory:
 ```bash
-sudo mkdir /run/claude-companion
-sudo chmod 777 /run/claude-companion
+sudo mkdir -p /var/lib/claude-companion
+sudo chown $USER:$USER /var/lib/claude-companion
 ```
 
 For the log file:

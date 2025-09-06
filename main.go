@@ -48,7 +48,7 @@ func main() {
 	pflag.IntVar(&voiceSpeakerID, "voice-speaker", 1, "VOICEVOX speaker ID (default: 1)")
 	pflag.BoolVar(&enableServer, "server", false, "Enable WebSocket server for audio streaming")
 	pflag.StringVar(&serverPort, "server-port", ":8080", "WebSocket server port (default: :8080)")
-	pflag.StringVar(&dbFile, "db-file", "/run/claude-companion/db.sqlite", "Path to SQLite database file (default: /run/claude-companion/db.sqlite)")
+	pflag.StringVar(&dbFile, "db-file", "/var/lib/claude-companion/db.sqlite", "Path to SQLite database file (default: /var/lib/claude-companion/db.sqlite)")
 	// watchProjects is now the default behavior
 	pflag.StringVar(&projectsRoot, "projects-root", "~/.claude/projects", "Root directory for projects")
 	pflag.Parse()
@@ -87,7 +87,7 @@ func main() {
 			logger.LogError("Failed to open database: %v", err)
 			logger.LogError("Make sure the directory exists and has proper permissions:")
 			logger.LogError("  sudo mkdir -p $(dirname %s)", dbFile)
-			logger.LogError("  sudo chmod 777 $(dirname %s)", dbFile)
+			logger.LogError("  sudo chown $USER:$USER $(dirname %s)", dbFile)
 			os.Exit(1)
 		}
 		defer func() {
