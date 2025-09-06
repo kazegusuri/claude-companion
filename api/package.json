@@ -1,0 +1,21 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsp compile .",
+    "compile:watch": "tsp compile . --watch",
+    "format": "tsp format **/*.tsp",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@typespec/compiler": "^1.3.0",
+    "@typespec/http": "^1.3.0",
+    "@typespec/openapi3": "^1.3.0",
+    "@typespec/rest": "^0.73.0"
+  }
+}

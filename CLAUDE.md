@@ -1,9 +1,26 @@
 # Instructions for Claude
 
 ## Project Overview
-This is a Go daemon that parses Claude's JSONL log files in real-time.
+This is a Go daemon that parses Claude's JSONL log files in real-time, with a web frontend for visualization and API management using TypeSpec.
 
 ## Important Guidelines
+
+### API Development with TypeSpec
+
+#### API Definition
+When modifying API endpoints or data structures:
+1. Edit the API definition in `api/main.tsp`
+2. Generate TypeScript types and OpenAPI spec:
+   ```bash
+   cd web && bun run tsp:generate
+   ```
+3. Update the backend Go code to match the API specification
+4. Update the frontend to use the generated types from `web/src/types/api.ts`
+
+#### API Workflow
+- Always define APIs in TypeSpec first before implementing
+- Generated types are the source of truth - do not manually edit `web/src/types/api.ts`
+- Keep the API definition synchronized between frontend and backend
 
 ### Go Development
 
@@ -83,11 +100,38 @@ test("hello world", () => {
 
 ## Git Workflow
 1. Make changes
-2. Run code formatting:
+2. If API changes are made:
+   - Update `api/main.tsp`
+   - Run `cd web && bun run tsp:generate` to generate types
+3. Run code formatting:
    - For Go files: `make fmt`
    - For Web files: `cd web && bun run format`
-3. Run checks before committing:
+   - For API files: `cd api && npm run format`
+4. Run checks before committing:
    - For Go files: `make test`
    - For Web files: `cd web && bun run check:all && bun run format`
-4. Ensure all checks pass
-5. Commit with meaningful commit messages
+5. Ensure all checks pass
+6. Commit with meaningful commit messages
+
+## Project Structure
+```
+.
+├── api/                    # API specification (TypeSpec)
+│   ├── main.tsp           # API definition
+│   ├── tspconfig.yaml     # TypeSpec configuration
+│   └── tsp-output/        # Generated OpenAPI/JSON Schema
+├── web/                   # Frontend application
+│   ├── src/
+│   │   ├── types/api.ts   # Generated TypeScript types
+│   │   └── ...
+│   └── package.json
+├── internal/              # Go backend code
+│   ├── server/
+│   │   ├── api/          # HTTP API handlers
+│   │   ├── websocket/    # WebSocket server
+│   │   └── db/           # Database layer
+│   └── ...
+├── main.go               # Go application entry point
+├── Makefile              # Go build automation
+└── package.json          # Root workspace configuration
+```

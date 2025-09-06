@@ -1,0 +1,7 @@
+# oapi-codegen configuration for generating Go code from OpenAPI spec
+package: api
+generate:
+  - models
+  - echo-server
+  - strict-server
+output: internal/server/api/models.gen.go

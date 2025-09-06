@@ -1,4 +1,4 @@
-.PHONY: build test clean run fmt help all
+.PHONY: build test clean run fmt help all generate generate-go
 
 # Go source files (recursive)
 GO_FILES := $(shell find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*")
@@ -99,3 +99,19 @@ uninstall:
 		sudo rm -f /usr/local/bin/$$binary; \
 	done
 	@echo "✅ Uninstall complete"
+
+# Generate Go code from OpenAPI spec
+generate-go: 
+	@echo "Generating Go code from OpenAPI spec..."
+	@cd api && npm run compile
+	@oapi-codegen -config api/oapi-codegen.yaml \
+		-package api \
+		api/tsp-output/@typespec/openapi3/openapi.yaml \
+		> internal/server/api/models.gen.go
+	@echo "✅ Go code generated successfully"
+
+# Generate all code (TypeScript and Go)
+generate: generate-go
+	@echo "Generating TypeScript types..."
+	@cd web && bun run tsp:types
+	@echo "✅ All code generation complete"

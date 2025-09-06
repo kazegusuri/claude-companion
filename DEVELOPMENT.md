@@ -1,5 +1,47 @@
 # Development
 
+## API Specification (TypeSpec)
+
+### Prerequisites
+- Node.js 18+ or Bun
+- TypeSpec CLI (`npm install -g @typespec/compiler`)
+
+### API Development Commands
+
+```bash
+# API定義のコンパイル（OpenAPI生成）
+cd api && npm run compile
+
+# API定義の監視モード
+cd api && npm run compile:watch
+
+# API定義のフォーマット
+cd api && npm run format
+
+# TypeScript型定義の生成（webディレクトリから実行）
+cd web && bun run tsp:generate
+
+# TypeSpecコンパイルのみ
+cd web && bun run tsp:compile
+
+# TypeScript型生成のみ
+cd web && bun run tsp:types
+```
+
+### API定義ファイル
+
+- `api/main.tsp` - TypeSpecによるAPI定義
+- `api/tspconfig.yaml` - TypeSpec設定ファイル
+- `api/tsp-output/@typespec/openapi3/openapi.yaml` - 生成されたOpenAPI仕様
+- `web/src/types/api.ts` - 生成されたTypeScript型定義
+
+### API定義の変更フロー
+
+1. `api/main.tsp`を編集してAPI定義を変更
+2. `cd web && bun run tsp:generate`を実行して型を生成
+3. TypeScriptの型エラーがないか確認 (`bun run typecheck`)
+4. 必要に応じてフロントエンド・バックエンドのコードを更新
+
 ## Go Backend Development
 
 ### Prerequisites
@@ -85,6 +127,11 @@ public/
 ```
 
 ### 技術スタック
+
+#### API Specification
+- **TypeSpec**: API定義言語
+- **OpenAPI 3.0**: 生成されるAPI仕様
+- **openapi-typescript**: TypeScript型生成
 
 #### Backend (Go)
 - Go 1.19+

@@ -1,5 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AgentList } from "../components/AgentList";
 import { ChatDisplay } from "../components/ChatDisplay";
 import { MainLayout } from "../components/Layout/MainLayout";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
@@ -234,20 +235,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
       </div>
 
       <MainLayout
-        modelComponent={
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              padding: "10px",
-            }}
-          >
-            {/* 左側のmodel componentは空にする（オーバーレイで表示するため） */}
-          </div>
-        }
+        modelComponent={<AgentList />}
         scheduleComponent={null}
         textComponent={null}
         chatComponent={<ChatDisplay currentPlayingMessageId={currentMessageId} />}

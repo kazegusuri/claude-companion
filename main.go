@@ -8,6 +8,7 @@ import (
 
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
+	"github.com/kazegusuri/claude-companion/internal/server/api"
 	"github.com/kazegusuri/claude-companion/internal/server/db"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/server/watcher"
@@ -127,6 +128,36 @@ func main() {
 	var voiceNarrator *narrator.VoiceNarrator
 	var wsServer *websocket.Server
 
+	// Start HTTP server if server mode is enabled (for both WebSocket and API)
+	if enableServer {
+		// Create Echo server with API routes
+		echoServer := api.SetupEchoServer(database)
+
+		// If voice is enabled, create WebSocket server
+		if enableVoice {
+			// Create WebSocket server with session manager
+			wsServer = websocket.NewServer(sessionManager)
+			go wsServer.Run()
+		}
+
+		// Start HTTP server for both WebSocket (if voice enabled) and API endpoints
+		go func() {
+			if wsServer != nil {
+				http.HandleFunc("/ws/audio", wsServer.HandleWebSocket)
+				logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
+			}
+
+			// Mount Echo handler for API routes
+			http.Handle("/", echoServer)
+
+			logger.LogInfo("HTTP server listening on %s", serverPort)
+			logger.LogInfo("API endpoint: http://localhost%s/api/agents", serverPort)
+			if err := http.ListenAndServe(serverPort, nil); err != nil {
+				logger.LogError("Failed to start HTTP server: %v", err)
+			}
+		}()
+	}
+
 	if enableVoice {
 		// Create synthesizer
 		synthesizer := speech.NewVoiceVox(voicevoxURL, voiceSpeakerID)
@@ -139,23 +170,9 @@ func main() {
 
 		// Create player based on server option
 		var player speech.Player
-		if enableServer {
-			// Create WebSocket server with session manager
-			wsServer = websocket.NewServer(sessionManager)
-			go wsServer.Run()
-
+		if enableServer && wsServer != nil {
 			// Use WebSocket player
 			player = speech.NewWebSocketPlayer(wsServer)
-
-			// Start HTTP server for WebSocket connections
-			go func() {
-				http.HandleFunc("/ws/audio", wsServer.HandleWebSocket)
-				logger.LogInfo("WebSocket server listening on %s", serverPort)
-				logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
-				if err := http.ListenAndServe(serverPort, nil); err != nil {
-					logger.LogError("Failed to start WebSocket server: %v", err)
-				}
-			}()
 		} else {
 			// Use native player
 			player = speech.NewNativePlayer()

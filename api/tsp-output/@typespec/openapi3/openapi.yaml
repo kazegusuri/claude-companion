@@ -1,0 +1,206 @@
+openapi: 3.0.0
+info:
+  title: Claude Companion API
+  description: |-
+    Claude Companion API
+    API for managing Claude agent processes and WebSocket communication
+  version: 0.0.0
+tags:
+  - name: Agents
+paths:
+  /api/agents:
+    get:
+      operationId: Agents_list
+      description: Get list of all active agents
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+      tags:
+        - Agents
+  /api/agents/{pid}:
+    get:
+      operationId: Agents_read
+      description: Get a specific agent by PID
+      parameters:
+        - name: pid
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Agents
+components:
+  schemas:
+    Agent:
+      type: object
+      required:
+        - pid
+        - sessionId
+        - projectDir
+        - projectName
+        - createdAt
+        - updatedAt
+      properties:
+        pid:
+          type: integer
+          format: int32
+          description: Process ID of the agent
+        sessionId:
+          type: string
+          description: Session ID of the Claude session
+        projectDir:
+          type: string
+          description: Project directory path
+        projectName:
+          type: string
+          description: Project name (extracted from projectDir)
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the agent was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the agent was last updated
+      description: Agent information representing a Claude agent process
+    AgentListResponse:
+      type: object
+      required:
+        - agents
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Agent'
+          description: List of active agents
+      description: Response containing a list of agents
+    ChatMessage:
+      type: object
+      required:
+        - type
+        - priority
+      properties:
+        id:
+          type: string
+          description: Unique message ID
+        type:
+          allOf:
+            - $ref: '#/components/schemas/MessageType'
+          description: Type of the message
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+            - system
+          description: Role of the message sender
+        subType:
+          type: string
+          enum:
+            - audio
+            - text
+          description: Sub-type for assistant messages
+        text:
+          type: string
+          description: Text content of the message
+        audioData:
+          type: string
+          description: Base64 encoded audio data (WAV format)
+        priority:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+          description: Priority for audio playback (higher = higher priority)
+          default: 50
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the message
+        toolName:
+          type: string
+          description: Tool name (for tool_use messages)
+        toolInput:
+          type: object
+          additionalProperties: {}
+          description: Tool input (for tool_use messages)
+        toolOutput:
+          type: string
+          description: Tool result output (for tool_result messages)
+        error:
+          type: string
+          description: Error details (for error messages)
+        content:
+          type: string
+          description: Content details (for content_block messages)
+      description: Chat message sent via WebSocket
+    ConnectionStatus:
+      type: string
+      enum:
+        - connecting
+        - connected
+        - disconnected
+        - error
+      description: Connection status for WebSocket
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message
+      description: Error response
+    MessageType:
+      type: string
+      enum:
+        - user
+        - assistant
+        - system
+        - audio
+        - tool_use
+        - tool_result
+        - content_block
+        - error
+      description: WebSocket message types
+    WebSocketStatus:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          allOf:
+            - $ref: '#/components/schemas/ConnectionStatus'
+          description: Current connection status
+        error:
+          type: string
+          description: Optional error message
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of status change
+      description: WebSocket status message
+servers:
+  - url: http://localhost:8080
+    description: Development server
+    variables: {}

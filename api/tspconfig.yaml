@@ -1,0 +1,11 @@
+emit:
+  - "@typespec/openapi3"
+  - "@typespec/json-schema"
+
+options:
+  "@typespec/openapi3":
+    output-file: "openapi.yaml"
+  "@typespec/json-schema":
+    file-type: "json"
+    int64-strategy: "number"
+    bundleId: "claude-companion-api"
