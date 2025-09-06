@@ -395,53 +395,57 @@ func (h *Handler) handleBuffering(event Event) bool {
 		if h.sessionManager != nil {
 			session, exists := h.sessionManager.GetSession(baseEvent.SessionID)
 
-			if !exists {
-				// Case 1: No session exists - treat as completely new
-				if h.debugMode {
-					logger.LogInfo("New session (not registered): %s", baseEvent.SessionID)
-				}
-				return false // Process normally
+			// if !exists {
+			// 	// Case 1: No session exists - treat as completely new
+			// 	if h.debugMode {
+			// 		logger.LogInfo("New session (not registered): %s", baseEvent.SessionID)
+			// 	}
+			// 	return false // Process normally
+			// }
+			var sessionUUID string
+			if exists {
+				sessionUUID = session.UUID
 			}
 
-			if session.UUID == "" || session.UUID == baseEvent.UUID {
+			if exists && sessionUUID == "" || sessionUUID == baseEvent.UUID {
 				// Case 2: Empty UUID or Same UUID - treat as new/normal start
 				if h.debugMode {
-					if session.UUID == "" {
+					if sessionUUID == "" {
 						logger.LogInfo("Normal session start (empty UUID): %s", baseEvent.SessionID)
 					} else {
 						logger.LogInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
 					}
 				}
 				return false // Process normally
-			} else {
-				// Case 3: Different UUID - this is a resume scenario
-				if h.debugMode {
-					logger.LogInfo("Resume detected (UUID mismatch) for session: %s, stored UUID: %s, event UUID: %s",
-						baseEvent.SessionID, session.UUID, baseEvent.UUID)
-				}
+			}
 
-				h.bufferMutex.Lock()
-				defer h.bufferMutex.Unlock()
+			// Case 3: Different UUID - this is a resume scenario
+			if h.debugMode {
+				logger.LogInfo("Resume detected (UUID mismatch) for session: %s, stored UUID: %s, event UUID: %s",
+					baseEvent.SessionID, sessionUUID, baseEvent.UUID)
+			}
 
-				// Check if we already have a buffer for this session
-				if buffer, exists := h.buffers[sessionName]; exists {
-					// Add to existing buffer
-					buffer.events = append(buffer.events, event)
-					return true
-				}
+			h.bufferMutex.Lock()
+			defer h.bufferMutex.Unlock()
 
-				// Create new buffer for this session
-				buffer := &BufferInfo{
-					events:      []Event{event},
-					sessionName: sessionName,
-					startTime:   time.Now(),
-					timer: time.AfterFunc(1*time.Second, func() {
-						h.releaseBuffer(sessionName, "timeout")
-					}),
-				}
-				h.buffers[sessionName] = buffer
+			// Check if we already have a buffer for this session
+			if buffer, exists := h.buffers[sessionName]; exists {
+				// Add to existing buffer
+				buffer.events = append(buffer.events, event)
 				return true
 			}
+
+			// Create new buffer for this session
+			buffer := &BufferInfo{
+				events:      []Event{event},
+				sessionName: sessionName,
+				startTime:   time.Now(),
+				timer: time.AfterFunc(1*time.Second, func() {
+					h.releaseBuffer(sessionName, "timeout")
+				}),
+			}
+			h.buffers[sessionName] = buffer
+			return true
 		}
 
 		// Not a SessionStart event with ParentUUID=nil - might be an issue
