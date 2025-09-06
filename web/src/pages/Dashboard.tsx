@@ -38,13 +38,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
     }
   }, [isAudioEnabled]);
 
-  // 音声キューを処理
+  // isAudioEnabledをrefで管理して、関数の再作成を防ぐ
+  const isAudioEnabledRef = useRef(isAudioEnabled);
+  useEffect(() => {
+    isAudioEnabledRef.current = isAudioEnabled;
+  }, [isAudioEnabled]);
+
+  // 音声キューを処理（一度だけ作成される関数）
   const processAudioQueue = useCallback(() => {
     if (isProcessingQueue.current || audioQueue.current.length === 0) {
       return;
     }
 
-    if (!isAudioEnabled) {
+    if (!isAudioEnabledRef.current) {
       audioQueue.current = [];
       setCurrentAudioData(undefined);
       return;
@@ -61,14 +67,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
       audioQueue.current.shift();
       isProcessingQueue.current = false;
     }
-  }, [isAudioEnabled]);
+  }, []); // 空の依存配列で一度だけ作成
 
   // processAudioQueueをrefに保存
   useEffect(() => {
     processAudioQueueRef.current = processAudioQueue;
   }, [processAudioQueue]);
 
-  // WebSocketメッセージハンドラー
+  // WebSocketメッセージハンドラー（依存配列を空にして再作成を防ぐ）
   const handleWebSocketMessage = useCallback(
     (message: ChatMessage) => {
       // メッセージルーターでフィルタリング
@@ -87,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
         (message.type === "audio" ||
           (message.type === "assistant" && message.subType === "audio")) &&
         message.audioData &&
-        isAudioEnabled
+        isAudioEnabledRef.current // refを使用
       ) {
         // 既存のメッセージがキューにないか確認
         if (!audioQueue.current.some((msg) => msg.id === message.id)) {
@@ -99,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
         }
       }
     },
-    [isAudioEnabled],
+    [], // 空の依存配列で一度だけ作成
   );
 
   // 音声再生終了時の処理
