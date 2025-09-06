@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
@@ -13,7 +14,8 @@ import (
 func TestSessionFileManager(t *testing.T) {
 	// Create a mock handler with session manager
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, centralHandler, false)
 
 	manager := NewSessionFileManager(handler)
 	manager.idleTimeout = 100 * time.Millisecond // Short timeout for testing
@@ -55,7 +57,8 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 
 	// Create a mock handler
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, centralHandler, false)
 
 	// Create projects watcher
 	watcher, err := NewProjectsWatcher(tmpDir, handler)
@@ -75,7 +78,8 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 func TestProjectsWatcherHomeExpansion(t *testing.T) {
 	// Create a mock handler
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(narrator.NewNoOpNarrator(), sessionManager, centralHandler, false)
 
 	// Test home directory expansion
 	watcher, err := NewProjectsWatcher("~/test", handler)

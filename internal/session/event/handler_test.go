@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 
 	"github.com/kazegusuri/claude-companion/internal/narrator"
@@ -84,7 +85,8 @@ func captureOutput(t *testing.T, f func()) string {
 func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(&mockNarrator{}, sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
 	handler.Start()
 	defer handler.Stop()
 
@@ -179,7 +181,8 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 func TestHandler_TaskToolResultNarration(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(&mockNarrator{}, sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
 	handler.Start()
 	defer handler.Stop()
 
@@ -310,7 +313,8 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 func TestHandler_NonTaskToolResult(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	handler := NewHandler(&mockNarrator{}, sessionManager, false)
+	centralHandler := internalevent.NewHandler(sessionManager, false)
+	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
 	handler.Start()
 	defer handler.Stop()
 

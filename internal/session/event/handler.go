@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
@@ -34,6 +35,7 @@ type Handler struct {
 	done           chan struct{}
 	taskTracker    *TaskTracker
 	sessionManager *handler.SessionManager
+	centralHandler *internalevent.Handler // Central event handler
 
 	// Buffering support
 	bufferMutex sync.Mutex
@@ -41,7 +43,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new event handler
-func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, debugMode bool) *Handler {
+func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler *internalevent.Handler, debugMode bool) *Handler {
 	formatter := NewFormatter(narrator)
 	formatter.SetDebugMode(debugMode)
 	taskTracker := NewTaskTracker()
@@ -54,6 +56,7 @@ func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManag
 		done:           make(chan struct{}),
 		taskTracker:    taskTracker,
 		sessionManager: sessionManager,
+		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 	}
 }
@@ -90,6 +93,27 @@ func (h *Handler) SendEvent(event Event) {
 	case h.eventChan <- event:
 	case <-h.done:
 		// Handler is stopping, discard event
+	}
+}
+
+// SendEvent for EventProcessor interface (accepts interface{})
+func (h *Handler) SendEventInterface(event interface{}) {
+	// Try to convert to internal Event type
+	if e, ok := event.(Event); ok {
+		h.SendEvent(e)
+	} else if notif, ok := event.(*internalevent.NotificationEvent); ok {
+		// Convert internal/event.NotificationEvent to session/event.NotificationEvent
+		sessionNotif := &NotificationEvent{
+			SessionID:          notif.SessionID,
+			TranscriptPath:     notif.TranscriptPath,
+			CWD:                notif.CWD,
+			HookEventName:      notif.HookEventName,
+			Message:            notif.Message,
+			Trigger:            notif.Trigger,
+			CustomInstructions: notif.CustomInstructions,
+			Source:             notif.Source,
+		}
+		h.SendEvent(sessionNotif)
 	}
 }
 
@@ -194,12 +218,19 @@ func (h *Handler) processEvent(event Event) {
 
 	switch e := event.(type) {
 	case *NotificationEvent:
-		// Handle SessionStart notification events
-		if e.HookEventName == "SessionStart" {
-			// NotificationEvent has TranscriptPath, so we can use it directly
-			h.sessionManager.CreateSession(e.SessionID, "", e.CWD, e.TranscriptPath)
+		// Convert to internal/event.NotificationEvent and forward to central handler
+		centralEvent := &internalevent.NotificationEvent{
+			SessionID:          e.SessionID,
+			TranscriptPath:     e.TranscriptPath,
+			CWD:                e.CWD,
+			HookEventName:      e.HookEventName,
+			Message:            e.Message,
+			Trigger:            e.Trigger,
+			CustomInstructions: e.CustomInstructions,
+			Source:             e.Source,
 		}
-		// Process notification events
+		h.centralHandler.SendEvent(centralEvent)
+		// Process notification events for display
 		output, err := h.formatter.Format(e)
 		if err != nil {
 			logger.LogError("Error formatting NotificationEvent: %v", err)

@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/api"
@@ -181,21 +182,30 @@ func main() {
 		defer voiceNarrator.Close()
 	}
 
-	// Create event handler with session manager
-	eventHandler := event.NewHandler(n, sessionManager, debugMode)
+	// Create central event handler first
+	centralEventHandler := internalevent.NewHandler(sessionManager, debugMode)
+
+	// Create session event handler with central handler injected
+	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler, debugMode)
+
+	// Set session processor in central handler
+	centralEventHandler.SetSessionProcessor(sessionEventHandler)
 
 	// Set message emitter in formatter if server is enabled
 	if wsServer != nil {
 		// WebSocket server implements MessageEmitter interface
-		eventHandler.GetFormatter().SetMessageEmitter(wsServer)
+		sessionEventHandler.GetFormatter().SetMessageEmitter(wsServer)
 	}
 
-	eventHandler.Start()
-	defer eventHandler.Stop()
+	// Start both handlers
+	centralEventHandler.Start()
+	defer centralEventHandler.Stop()
+	sessionEventHandler.Start()
+	defer sessionEventHandler.Stop()
 
 	// Start notification watcher if configured
 	if hasNotificationInput {
-		notificationWatcher := event.NewNotificationWatcher(notificationLog, eventHandler)
+		notificationWatcher := event.NewNotificationWatcher(notificationLog, sessionEventHandler)
 		logger.LogInfo("Starting notification log watcher for: %s", notificationLog)
 		if err := notificationWatcher.Start(); err != nil {
 			logger.LogError("Error starting notification watcher: %v", err)
@@ -206,7 +216,7 @@ func main() {
 
 	// Start session watcher if using direct file input
 	if hasDirectFileInput {
-		sessionWatcher := event.NewSessionWatcher(sessionFilePath, eventHandler)
+		sessionWatcher := event.NewSessionWatcher(sessionFilePath, sessionEventHandler)
 
 		if headMode {
 			logger.LogInfo("Reading file: %s", sessionFilePath)
@@ -227,7 +237,7 @@ func main() {
 
 	// Start projects watcher if configured
 	if hasProjectsInput {
-		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, eventHandler)
+		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, sessionEventHandler)
 		if err != nil {
 			logger.LogError("Error creating projects watcher: %v", err)
 			os.Exit(1)

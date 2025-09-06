@@ -2,7 +2,9 @@ package event
 
 import (
 	"testing"
+	"time"
 
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
@@ -25,8 +27,10 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "NotificationEvent with SessionStart creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
+				centralHandler := internalevent.NewHandler(sessionManager, false)
 				h := &Handler{
 					sessionManager: sessionManager,
+					centralHandler: centralHandler,
 					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
@@ -42,8 +46,15 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			},
 			validate: func(t *testing.T, h *Handler, event Event) {
 				e := event.(*NotificationEvent)
-				// Process the event
+				// Process the event (this will send to central handler)
 				h.processEvent(event)
+
+				// Process the event in central handler too
+				h.centralHandler.Start()
+				defer h.centralHandler.Stop()
+
+				// Give central handler time to process
+				time.Sleep(10 * time.Millisecond)
 
 				// Check if session was created
 				session, exists := h.sessionManager.GetSession(e.SessionID)
@@ -67,8 +78,10 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "HookEvent with SessionStart creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
+				centralHandler := internalevent.NewHandler(sessionManager, false)
 				h := &Handler{
 					sessionManager: sessionManager,
+					centralHandler: centralHandler,
 					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
@@ -116,8 +129,10 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "HandleWarmupEvent creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
+				centralHandler := internalevent.NewHandler(sessionManager, false)
 				h := &Handler{
 					sessionManager: sessionManager,
+					centralHandler: centralHandler,
 					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
