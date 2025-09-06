@@ -126,6 +126,7 @@ interface Live2DModelViewerProps {
     expressions: ModelExpression[];
   }) => void;
   audioData?: string; // Base64 encoded audio data
+  audioMessageId?: string | null; // Unique ID for the audio message
   onAudioEnd?: () => void;
   modelRef?: React.MutableRefObject<Live2DModel | null>;
 }
@@ -144,6 +145,7 @@ export function Live2DModelViewer({
   onModelLoaded,
   onModelInfoUpdate,
   audioData,
+  audioMessageId,
   onAudioEnd,
   modelRef: externalModelRef,
 }: Live2DModelViewerProps) {
@@ -273,10 +275,30 @@ export function Live2DModelViewer({
     }
   };
 
+  // Track previous message ID to avoid replaying the same audio
+  const previousMessageIdRef = useRef<string | null | undefined>();
+
+  // Store callbacks in refs to avoid re-triggering effect
+  const onAudioEndRef = useRef(onAudioEnd);
+  const playWithAudioPlayerRef = useRef(playWithAudioPlayer);
+
+  useEffect(() => {
+    onAudioEndRef.current = onAudioEnd;
+    playWithAudioPlayerRef.current = playWithAudioPlayer;
+  });
+
   // Audio playback using speak method with fallback
   useEffect(() => {
     const model = modelRef.current;
-    if (model && audioData) {
+
+    // Skip if message ID hasn't changed (same audio message)
+    if (audioMessageId === previousMessageIdRef.current) {
+      return;
+    }
+
+    previousMessageIdRef.current = audioMessageId;
+
+    if (model && audioData && audioMessageId) {
       // Convert base64 to blob URL
       try {
         // PWA対策: 音声再生前に共有AudioContextをresume
@@ -319,7 +341,7 @@ export function Live2DModelViewer({
               URL.revokeObjectURL(currentAudioUrlRef.current);
               currentAudioUrlRef.current = null;
             }
-            onAudioEnd?.();
+            onAudioEndRef.current?.();
           },
           onError: (error: unknown) => {
             console.error("model.speak failed, using AudioPlayer fallback:", error);
@@ -331,12 +353,14 @@ export function Live2DModelViewer({
             }
 
             // Fallback to AudioPlayer
-            playWithAudioPlayer(audioData);
+            playWithAudioPlayerRef.current?.(audioData);
           },
           crossOrigin: "anonymous",
         });
       } catch (error) {
         console.error("Error setting up audio playback:", error);
+        // Call onAudioEnd on error to reset the queue processing state
+        onAudioEndRef.current?.();
         // Try fallback
         playWithAudioPlayer(audioData);
       }
@@ -359,10 +383,10 @@ export function Live2DModelViewer({
       }
     };
   }, [
-    audioData,
-    onAudioEnd,
-    modelRef, // Try fallback
-    playWithAudioPlayer,
+    audioMessageId, // Track message ID changes - this is the key dependency
+    audioData, // Keep for null/undefined checks
+    // Note: onAudioEnd and playWithAudioPlayer are not dependencies
+    // because changing these functions should not trigger audio replay
   ]);
 
   // 初回レンダリング時にSoundManagerにパッチを適用

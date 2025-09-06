@@ -17,6 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
   const [speechText, setSpeechText] = useState("音声を待機中...");
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
+  const currentMessageIdRef = useRef<string | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null); // Track selected agent
   // オーバーレイの位置管理
@@ -44,6 +45,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
     isAudioEnabledRef.current = isAudioEnabled;
   }, [isAudioEnabled]);
 
+  // currentMessageIdをrefに同期
+  useEffect(() => {
+    currentMessageIdRef.current = currentMessageId;
+  }, [currentMessageId]);
+
   // 音声キューを処理（一度だけ作成される関数）
   const processAudioQueue = useCallback(() => {
     if (isProcessingQueue.current || audioQueue.current.length === 0) {
@@ -56,16 +62,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
       return;
     }
 
-    isProcessingQueue.current = true;
     const message = audioQueue.current[0];
 
     if (message?.audioData) {
-      setCurrentMessageId(message?.id || null);
-      // Live2DModelViewerのspeakメソッドで再生
-      setCurrentAudioData(message.audioData);
+      // メッセージの情報を保持してから削除
+      const messageId = message.id;
+      const audioData = message.audioData;
+
+      // キューから削除
+      audioQueue.current.shift();
+      isProcessingQueue.current = true;
+
+      // メッセージIDと音声データを設定
+      setCurrentMessageId(messageId || null);
+      setCurrentAudioData(audioData);
     } else {
       audioQueue.current.shift();
-      isProcessingQueue.current = false;
+      // 次のメッセージを処理
+      if (audioQueue.current.length > 0) {
+        setTimeout(() => processAudioQueueRef.current?.(), 0);
+      }
     }
   }, []); // 空の依存配列で一度だけ作成
 
@@ -96,12 +112,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
         isAudioEnabledRef.current // refを使用
       ) {
         // 既存のメッセージがキューにないか確認
-        if (!audioQueue.current.some((msg) => msg.id === message.id)) {
+        const isDuplicate = audioQueue.current.some((msg) => msg.id === message.id);
+
+        if (!isDuplicate) {
           audioQueue.current.push(message);
-          // 優先度でソート
+
+          // 優先度でソート（現在は全て同じ優先度なので実質的に追加順）
           audioQueue.current.sort((a, b) => b.priority - a.priority);
-          // キューの処理を開始
-          processAudioQueueRef.current?.();
+
+          // 処理中でない場合のみprocessAudioQueueを呼ぶ
+          if (!isProcessingQueue.current) {
+            processAudioQueueRef.current?.();
+          }
         }
       }
     },
@@ -110,8 +132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
 
   // 音声再生終了時の処理
   const handleAudioEnd = useCallback(() => {
-    // キューから削除
-    audioQueue.current.shift();
+    // 既にキューから削除済みなので、削除処理は不要
     setCurrentMessageId(null);
     setCurrentAudioData(undefined);
     isProcessingQueue.current = false;
@@ -267,7 +288,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
             bubbleSide={overlayBubbleSide}
             useCard={true}
             cardTitle="ASSISTANT"
-            {...(currentAudioData ? { audioData: currentAudioData } : {})}
+            {...(currentAudioData
+              ? { audioData: currentAudioData, audioMessageId: currentMessageId }
+              : {})}
             onAudioEnd={handleAudioEnd}
           />
         </div>
