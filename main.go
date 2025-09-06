@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kazegusuri/claude-companion/event"
+	"github.com/kazegusuri/claude-companion/internal/session/event"
 	"github.com/kazegusuri/claude-companion/internal/server/db"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	"github.com/kazegusuri/claude-companion/internal/server/watcher"
