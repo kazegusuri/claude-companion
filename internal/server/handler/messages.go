@@ -18,6 +18,7 @@ const (
 	MessageTypePong            MessageType = "pong"
 	MessageTypeUserMessage     MessageType = "user_message"     // User input from client
 	MessageTypeConfirmResponse MessageType = "confirm_response" // Tool permission response
+	MessageTypeUpdateState     MessageType = "update_state"     // Update WebSocket state
 
 	// Legacy types (kept for compatibility)
 	MessageTypeAudio MessageType = "audio" // Deprecated: use MessageTypeAssistant with SubTypeAudio
@@ -54,14 +55,21 @@ type Metadata struct {
 	SubType    AssistantMessageSubType `json:"subType,omitempty"` // For assistant messages
 }
 
+// WebSocketConnectionState represents the current state of the WebSocket connection
+type WebSocketConnectionState struct {
+	Mode     string `json:"mode"`               // "timeline" or "agent"
+	AgentPID *int   `json:"agentPid,omitempty"` // Agent PID when in agent mode
+}
+
 // ClientMessage represents a generic message from the client
 type ClientMessage struct {
-	Type      MessageType `json:"type"`
-	SessionID string      `json:"sessionId"` // Session ID for the message
-	Text      string      `json:"text,omitempty"`
-	Action    string      `json:"action,omitempty"`    // For confirm_response: "permit" or "deny"
-	MessageID string      `json:"messageId,omitempty"` // For confirm_response: ID of the permission request message
-	Timestamp string      `json:"timestamp"`
+	Type      MessageType               `json:"type"`
+	SessionID string                    `json:"sessionId"` // Session ID for the message
+	Text      string                    `json:"text,omitempty"`
+	Action    string                    `json:"action,omitempty"`    // For confirm_response: "permit" or "deny"
+	MessageID string                    `json:"messageId,omitempty"` // For confirm_response: ID of the permission request message
+	State     *WebSocketConnectionState `json:"state,omitempty"`     // For update_state: new state
+	Timestamp string                    `json:"timestamp"`
 }
 
 // ChatMessage represents a unified message structure for chat display

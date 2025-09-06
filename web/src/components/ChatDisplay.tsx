@@ -12,9 +12,13 @@ import {
 } from "@mantine/core";
 import { IconCheck, IconSend, IconVolume, IconVolumeOff, IconX } from "@tabler/icons-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
-import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
-import { WebSocketAudioClient } from "../services/WebSocketClient";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { messageRouter } from "../services/MessageRouter";
+import type {
+  ChatMessage,
+  ConnectionStatus,
+  WebSocketAudioClient,
+} from "../services/WebSocketClient";
 
 interface MessageHistory {
   id: string;
@@ -33,122 +37,122 @@ interface ChatDisplayProps {
   showInput?: boolean;
   onAudioToggle?: () => void;
   isAudioEnabled?: boolean;
+  agentPID?: number | null; // Agent PID for agent mode
+  onAgentDisconnect?: () => void; // Callback when agent disconnects
+  wsClient?: WebSocketAudioClient | null; // Shared WebSocket client instance
+  connectionStatus?: ConnectionStatus; // Connection status from parent
 }
 
 export const ChatDisplay: React.FC<ChatDisplayProps> = ({
   currentPlayingMessageId,
-  onMessagesUpdate,
+  onMessagesUpdate: _onMessagesUpdate,
   variant = "default",
   maxDisplayMessages,
   showInput = true,
   onAudioToggle,
   isAudioEnabled = false,
+  agentPID = null,
+  onAgentDisconnect: _onAgentDisconnect,
+  wsClient: externalWsClient,
+  connectionStatus: externalConnectionStatus = "disconnected",
 }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [inputMessage, setInputMessage] = useState("");
   const [respondedPermissions, setRespondedPermissions] = useState<Set<string>>(new Set());
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
-  const wsClient = useRef<WebSocketAudioClient | null>(null);
+  const wsClient = externalWsClient; // Always use external client
+  const connectionStatus = externalConnectionStatus; // Use external connection status
   const viewportRef = useRef<HTMLDivElement>(null); // ScrollAreaのviewport参照
 
   // Configuration
   const MAX_MESSAGES = variant === "mobile" ? 50 : 100;
 
-  // Initialize WebSocket connection
-  useEffect(() => {
-    if (wsClient.current) {
-      wsClient.current.disconnect();
-      wsClient.current = null;
-    }
-
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
-    wsClient.current = new WebSocketAudioClient(
-      wsUrl,
-      (message: ChatMessage) => {
-        // Track sessionId from any message that has it
-        if (message.metadata?.sessionId) {
-          setCurrentSessionId(message.metadata.sessionId);
-        }
-
-        // Add to message history with max limit
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.id === message.id)) {
-            return prev;
-          }
-
-          // Format text based on event type
-          let displayText = message.text;
-          if (message.metadata?.eventType === "tool_permission") {
-            displayText = `🔐 ${message.text}`;
-          } else if (message.metadata?.eventType === "command_success") {
-            displayText = `✅ ${message.text}`;
-          } else if (message.metadata?.eventType === "command_error") {
-            displayText = `❌ ${message.text}`;
-          }
-
-          const historyItem: MessageHistory = {
-            id: message.id,
-            text: displayText,
-            timestamp: new Date(message.timestamp),
-            metadata: message.metadata,
-            ...(message.role && { role: message.role }),
-            ...(message.subType && { subType: message.subType }),
-          };
-
-          // Add new message and limit to MAX_MESSAGES (keep only the latest 100)
-          const newMessages = [...prev, historyItem];
-          if (newMessages.length > MAX_MESSAGES) {
-            // Remove oldest messages to maintain the limit
-            return newMessages.slice(newMessages.length - MAX_MESSAGES);
-          }
-          return newMessages;
-        });
-
-        // 親コンポーネントにメッセージを通知
-        if (onMessagesUpdate) {
-          onMessagesUpdate([message]);
-        }
-
-        // Auto-scroll to bottom using viewportRef
-        setTimeout(() => {
-          if (viewportRef.current) {
-            // ScrollAreaのviewportを最下部までスクロール
-            viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
-          }
-        }, 100);
-      },
-      setConnectionStatus,
-    );
-    wsClient.current.connect();
-
-    return () => {
-      if (wsClient.current) {
-        wsClient.current.disconnect();
-        wsClient.current = null;
+  // WebSocketメッセージハンドラー
+  const handleWebSocketMessage = useCallback(
+    (message: ChatMessage) => {
+      // メッセージルーターでフィルタリング
+      if (!messageRouter.shouldAcceptMessage(message)) {
+        return;
       }
-    };
-  }, [onMessagesUpdate, MAX_MESSAGES]);
+
+      // Extract session ID from tool_permission messages
+      if (message.metadata?.eventType === "tool_permission" && message.metadata?.sessionId) {
+        setCurrentSessionId(message.metadata.sessionId);
+      }
+
+      // Convert ChatMessage to MessageHistory
+      const newMessage: MessageHistory = {
+        id: message.id,
+        text: message.text,
+        timestamp: new Date(message.timestamp),
+        ...(message.metadata && { metadata: message.metadata }),
+        ...(message.role && { role: message.role }),
+        ...(message.subType && { subType: message.subType }),
+      };
+
+      // Add message to history
+      setMessages((prev) => {
+        const updated = [...prev, newMessage];
+        // Keep only the last MAX_MESSAGES
+        if (updated.length > MAX_MESSAGES) {
+          return updated.slice(-MAX_MESSAGES);
+        }
+        return updated;
+      });
+    },
+    [MAX_MESSAGES],
+  );
+
+  // WebSocketメッセージリスナーの登録
+  useEffect(() => {
+    if (!wsClient) return;
+
+    const cleanup = wsClient.addMessageListener(handleWebSocketMessage);
+    return cleanup;
+  }, [wsClient, handleWebSocketMessage]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (viewportRef.current) {
+      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Set or clear agent mode when agentPID changes
+  useEffect(() => {
+    if (!wsClient) return;
+
+    if (agentPID) {
+      wsClient.setAgentMode(agentPID);
+      // Clear messages when switching to agent mode
+      setMessages([]);
+      setCurrentSessionId(null);
+      setRespondedPermissions(new Set());
+    } else {
+      wsClient.clearAgentMode();
+      // Clear messages when switching to timeline mode
+      setMessages([]);
+      setCurrentSessionId(null);
+      setRespondedPermissions(new Set());
+    }
+  }, [agentPID, wsClient]);
 
   const handleClearHistory = () => {
     setMessages([]);
   };
 
   const handleReconnect = () => {
-    wsClient.current?.connect();
+    wsClient?.connect();
   };
 
   const handleSendMessage = () => {
-    if (!inputMessage.trim() || !wsClient.current || !currentSessionId) {
-      if (!currentSessionId) {
-        console.error("Session ID not available yet. Waiting for tool_permission message.");
-      }
+    if (!inputMessage.trim() || !wsClient || !currentSessionId) {
       return;
     }
 
     // WebSocket経由でメッセージを送信（currentSessionIdを使用）
-    wsClient.current.sendMessage(inputMessage.trim(), currentSessionId);
+    wsClient.sendMessage(inputMessage.trim(), currentSessionId);
 
     // 入力フィールドをクリア
     setInputMessage("");
@@ -167,17 +171,16 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
     action: "permit" | "deny",
     sessionId?: string,
   ) => {
-    if (!wsClient.current) return;
+    if (!wsClient) return;
 
     // Use sessionId from the message metadata if available, otherwise use currentSessionId
     const targetSessionId = sessionId || currentSessionId;
     if (!targetSessionId) {
-      console.error("Session ID not available for permission response");
       return;
     }
 
     // Send confirmation response with the appropriate sessionId
-    wsClient.current.sendConfirmResponse(action, messageId, targetSessionId);
+    wsClient.sendConfirmResponse(action, messageId, targetSessionId);
 
     // Mark this permission as responded
     setRespondedPermissions((prev) => new Set(prev).add(messageId));
@@ -273,9 +276,16 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <Text size={variant === "mobile" ? "sm" : "md"} fw={600} c="white">
-          Chat
-        </Text>
+        <Group gap="xs">
+          <Text size={variant === "mobile" ? "sm" : "md"} fw={600} c="white">
+            Chat
+          </Text>
+          {agentPID && (
+            <Badge color="blue" variant="light" size="sm">
+              Agent PID: {agentPID}
+            </Badge>
+          )}
+        </Group>
         <Group gap="xs">
           <Badge color={getStatusColor()} variant="filled" size="sm">
             {connectionStatus === "connected"

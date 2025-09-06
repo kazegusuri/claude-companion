@@ -79,7 +79,7 @@ func (h *EventHandler) HandleMessage(message ClientMessage) {
 	case MessageTypeConfirmResponse:
 		h.HandleConfirmResponse(message)
 	default:
-		log.Printf("Received unhandled message type %s from client %s", message.Type, h.clientID)
+		// Unhandled message type
 	}
 }
 
@@ -98,17 +98,14 @@ func (h *EventHandler) HandlePing(message ClientMessage) {
 
 // HandleUserMessage handles user messages from the client
 func (h *EventHandler) HandleUserMessage(message ClientMessage) {
-	log.Printf("Received user message from client %s: %s", h.clientID, message.Text)
 
 	// Get session from SessionGetter
 	if h.sessionGetter == nil {
-		log.Printf("SessionGetter is not available for client %s", h.clientID)
 		return
 	}
 
 	session, exists := h.sessionGetter.GetSession(message.SessionID)
 	if !exists {
-		log.Printf("Session not found for ID %s from client %s", message.SessionID, h.clientID)
 		return
 	}
 
@@ -124,18 +121,14 @@ func (h *EventHandler) HandleUserMessage(message ClientMessage) {
 
 // HandleConfirmResponse handles permission confirmation responses from the client
 func (h *EventHandler) HandleConfirmResponse(message ClientMessage) {
-	log.Printf("Received permission response from client %s: action=%s, messageId=%s",
-		h.clientID, message.Action, message.MessageID)
 
 	// Get session from SessionGetter
 	if h.sessionGetter == nil {
-		log.Printf("SessionGetter is not available for client %s", h.clientID)
 		return
 	}
 
 	session, exists := h.sessionGetter.GetSession(message.SessionID)
 	if !exists {
-		log.Printf("Session not found for ID %s from client %s", message.SessionID, h.clientID)
 		return
 	}
 
@@ -147,7 +140,6 @@ func (h *EventHandler) HandleConfirmResponse(message ClientMessage) {
 	case "deny":
 		command = ClaudeCommandStop
 	default:
-		log.Printf("Unknown confirm response action from client %s: %s", h.clientID, message.Action)
 		return
 	}
 
@@ -205,7 +197,6 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error executing claude-code-send (%s): %v", req.Command, err)
-		log.Printf("Command output: %s", string(output))
 
 		// Send error message to client
 		errorMsg := &ChatMessage{
@@ -228,13 +219,11 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 	var response ClaudeCommandResponse
 	if err := json.Unmarshal(output, &response); err != nil {
 		log.Printf("Error parsing claude-code-send response: %v", err)
-		log.Printf("Raw output: %s", string(output))
 		return
 	}
 
-	// Log the response
+	// Check the response
 	if response.Success {
-		log.Printf("claude-code-send (%s) executed successfully: %s", req.Command, response.Message)
 
 		// Send success message to client
 		successMsg := &ChatMessage{
@@ -251,7 +240,6 @@ func (h *EventHandler) executeClaudeCommand(req *ClaudeCommandRequest) {
 			log.Printf("Failed to send success message to client %s: %v", h.clientID, err)
 		}
 	} else {
-		log.Printf("claude-code-send (%s) failed: %s", req.Command, response.Error)
 
 		// Send error message to client
 		errorMsg := &ChatMessage{

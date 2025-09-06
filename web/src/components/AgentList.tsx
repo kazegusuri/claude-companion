@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import type { Agent } from "../services/AgentService";
 import { AgentService } from "../services/AgentService";
 
-export const AgentList: React.FC = () => {
+interface AgentListProps {
+  onAgentClick?: (agent: Agent) => void;
+  selectedAgentPID?: number | null;
+}
+
+export const AgentList: React.FC<AgentListProps> = ({ onAgentClick, selectedAgentPID }) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -86,7 +91,19 @@ export const AgentList: React.FC = () => {
             </Card>
           ) : (
             agents.map((agent) => (
-              <Card key={agent.pid} padding="sm" radius="md" withBorder>
+              <Card
+                key={agent.pid}
+                padding="sm"
+                radius="md"
+                withBorder
+                style={{
+                  cursor: onAgentClick ? "pointer" : "default",
+                  backgroundColor:
+                    selectedAgentPID === agent.pid ? "var(--mantine-color-blue-9)" : undefined,
+                  transition: "background-color 0.2s",
+                }}
+                onClick={() => onAgentClick?.(agent)}
+              >
                 <Stack gap="xs">
                   {/* プロジェクト名 */}
                   <Group gap="xs">

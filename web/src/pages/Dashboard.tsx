@@ -4,6 +4,8 @@ import { AgentList } from "../components/AgentList";
 import { ChatDisplay } from "../components/ChatDisplay";
 import { MainLayout } from "../components/Layout/MainLayout";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
+import type { Agent } from "../services/AgentService";
+import { messageRouter } from "../services/MessageRouter";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 
@@ -13,17 +15,19 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
   const [speechText, setSpeechText] = useState("音声を待機中...");
-  const [_connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null); // Track selected agent
   // オーバーレイの位置管理
   const [overlayPosition, setOverlayPosition] = useState({ x: 250, y: window.innerHeight - 300 }); // オーバーレイの位置（初期は左下）
   const [isDragging, setIsDragging] = useState(false); // ドラッグ中かどうか
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 }); // ドラッグのオフセット
+  const [wsClient, setWsClient] = useState<WebSocketAudioClient | null>(null);
 
-  const wsClient = useRef<WebSocketAudioClient | null>(null);
   const audioQueue = useRef<ChatMessage[]>([]);
   const isProcessingQueue = useRef(false);
+  const processAudioQueueRef = useRef<(() => void) | null>(null);
 
   // 音声が無効になったらキューをクリア
   useEffect(() => {
@@ -35,7 +39,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
   }, [isAudioEnabled]);
 
   // 音声キューを処理
-  const processAudioQueue = useCallback(async () => {
+  const processAudioQueue = useCallback(() => {
     if (isProcessingQueue.current || audioQueue.current.length === 0) {
       return;
     }
@@ -59,9 +63,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
     }
   }, [isAudioEnabled]);
 
+  // processAudioQueueをrefに保存
+  useEffect(() => {
+    processAudioQueueRef.current = processAudioQueue;
+  }, [processAudioQueue]);
+
   // WebSocketメッセージハンドラー
   const handleWebSocketMessage = useCallback(
     (message: ChatMessage) => {
+      // メッセージルーターでフィルタリング
+      if (!messageRouter.shouldAcceptMessage(message)) {
+        return;
+      }
+
       // テキストを更新（assistantメッセージのみ）
       if (message.text && message.role === "assistant") {
         setSpeechText(message.text);
@@ -81,11 +95,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
           // 優先度でソート
           audioQueue.current.sort((a, b) => b.priority - a.priority);
           // キューの処理を開始
-          processAudioQueue();
+          processAudioQueueRef.current?.();
         }
       }
     },
-    [isAudioEnabled, processAudioQueue],
+    [isAudioEnabled],
   );
 
   // 音声再生終了時の処理
@@ -98,33 +112,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
 
     // 次のアイテムを処理
     if (audioQueue.current.length > 0) {
-      setTimeout(processAudioQueue, 100);
+      setTimeout(() => processAudioQueueRef.current?.(), 100);
     }
-  }, [processAudioQueue]);
+  }, []);
 
-  // WebSocket接続の初期化
+  // メッセージハンドラーのrefを作成
+  const messageHandlerRef = useRef<(message: ChatMessage) => void>();
+
+  // メッセージハンドラーをrefに保存
   useEffect(() => {
-    // 既存の接続をクリーンアップ
-    if (wsClient.current) {
-      wsClient.current.disconnect();
-      wsClient.current = null;
-    }
+    messageHandlerRef.current = handleWebSocketMessage;
+  }, [handleWebSocketMessage]);
 
-    // WebSocketクライアントを作成
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
-    wsClient.current = new WebSocketAudioClient(wsUrl, handleWebSocketMessage, setConnectionStatus);
+  // WebSocket接続の初期化（単一接続を維持）
+  useEffect(() => {
+    let mounted = true;
+    let client: WebSocketAudioClient | null = null;
 
-    // WebSocketに接続
-    wsClient.current.connect();
+    // 少し遅延させてStrictModeの二重レンダリングの影響を軽減
+    const timer = setTimeout(() => {
+      if (!mounted) return;
+
+      // WebSocketクライアントを作成
+      const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080/ws/audio";
+      client = new WebSocketAudioClient(
+        wsUrl,
+        (message) => messageHandlerRef.current?.(message),
+        setConnectionStatus,
+      );
+
+      // WebSocketに接続
+      client.connect();
+
+      // stateにセット
+      setWsClient(client);
+    }, 0);
 
     // クリーンアップ
     return () => {
-      if (wsClient.current) {
-        wsClient.current.disconnect();
-        wsClient.current = null;
+      mounted = false;
+      clearTimeout(timer);
+      if (client) {
+        client.disconnect();
+        setWsClient(null);
       }
     };
-  }, [handleWebSocketMessage]);
+  }, []); // 空の依存配列で一度だけ実行
 
   // オーバーレイの位置に基づいて吹き出しの位置を決定（ドラッグ中も追従）
   const [overlayBubbleSide, setOverlayBubbleSide] = useState<"top" | "bottom" | "left" | "right">(
@@ -235,10 +268,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
       </div>
 
       <MainLayout
-        modelComponent={<AgentList />}
+        modelComponent={
+          <AgentList
+            onAgentClick={(agent) => {
+              // Toggle agent selection
+              if (selectedAgent?.pid === agent.pid) {
+                // Clear agent mode
+                setSelectedAgent(null);
+                messageRouter.clearMode();
+                wsClient?.clearAgentMode();
+              } else {
+                // Set agent mode
+                setSelectedAgent(agent);
+                messageRouter.setAgentMode(agent);
+                wsClient?.setAgentMode(agent.pid);
+              }
+            }}
+            selectedAgentPID={selectedAgent?.pid ?? null}
+          />
+        }
         scheduleComponent={null}
         textComponent={null}
-        chatComponent={<ChatDisplay currentPlayingMessageId={currentMessageId} />}
+        chatComponent={
+          <ChatDisplay
+            currentPlayingMessageId={currentMessageId}
+            agentPID={selectedAgent?.pid ?? null}
+            onAgentDisconnect={() => setSelectedAgent(null)}
+            wsClient={wsClient}
+            connectionStatus={connectionStatus}
+          />
+        }
       />
     </>
   );

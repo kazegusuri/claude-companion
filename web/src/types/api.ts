@@ -74,21 +74,21 @@ export interface components {
         /** @description Chat message sent via WebSocket */
         ChatMessage: {
             /** @description Unique message ID */
-            id?: string;
+            id: string;
             /** @description Type of the message */
             type: components["schemas"]["MessageType"];
             /**
              * @description Role of the message sender
              * @enum {string}
              */
-            role?: "user" | "assistant" | "system";
+            role: "user" | "assistant" | "system";
             /**
              * @description Sub-type for assistant messages
              * @enum {string}
              */
             subType?: "audio" | "text";
             /** @description Text content of the message */
-            text?: string;
+            text: string;
             /** @description Base64 encoded audio data (WAV format) */
             audioData?: string;
             /**
@@ -101,7 +101,9 @@ export interface components {
              * Format: date-time
              * @description Timestamp of the message
              */
-            timestamp?: string;
+            timestamp: string;
+            /** @description Message metadata */
+            metadata?: components["schemas"]["MessageMetadata"];
             /** @description Tool name (for tool_use messages) */
             toolName?: string;
             /** @description Tool input (for tool_use messages) */
@@ -115,21 +117,91 @@ export interface components {
             /** @description Content details (for content_block messages) */
             content?: string;
         };
+        /** @description Client message sent to WebSocket */
+        ClientMessage: {
+            /** @description Message type */
+            type: components["schemas"]["MessageType"];
+            /** @description Session ID for the message */
+            sessionId?: string;
+            /** @description Text content (for user_message) */
+            text?: string;
+            /**
+             * @description Action for confirm_response
+             * @enum {string}
+             */
+            action?: "permit" | "deny";
+            /** @description Message ID for confirm_response */
+            messageId?: string;
+            /** @description State for update_state */
+            state?: components["schemas"]["WebSocketConnectionState"];
+            /**
+             * Format: date-time
+             * @description Timestamp
+             */
+            timestamp: string;
+        };
         /**
          * @description Connection status for WebSocket
          * @enum {string}
          */
-        ConnectionStatus: "connecting" | "connected" | "disconnected" | "error";
+        ConnectionStatus: "connecting" | "connected" | "disconnected" | "error" | "failed";
         /** @description Error response */
         ErrorResponse: {
             /** @description Error message */
             message: string;
         };
+        /** @description Message metadata */
+        MessageMetadata: {
+            /** @description Event type */
+            eventType: string;
+            /** @description Tool name */
+            toolName?: string;
+            /**
+             * Format: int32
+             * @description Speaker number
+             */
+            speaker?: number;
+            /**
+             * Format: int32
+             * @description Sample rate for audio
+             */
+            sampleRate?: number;
+            /**
+             * Format: float
+             * @description Duration in seconds
+             */
+            duration?: number;
+            /** @description Session ID */
+            sessionId?: string;
+            /**
+             * @description Role of the message
+             * @enum {string}
+             */
+            role?: "user" | "assistant" | "system";
+            /**
+             * @description Sub-type for assistant messages
+             * @enum {string}
+             */
+            subType?: "audio" | "text";
+        };
         /**
          * @description WebSocket message types
          * @enum {string}
          */
-        MessageType: "user" | "assistant" | "system" | "audio" | "tool_use" | "tool_result" | "content_block" | "error";
+        MessageType: "user" | "assistant" | "system" | "audio" | "text" | "ping" | "pong" | "user_message" | "confirm_response" | "update_state" | "tool_use" | "tool_result" | "content_block" | "error";
+        /** @description WebSocket connection state */
+        WebSocketConnectionState: {
+            /**
+             * @description Connection mode
+             * @enum {string}
+             */
+            mode: "timeline" | "agent";
+            /**
+             * Format: int32
+             * @description Agent PID when in agent mode
+             */
+            agentPid?: number;
+        };
         /** @description WebSocket status message */
         WebSocketStatus: {
             /** @description Current connection status */

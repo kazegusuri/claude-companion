@@ -81,10 +81,76 @@ enum MessageType {
   assistant: "assistant",
   system: "system",
   audio: "audio",
+  text: "text",
+  ping: "ping",
+  pong: "pong",
+  user_message: "user_message",
+  confirm_response: "confirm_response",
+  update_state: "update_state",
   tool_use: "tool_use",
   tool_result: "tool_result",
   content_block: "content_block",
   error: "error",
+}
+
+/**
+ * Message metadata
+ */
+model MessageMetadata {
+  /**
+   * Event type
+   */
+  eventType: string;
+
+  /**
+   * Tool name
+   */
+  toolName?: string;
+
+  /**
+   * Speaker number
+   */
+  speaker?: int32;
+
+  /**
+   * Sample rate for audio
+   */
+  sampleRate?: int32;
+
+  /**
+   * Duration in seconds
+   */
+  duration?: float32;
+
+  /**
+   * Session ID
+   */
+  sessionId?: string;
+
+  /**
+   * Role of the message
+   */
+  role?: "user" | "assistant" | "system";
+
+  /**
+   * Sub-type for assistant messages
+   */
+  subType?: "audio" | "text";
+}
+
+/**
+ * WebSocket connection state
+ */
+model WebSocketConnectionState {
+  /**
+   * Connection mode
+   */
+  mode: "timeline" | "agent";
+
+  /**
+   * Agent PID when in agent mode
+   */
+  agentPid?: int32;
 }
 
 /**
@@ -94,7 +160,7 @@ model ChatMessage {
   /**
    * Unique message ID
    */
-  id?: string;
+  id: string;
 
   /**
    * Type of the message
@@ -104,7 +170,7 @@ model ChatMessage {
   /**
    * Role of the message sender
    */
-  role?: "user" | "assistant" | "system";
+  role: "user" | "assistant" | "system";
 
   /**
    * Sub-type for assistant messages
@@ -114,7 +180,7 @@ model ChatMessage {
   /**
    * Text content of the message
    */
-  text?: string;
+  text: string;
 
   /**
    * Base64 encoded audio data (WAV format)
@@ -132,7 +198,12 @@ model ChatMessage {
    * Timestamp of the message
    */
   @format("date-time")
-  timestamp?: string;
+  timestamp: string;
+
+  /**
+   * Message metadata
+   */
+  metadata?: MessageMetadata;
 
   /**
    * Tool name (for tool_use messages)
@@ -161,6 +232,47 @@ model ChatMessage {
 }
 
 /**
+ * Client message sent to WebSocket
+ */
+model ClientMessage {
+  /**
+   * Message type
+   */
+  type: MessageType;
+
+  /**
+   * Session ID for the message
+   */
+  sessionId?: string;
+
+  /**
+   * Text content (for user_message)
+   */
+  text?: string;
+
+  /**
+   * Action for confirm_response
+   */
+  action?: "permit" | "deny";
+
+  /**
+   * Message ID for confirm_response
+   */
+  messageId?: string;
+
+  /**
+   * State for update_state
+   */
+  state?: WebSocketConnectionState;
+
+  /**
+   * Timestamp
+   */
+  @format("date-time")
+  timestamp: string;
+}
+
+/**
  * Connection status for WebSocket
  */
 enum ConnectionStatus {
@@ -168,6 +280,7 @@ enum ConnectionStatus {
   connected: "connected",
   disconnected: "disconnected",
   error: "error",
+  failed: "failed",
 }
 
 /**

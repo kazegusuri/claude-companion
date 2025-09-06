@@ -9,15 +9,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/kazegusuri/claude-companion/internal/server/db"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // Client represents a WebSocket client connection
 type Client struct {
-	conn   *websocket.Conn
-	send   chan *handler.ChatMessage
-	id     string
-	server *Server
+	conn             *websocket.Conn
+	send             chan *handler.ChatMessage
+	id               string
+	server           *Server
+	state            *handler.WebSocketConnectionState // Current client state
+	currentSessionID string                            // Current session ID being monitored (for agent mode)
+	stopWatcher      chan bool                         // Channel to stop the session watcher goroutine
+	mu               sync.Mutex                        // Protects state and currentSessionID
 }
 
 // Server manages WebSocket connections and message broadcasting
@@ -29,6 +34,7 @@ type Server struct {
 	mu            sync.RWMutex
 	upgrader      websocket.Upgrader
 	sessionGetter handler.SessionGetter
+	database      *db.DB // Database for agent session lookups
 }
 
 // NewServer creates a new WebSocket server
@@ -51,6 +57,11 @@ func NewServer(sessionGetter handler.SessionGetter) *Server {
 	}
 }
 
+// SetDatabase sets the database for agent session lookups
+func (s *Server) SetDatabase(database *db.DB) {
+	s.database = database
+}
+
 // Run starts the server's main loop
 func (s *Server) Run() {
 	for {
@@ -59,7 +70,6 @@ func (s *Server) Run() {
 			s.mu.Lock()
 			s.clients[client] = true
 			s.mu.Unlock()
-			log.Printf("Client connected: %s", client.id)
 
 		case client := <-s.unregister:
 			s.mu.Lock()
@@ -67,7 +77,6 @@ func (s *Server) Run() {
 				delete(s.clients, client)
 				close(client.send)
 				s.mu.Unlock()
-				log.Printf("Client disconnected: %s", client.id)
 			} else {
 				s.mu.Unlock()
 			}
@@ -75,6 +84,19 @@ func (s *Server) Run() {
 		case message := <-s.broadcast:
 			s.mu.RLock()
 			for client := range s.clients {
+				// Filter messages for agent mode clients
+				client.mu.Lock()
+				state := client.state
+				currentSessionID := client.currentSessionID
+				client.mu.Unlock()
+
+				if state != nil && state.Mode == "agent" && state.AgentPID != nil {
+					// Only send messages from the current session
+					if message.Metadata.SessionID != currentSessionID {
+						continue
+					}
+				}
+
 				select {
 				case client.send <- message:
 				default:
@@ -97,10 +119,12 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		conn:   conn,
-		send:   make(chan *handler.ChatMessage, 256),
-		id:     uuid.New().String(),
-		server: s,
+		conn:        conn,
+		send:        make(chan *handler.ChatMessage, 256),
+		id:          uuid.New().String(),
+		server:      s,
+		state:       &handler.WebSocketConnectionState{Mode: "timeline"},
+		stopWatcher: make(chan bool),
 	}
 
 	s.register <- client
@@ -163,9 +187,93 @@ func (s *clientMessageSender) Broadcast(msg *handler.ChatMessage) {
 	s.server.BroadcastChat(msg)
 }
 
+// UpdateState updates the client's WebSocket connection state
+func (c *Client) UpdateState(newState *handler.WebSocketConnectionState) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Stop existing watcher if switching from agent mode
+	if c.state != nil && c.state.Mode == "agent" && c.state.AgentPID != nil {
+		select {
+		case c.stopWatcher <- true:
+		default:
+		}
+	}
+
+	// Update state
+	c.state = newState
+
+	// Handle mode-specific logic
+	if newState.Mode == "agent" && newState.AgentPID != nil {
+		c.currentSessionID = ""
+		// Start new watcher for agent mode
+		if c.server.database != nil {
+			go c.watchAgentSession()
+		}
+	} else {
+		c.currentSessionID = ""
+	}
+}
+
+// watchAgentSession monitors the agent's session changes and updates the filter
+func (c *Client) watchAgentSession() {
+	// Function to update session ID
+	updateSession := func() {
+		c.mu.Lock()
+		state := c.state
+		c.mu.Unlock()
+
+		if state == nil || state.Mode != "agent" || state.AgentPID == nil || c.server.database == nil {
+			return
+		}
+
+		// Get current session for this agent
+		agent, err := c.server.database.GetClaudeAgent(*state.AgentPID)
+		if err != nil {
+			log.Printf("Error getting agent %d: %v", *state.AgentPID, err)
+			return
+		}
+
+		if agent == nil {
+			// Agent no longer exists, might want to disconnect
+			return
+		}
+
+		// Update session ID if changed
+		c.mu.Lock()
+		if agent.SessionID != c.currentSessionID {
+			c.currentSessionID = agent.SessionID
+		}
+		c.mu.Unlock()
+	}
+
+	// Get initial session ID immediately
+	updateSession()
+
+	// Then check periodically
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			updateSession()
+
+		case <-c.stopWatcher:
+			return
+		}
+	}
+}
+
 // readPump pumps messages from the websocket connection to the server
 func (c *Client) readPump() {
 	defer func() {
+		// Stop the session watcher if running
+		c.mu.Lock()
+		if c.state != nil && c.state.Mode == "agent" && c.state.AgentPID != nil {
+			close(c.stopWatcher)
+		}
+		c.mu.Unlock()
 		c.server.unregister <- c
 		c.conn.Close()
 	}()
@@ -196,8 +304,17 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Delegate to event handler
-		eventHandler.HandleMessage(message)
+		// Handle state update messages directly
+		switch message.Type {
+		case handler.MessageTypeUpdateState:
+			if message.State != nil {
+				c.UpdateState(message.State)
+				// No confirmation message needed
+			}
+		default:
+			// Delegate to event handler for other message types
+			eventHandler.HandleMessage(message)
+		}
 	}
 }
 

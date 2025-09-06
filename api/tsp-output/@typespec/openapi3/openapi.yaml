@@ -96,8 +96,12 @@ components:
     ChatMessage:
       type: object
       required:
+        - id
         - type
+        - role
+        - text
         - priority
+        - timestamp
       properties:
         id:
           type: string
@@ -136,6 +140,10 @@ components:
           type: string
           format: date-time
           description: Timestamp of the message
+        metadata:
+          allOf:
+            - $ref: '#/components/schemas/MessageMetadata'
+          description: Message metadata
         toolName:
           type: string
           description: Tool name (for tool_use messages)
@@ -153,6 +161,40 @@ components:
           type: string
           description: Content details (for content_block messages)
       description: Chat message sent via WebSocket
+    ClientMessage:
+      type: object
+      required:
+        - type
+        - timestamp
+      properties:
+        type:
+          allOf:
+            - $ref: '#/components/schemas/MessageType'
+          description: Message type
+        sessionId:
+          type: string
+          description: Session ID for the message
+        text:
+          type: string
+          description: Text content (for user_message)
+        action:
+          type: string
+          enum:
+            - permit
+            - deny
+          description: Action for confirm_response
+        messageId:
+          type: string
+          description: Message ID for confirm_response
+        state:
+          allOf:
+            - $ref: '#/components/schemas/WebSocketConnectionState'
+          description: State for update_state
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp
+      description: Client message sent to WebSocket
     ConnectionStatus:
       type: string
       enum:
@@ -160,6 +202,7 @@ components:
         - connected
         - disconnected
         - error
+        - failed
       description: Connection status for WebSocket
     ErrorResponse:
       type: object
@@ -170,6 +213,46 @@ components:
           type: string
           description: Error message
       description: Error response
+    MessageMetadata:
+      type: object
+      required:
+        - eventType
+      properties:
+        eventType:
+          type: string
+          description: Event type
+        toolName:
+          type: string
+          description: Tool name
+        speaker:
+          type: integer
+          format: int32
+          description: Speaker number
+        sampleRate:
+          type: integer
+          format: int32
+          description: Sample rate for audio
+        duration:
+          type: number
+          format: float
+          description: Duration in seconds
+        sessionId:
+          type: string
+          description: Session ID
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+            - system
+          description: Role of the message
+        subType:
+          type: string
+          enum:
+            - audio
+            - text
+          description: Sub-type for assistant messages
+      description: Message metadata
     MessageType:
       type: string
       enum:
@@ -177,11 +260,33 @@ components:
         - assistant
         - system
         - audio
+        - text
+        - ping
+        - pong
+        - user_message
+        - confirm_response
+        - update_state
         - tool_use
         - tool_result
         - content_block
         - error
       description: WebSocket message types
+    WebSocketConnectionState:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - timeline
+            - agent
+          description: Connection mode
+        agentPid:
+          type: integer
+          format: int32
+          description: Agent PID when in agent mode
+      description: WebSocket connection state
     WebSocketStatus:
       type: object
       required:
