@@ -16,14 +16,29 @@ import (
 const COMPACTION_THRESHOLD = 200000 * 0.8
 
 type InputData struct {
-	Model struct {
+	HookEventName  string `json:"hook_event_name"`
+	SessionID      string `json:"session_id"`
+	TranscriptPath string `json:"transcript_path"`
+	Cwd            string `json:"cwd"`
+	Model          struct {
+		ID          string `json:"id"`
 		DisplayName string `json:"display_name"`
 	} `json:"model"`
 	Workspace struct {
 		CurrentDir string `json:"current_dir"`
+		ProjectDir string `json:"project_dir"`
 	} `json:"workspace"`
-	Cwd       string `json:"cwd"`
-	SessionID string `json:"session_id"`
+	Version     string `json:"version"`
+	OutputStyle struct {
+		Name string `json:"name"`
+	} `json:"output_style"`
+	Cost struct {
+		TotalCostUSD       float64 `json:"total_cost_usd"`
+		TotalDurationMS    int     `json:"total_duration_ms"`
+		TotalAPIDurationMS int     `json:"total_api_duration_ms"`
+		TotalLinesAdded    int     `json:"total_lines_added"`
+		TotalLinesRemoved  int     `json:"total_lines_removed"`
+	} `json:"cost"`
 }
 
 type TranscriptEntry struct {
@@ -118,8 +133,8 @@ func main() {
 	}
 
 	// Build status line
-	statusLine := fmt.Sprintf("[%s] 📁 %s | 🪙 %s | %s%d%%\x1b[0m",
-		model, currentDir, tokenDisplay, percentageColor, percentage)
+	statusLine := fmt.Sprintf("[%s] %s | 📁 %s | 🪙 %s | %s%d%%\x1b[0m",
+		sessionID[0:8], model, currentDir, tokenDisplay, percentageColor, percentage)
 
 	fmt.Println(statusLine)
 }

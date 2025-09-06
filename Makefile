@@ -12,7 +12,7 @@ MAIN_BINARY := claude-companion
 # Command binaries from cmd/ directory
 CMD_BINARIES := claude-code-send \
 	openai-narrator-cli \
-	status-line \
+	claude-status-line \
 	cc-status-line-wrapper \
 	test-ws-server \
 	voicevox-cli
@@ -34,7 +34,7 @@ help:
 	@echo "  help    - Show this help message"
 	@echo ""
 	@echo "Build specific binary:"
-	@echo "  build-<binary-name> - Build a specific binary (e.g., make build-status-line)"
+	@echo "  build-<binary-name> - Build a specific binary (e.g., make build-claude-status-line)"
 	@echo ""
 	@echo "Available binaries:"
 	@echo "  $(ALL_BINARIES)"
