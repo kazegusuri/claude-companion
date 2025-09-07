@@ -1,15 +1,20 @@
 package event
 
 import (
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/kazegusuri/claude-companion/internal/logger"
+	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // Handler is the central event handler that processes all events
 type Handler struct {
 	sessionManager *handler.SessionManager
+	narrator       narrator.Narrator
+	printer        Printer
 	eventChan      chan Event
 	wg             sync.WaitGroup
 	done           chan struct{}
@@ -18,9 +23,11 @@ type Handler struct {
 }
 
 // NewHandler creates a new central event handler
-func NewHandler(sessionManager *handler.SessionManager) *Handler {
+func NewHandler(sessionManager *handler.SessionManager, narrator narrator.Narrator, printer Printer) *Handler {
 	return &Handler{
 		sessionManager: sessionManager,
+		narrator:       narrator,
+		printer:        printer,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		subscribers:    make(map[Type][]func(Event)),
@@ -115,7 +122,85 @@ func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 		h.sessionManager.CreateSession(event.SessionID, "", event.CWD, event.TranscriptPath)
 	}
 
+	// Generate narration based on event type
+	h.generateNarration(event)
+
+	// Print the notification
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+
 	logger.DebugInfo("Processed NotificationEvent: %s - %s", event.HookEventName, event.SessionID)
+}
+
+// generateNarration generates narration for notification events
+func (h *Handler) generateNarration(event *NotificationEvent) {
+	var narrationText string
+
+	switch event.HookEventName {
+	case "PreCompact":
+		narrationText, _ = h.narrator.NarrateNotification(narrator.NotificationTypeCompact)
+	case "SessionStart":
+		// Determine notification type based on source
+		var notificationType narrator.NotificationType
+		switch event.Source {
+		case "startup":
+			notificationType = narrator.NotificationTypeSessionStartStartup
+		case "clear":
+			notificationType = narrator.NotificationTypeSessionStartClear
+		case "resume":
+			notificationType = narrator.NotificationTypeSessionStartResume
+		default:
+			notificationType = narrator.NotificationTypeSessionStartStartup
+		}
+		narrationText, _ = h.narrator.NarrateNotification(notificationType)
+	case "Notification":
+		// Check if it's a permission message
+		isPermission, toolName := h.parsePermissionMessage(event.Message)
+		if isPermission {
+			narrationText, _ = h.narrator.NarrateToolUsePermission(toolName)
+		} else {
+			// General notification narration
+			meta := &narrator.EventMeta{
+				SessionID: event.SessionID,
+				CWD:       event.CWD,
+				Timestamp: time.Now(),
+			}
+			narrationText, _ = h.narrator.NarrateText(event.Message, false, meta)
+		}
+	}
+
+	// Set narration if generated
+	if narrationText != "" {
+		event.Narration = &NarrationMessage{
+			Text: narrationText,
+		}
+	}
+}
+
+// parsePermissionMessage checks if a message is a permission request and extracts tool name
+func (h *Handler) parsePermissionMessage(message string) (isPermission bool, toolName string) {
+	// Match "Claude will use <tool>: <operation>"
+	if idx := strings.Index(message, "Claude will use "); idx == 0 {
+		remaining := message[16:] // Skip "Claude will use "
+		if colonIdx := strings.Index(remaining, ": "); colonIdx > 0 {
+			toolNamePart := remaining[:colonIdx]
+			// Check if it's an MCP tool
+			if strings.HasPrefix(toolNamePart, "mcp__") {
+				// Extract MCP server name and tool name
+				parts := strings.SplitN(toolNamePart, "__", 3)
+				if len(parts) >= 3 {
+					toolName = toolNamePart // Return full MCP tool name
+				} else {
+					toolName = toolNamePart
+				}
+			} else {
+				toolName = toolNamePart
+			}
+			return true, toolName
+		}
+	}
+	return false, ""
 }
 
 // notifySubscribers notifies all subscribers of an event type

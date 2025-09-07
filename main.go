@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	internalevent "github.com/kazegusuri/claude-companion/internal/event"
+	"github.com/kazegusuri/claude-companion/internal/event/print"
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 	"github.com/kazegusuri/claude-companion/internal/server/api"
@@ -186,8 +187,11 @@ func main() {
 		defer voiceNarrator.Close()
 	}
 
+	// Create printer for central event handler
+	printer := print.NewNotificationPrinter()
+
 	// Create central event handler
-	centralEventHandler := internalevent.NewHandler(sessionManager)
+	centralEventHandler := internalevent.NewHandler(sessionManager, n, printer)
 
 	// Create session event handler with central handler
 	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler)

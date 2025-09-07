@@ -101,27 +101,6 @@ func (h *Handler) SendEvent(event Event) {
 	}
 }
 
-// SendEvent for EventProcessor interface (accepts interface{})
-func (h *Handler) SendEventInterface(event interface{}) {
-	// Try to convert to internal Event type
-	if e, ok := event.(Event); ok {
-		h.SendEvent(e)
-	} else if notif, ok := event.(*internalevent.NotificationEvent); ok {
-		// Convert internal/event.NotificationEvent to session/event.NotificationEvent
-		sessionNotif := &NotificationEvent{
-			SessionID:          notif.SessionID,
-			TranscriptPath:     notif.TranscriptPath,
-			CWD:                notif.CWD,
-			HookEventName:      notif.HookEventName,
-			Message:            notif.Message,
-			Trigger:            notif.Trigger,
-			CustomInstructions: notif.CustomInstructions,
-			Source:             notif.Source,
-		}
-		h.SendEvent(sessionNotif)
-	}
-}
-
 // HandleWarmupEvent processes warmup events to initialize session state
 func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
 	// Extract session information from the base event
@@ -221,15 +200,7 @@ func (h *Handler) processEvent(event Event) {
 			Source:             e.Source,
 		}
 		h.centralHandler.SendEvent(centralEvent)
-		// Process notification events for display
-		output, err := h.formatter.Format(e)
-		if err != nil {
-			logger.LogError("Error formatting NotificationEvent: %v", err)
-			return
-		}
-		if output != "" {
-			fmt.Print(output)
-		}
+		// NotificationEvent display is now handled by central handler's printer
 	case *AssistantMessage:
 		// Track Task tool uses
 		h.trackTaskToolUses(e)

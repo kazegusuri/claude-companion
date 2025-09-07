@@ -27,7 +27,9 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "NotificationEvent with SessionStart creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
-				centralHandler := internalevent.NewHandler(sessionManager, false)
+				mockNarr := &mockNarrator{}
+				mockPrint := &mockPrinter{}
+				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,
@@ -78,7 +80,9 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "HookEvent with SessionStart creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
-				centralHandler := internalevent.NewHandler(sessionManager, false)
+				mockNarr := &mockNarrator{}
+				mockPrint := &mockPrinter{}
+				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,
@@ -129,7 +133,9 @@ func TestCreateSessionFromEvents(t *testing.T) {
 			name: "HandleWarmupEvent creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
-				centralHandler := internalevent.NewHandler(sessionManager, false)
+				mockNarr := &mockNarrator{}
+				mockPrint := &mockPrinter{}
+				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,

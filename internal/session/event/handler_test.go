@@ -85,8 +85,10 @@ func captureOutput(t *testing.T, f func()) string {
 func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	centralHandler := internalevent.NewHandler(sessionManager, false)
-	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
+	mockNarr := &mockNarrator{}
+	mockPrint := &mockPrinter{}
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()
 
@@ -181,8 +183,10 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 func TestHandler_TaskToolResultNarration(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	centralHandler := internalevent.NewHandler(sessionManager, false)
-	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
+	mockNarr := &mockNarrator{}
+	mockPrint := &mockPrinter{}
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()
 
@@ -313,8 +317,10 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 func TestHandler_NonTaskToolResult(t *testing.T) {
 	// Create handler with mock narrator and session manager
 	sessionManager := handler.NewSessionManager()
-	centralHandler := internalevent.NewHandler(sessionManager, false)
-	handler := NewHandler(&mockNarrator{}, sessionManager, centralHandler, false)
+	mockNarr := &mockNarrator{}
+	mockPrint := &mockPrinter{}
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()
 

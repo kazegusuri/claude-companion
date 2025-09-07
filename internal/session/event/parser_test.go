@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
@@ -702,9 +703,15 @@ func TestFormatter_DebugMode(t *testing.T) {
 			}
 		})
 	}
+
+	// Reset debug mode after test
+	logger.SetDebugMode(false)
 }
 
 func TestIntegration_ParserAndFormatter(t *testing.T) {
+	// Reset debug mode to ensure test isolation
+	logger.SetDebugMode(false)
+
 	parser := NewParser()
 	formatter := NewFormatter(narrator.NewNoOpNarrator())
 
