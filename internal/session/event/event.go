@@ -144,6 +144,7 @@ type SystemMessage struct {
 
 // SummaryEvent represents a session summary
 type SummaryEvent struct {
+	BaseEvent
 	EventType string `json:"type"`
 	Summary   string `json:"summary"`
 	LeafUUID  string `json:"leafUuid"`

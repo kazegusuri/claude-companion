@@ -93,7 +93,7 @@ func (p *Parser) Parse(line string) (Event, error) {
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			return nil, fmt.Errorf("failed to parse summary event: %w", err)
 		}
-		// SummaryEvent doesn't have BaseEvent, so we don't set Session
+		event.Session = p.session
 		return &event, nil
 	default:
 		// Return base event for unknown types

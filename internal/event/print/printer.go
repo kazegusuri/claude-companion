@@ -32,14 +32,21 @@ func NewNotificationPrinterWithWriter(w io.Writer) *NotificationPrinter {
 
 // Print outputs an event to the writer
 func (p *NotificationPrinter) Print(e interface{}) {
+	var output string
 	switch evt := e.(type) {
 	case *event.NotificationEvent:
-		output := p.formatNotificationEvent(evt)
-		if output != "" {
-			fmt.Fprint(p.writer, output)
-		}
+		output = p.formatNotificationEvent(evt)
+	case *event.SystemMessage:
+		output = p.formatSystemMessage(evt)
+	case *event.SummaryEvent:
+		output = p.formatSummaryEvent(evt)
 	default:
 		// Unknown event types are silently ignored
+		return
+	}
+
+	if output != "" {
+		fmt.Fprint(p.writer, output)
 	}
 }
 
@@ -76,8 +83,8 @@ func (p *NotificationPrinter) formatPreCompactEvent(event *event.NotificationEve
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", p.timeFunc().Format("15:04:05"), emoji, event.HookEventName)
-	if logger.IsDebugMode() && len(event.SessionID) > 0 {
-		sessionPrefix := event.SessionID
+	if logger.IsDebugMode() && len(event.Session.SessionID) > 0 {
+		sessionPrefix := event.Session.SessionID
 		if len(sessionPrefix) > 8 {
 			sessionPrefix = sessionPrefix[:8]
 		}
@@ -103,8 +110,8 @@ func (p *NotificationPrinter) formatSessionStartEvent(event *event.NotificationE
 	if event.Source != "" {
 		header += fmt.Sprintf(":%s", event.Source)
 	}
-	if logger.IsDebugMode() && len(event.SessionID) > 0 {
-		sessionPrefix := event.SessionID
+	if logger.IsDebugMode() && len(event.Session.SessionID) > 0 {
+		sessionPrefix := event.Session.SessionID
 		if len(sessionPrefix) > 8 {
 			sessionPrefix = sessionPrefix[:8]
 		}
@@ -129,8 +136,8 @@ func (p *NotificationPrinter) formatGeneralNotificationEvent(event *event.Notifi
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] %s %s", p.timeFunc().Format("15:04:05"), emoji, event.HookEventName)
-	if logger.IsDebugMode() && len(event.SessionID) > 0 {
-		sessionPrefix := event.SessionID
+	if logger.IsDebugMode() && len(event.Session.SessionID) > 0 {
+		sessionPrefix := event.Session.SessionID
 		if len(sessionPrefix) > 8 {
 			sessionPrefix = sessionPrefix[:8]
 		}
@@ -193,4 +200,76 @@ func (p *NotificationPrinter) parseNotificationMessage(message string) (emoji st
 	}
 
 	return emoji, formattedMessage, ""
+}
+
+// formatSystemMessage formats a system message event
+func (p *NotificationPrinter) formatSystemMessage(event *event.SystemMessage) string {
+	if event.SessionMessageBase.IsMeta && !logger.IsDebugMode() {
+		return "" // Skip meta messages unless in debug mode
+	}
+
+	var output strings.Builder
+
+	levelStr := ""
+	if event.Level != "" {
+		levelStr = fmt.Sprintf(" [%s]", event.Level)
+	}
+
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] 📣 SYSTEM%s", p.timeFunc().Format("15:04:05"), levelStr)
+	if logger.IsDebugMode() {
+		debugInfo := fmt.Sprintf(" [UUID: %s", event.SessionMessageBase.UUID)
+		if event.SessionMessageBase.IsMeta {
+			debugInfo += ", META"
+		}
+		if event.ToolUseID != "" {
+			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
+		}
+		debugInfo += "]"
+		header += debugInfo
+	}
+	header += ":\n"
+
+	// Get level emoji for content
+	contentEmoji := ""
+	switch event.Level {
+	case "error":
+		contentEmoji = "❌ "
+	case "warning":
+		contentEmoji = "⚠️ "
+	case "info":
+		contentEmoji = "ℹ️ "
+	case "debug":
+		contentEmoji = "🐛 "
+	}
+
+	// Build message with content on new line
+	output.WriteString(header)
+	output.WriteString(fmt.Sprintf("  %s%s\n", contentEmoji, event.Content))
+
+	// Add narration if available
+	if event.Narration != nil && event.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	}
+
+	return output.String()
+}
+
+// formatSummaryEvent formats a summary event
+func (p *NotificationPrinter) formatSummaryEvent(event *event.SummaryEvent) string {
+	var output strings.Builder
+
+	// Build message with optional debug info
+	message := fmt.Sprintf("📋 [SUMMARY] %s", event.Summary)
+	if logger.IsDebugMode() {
+		message += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
+	}
+	output.WriteString(message + "\n")
+
+	// Add narration if available
+	if event.Narration != nil && event.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	}
+
+	return output.String()
 }

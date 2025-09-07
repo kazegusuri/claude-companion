@@ -87,7 +87,7 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := &mockNarrator{}
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()
@@ -185,7 +185,7 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := &mockNarrator{}
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()
@@ -319,7 +319,7 @@ func TestHandler_NonTaskToolResult(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := &mockNarrator{}
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 	handler.Start()
 	defer handler.Stop()

@@ -15,6 +15,7 @@ type Handler struct {
 	sessionManager *handler.SessionManager
 	narrator       narrator.Narrator
 	printer        Printer
+	emitter        handler.MessageEmitter
 	eventChan      chan Event
 	wg             sync.WaitGroup
 	done           chan struct{}
@@ -23,11 +24,12 @@ type Handler struct {
 }
 
 // NewHandler creates a new central event handler
-func NewHandler(sessionManager *handler.SessionManager, narrator narrator.Narrator, printer Printer) *Handler {
+func NewHandler(sessionManager *handler.SessionManager, narrator narrator.Narrator, printer Printer, emitter handler.MessageEmitter) *Handler {
 	return &Handler{
 		sessionManager: sessionManager,
 		narrator:       narrator,
 		printer:        printer,
+		emitter:        emitter,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		subscribers:    make(map[Type][]func(Event)),
@@ -107,6 +109,12 @@ func (h *Handler) processEvent(event Event) {
 	switch e := event.(type) {
 	case *NotificationEvent:
 		h.handleNotificationEvent(e)
+	case *SystemMessage:
+		h.handleSystemMessage(e)
+	case *SummaryEvent:
+		h.handleSummaryEvent(e)
+	case *EmitterEvent:
+		h.handleEmitterEvent(e)
 	default:
 		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
@@ -119,7 +127,8 @@ func (h *Handler) processEvent(event Event) {
 func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 	// Create session through SessionManager for SessionStart events
 	if event.HookEventName == "SessionStart" {
-		h.sessionManager.CreateSession(event.SessionID, "", event.CWD, event.TranscriptPath)
+		// CWD is not available in Session anymore, use empty string
+		h.sessionManager.CreateSession(event.Session.SessionID, "", "", event.Session.TranscriptPath)
 	}
 
 	// Generate narration based on event type
@@ -129,8 +138,6 @@ func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 	if h.printer != nil {
 		h.printer.Print(event)
 	}
-
-	logger.DebugInfo("Processed NotificationEvent: %s - %s", event.HookEventName, event.SessionID)
 }
 
 // generateNarration generates narration for notification events
@@ -162,8 +169,8 @@ func (h *Handler) generateNarration(event *NotificationEvent) {
 		} else {
 			// General notification narration
 			meta := &narrator.EventMeta{
-				SessionID: event.SessionID,
-				CWD:       event.CWD,
+				SessionID: event.Session.SessionID,
+				CWD:       "", // CWD is not available in NotificationEvent
 				Timestamp: time.Now(),
 			}
 			narrationText, _ = h.narrator.NarrateText(event.Message, false, meta)
@@ -201,6 +208,80 @@ func (h *Handler) parsePermissionMessage(message string) (isPermission bool, too
 		}
 	}
 	return false, ""
+}
+
+// handleSystemMessage processes system message events
+func (h *Handler) handleSystemMessage(event *SystemMessage) {
+	// Send to WebSocket if not a meta message
+	if h.emitter != nil && !event.SessionMessageBase.IsMeta {
+		chatMsg := &handler.ChatMessage{
+			Type:      handler.MessageTypeSystem,
+			ID:        event.SessionMessageBase.UUID,
+			Role:      handler.MessageRoleSystem,
+			Text:      event.Content,
+			Priority:  1,
+			Timestamp: event.SessionMessageBase.Timestamp,
+			Metadata: handler.Metadata{
+				EventType: "system_message",
+				SessionID: event.Session.SessionID,
+				Role:      handler.MessageRoleSystem,
+			},
+		}
+		h.emitter.BroadcastChat(chatMsg)
+	}
+
+	// Generate narration if needed
+	if !event.SessionMessageBase.IsMeta || logger.IsDebugMode() {
+		meta := &narrator.EventMeta{
+			SessionID: event.Session.SessionID,
+			CWD:       event.SessionMessageBase.CWD,
+			Timestamp: event.SessionMessageBase.Timestamp,
+		}
+		narrationText, _ := h.narrator.NarrateText(event.Content, false, meta)
+		if narrationText != "" {
+			event.Narration = &NarrationMessage{
+				Text: narrationText,
+			}
+		}
+	}
+
+	// Print the system message
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+}
+
+// handleSummaryEvent processes summary events
+func (h *Handler) handleSummaryEvent(event *SummaryEvent) {
+	// Generate narration
+	// Note: SummaryEvent doesn't have timestamp in the original JSON, so we use zero value
+	meta := &narrator.EventMeta{
+		SessionID: event.Session.SessionID,
+		CWD:       "", // CWD is not available in SummaryEvent
+		Timestamp: time.Time{}, // Summary events don't include timestamp
+	}
+	narrationText, _ := h.narrator.NarrateText(event.Summary, false, meta)
+	if narrationText != "" {
+		event.Narration = &NarrationMessage{
+			Text: narrationText,
+		}
+	}
+
+	// Print the summary
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+}
+
+// handleEmitterEvent processes emitter events (WebSocket broadcasts)
+func (h *Handler) handleEmitterEvent(event *EmitterEvent) {
+	// Emit to WebSocket through emitter
+	if h.emitter != nil {
+		// Check if message is a ChatMessage
+		if chatMsg, ok := event.Message.(*handler.ChatMessage); ok {
+			h.emitter.BroadcastChat(chatMsg)
+		}
+	}
 }
 
 // notifySubscribers notifies all subscribers of an event type

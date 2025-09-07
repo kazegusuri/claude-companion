@@ -2,7 +2,6 @@ package event
 
 import (
 	"testing"
-	"time"
 
 	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
@@ -17,6 +16,15 @@ func (m *mockFormatter) Format(event Event) (string, error) {
 
 func (m *mockFormatter) SetDebugMode(debug bool) {}
 
+// mockCentralHandler captures events sent to central handler
+type mockCentralHandler struct {
+	events []internalevent.Event
+}
+
+func (m *mockCentralHandler) SendEvent(event internalevent.Event) {
+	m.events = append(m.events, event)
+}
+
 func TestCreateSessionFromEvents(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -24,15 +32,14 @@ func TestCreateSessionFromEvents(t *testing.T) {
 		validate func(t *testing.T, h *Handler, event Event)
 	}{
 		{
-			name: "NotificationEvent with SessionStart creates session",
+			name: "NotificationEvent is sent to central handler",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
-				mockNarr := &mockNarrator{}
-				mockPrint := &mockPrinter{}
-				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+				// Use mock central handler to verify event is sent
+				mockCentral := &mockCentralHandler{}
 				h := &Handler{
 					sessionManager: sessionManager,
-					centralHandler: centralHandler,
+					centralHandler: mockCentral,
 					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
@@ -51,29 +58,32 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				// Process the event (this will send to central handler)
 				h.processEvent(event)
 
-				// Process the event in central handler too
-				h.centralHandler.Start()
-				defer h.centralHandler.Stop()
-
-				// Give central handler time to process
-				time.Sleep(10 * time.Millisecond)
-
-				// Check if session was created
-				session, exists := h.sessionManager.GetSession(e.SessionID)
-				if !exists {
-					t.Errorf("Session %s was not created", e.SessionID)
+				// Check that event was sent to central handler
+				mockCentral := h.centralHandler.(*mockCentralHandler)
+				if len(mockCentral.events) != 1 {
+					t.Errorf("Expected 1 event sent to central handler, got %d", len(mockCentral.events))
 					return
 				}
-				// UUID should be empty for NotificationEvent
-				if session.UUID != "" {
-					t.Errorf("Session UUID should be empty for NotificationEvent, got %s", session.UUID)
+
+				// Verify the sent event
+				sentEvent, ok := mockCentral.events[0].(*internalevent.NotificationEvent)
+				if !ok {
+					t.Errorf("Expected *internalevent.NotificationEvent, got %T", mockCentral.events[0])
+					return
 				}
-				if session.CWD != e.CWD {
-					t.Errorf("Session CWD mismatch: got %s, want %s", session.CWD, e.CWD)
+
+				if sentEvent.Session.SessionID != e.SessionID {
+					t.Errorf("SessionID mismatch: got %s, want %s", sentEvent.Session.SessionID, e.SessionID)
 				}
-				if session.TranscriptPath != e.TranscriptPath {
-					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.TranscriptPath)
+				if sentEvent.Session.TranscriptPath != e.TranscriptPath {
+					t.Errorf("TranscriptPath mismatch: got %s, want %s", sentEvent.Session.TranscriptPath, e.TranscriptPath)
 				}
+				if sentEvent.HookEventName != e.HookEventName {
+					t.Errorf("HookEventName mismatch: got %s, want %s", sentEvent.HookEventName, e.HookEventName)
+				}
+				// NotificationEvent doesn't have TranscriptPath directly, it's in Session.TranscriptPath
+				// For session/event NotificationEvent, e.TranscriptPath is the field
+				// For internal/event NotificationEvent, it's in sentEvent.Session.TranscriptPath
 			},
 		},
 		{
@@ -82,7 +92,7 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				sessionManager := handler.NewSessionManager()
 				mockNarr := &mockNarrator{}
 				mockPrint := &mockPrinter{}
-				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,
@@ -135,7 +145,7 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				sessionManager := handler.NewSessionManager()
 				mockNarr := &mockNarrator{}
 				mockPrint := &mockPrinter{}
-				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,

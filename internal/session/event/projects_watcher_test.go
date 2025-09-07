@@ -16,7 +16,7 @@ func TestSessionFileManager(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 
 	manager := NewSessionFileManager(handler)
@@ -61,7 +61,7 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 
 	// Create projects watcher
@@ -84,7 +84,7 @@ func TestProjectsWatcherHomeExpansion(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint)
+	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
 	handler := NewHandler(mockNarr, sessionManager, centralHandler)
 
 	// Test home directory expansion

@@ -63,7 +63,7 @@ func TestParser_Parse(t *testing.T) {
 		},
 		{
 			name:        "summary_event",
-			input:       `{"type":"summary","timestamp":"2025-01-26T15:30:45Z","uuid":"123","summary":"Summary text","leafUuid":"leaf_123"}`,
+			input:       `{"type":"summary","summary":"Summary text","leafUuid":"leaf_123"}`,
 			wantType:    "SummaryEvent",
 			description: "Parse summary event",
 		},
@@ -535,62 +535,6 @@ func TestFormatter_Format(t *testing.T) {
 			wantOutput:  "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0\n",
 			description: "Assistant message with stop_reason end_turn",
 		},
-		// System Message Tests
-		{
-			name: "system_message_simple",
-			event: &SystemMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeSystem,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Content: "Tool execution completed",
-				IsMeta:  false,
-			},
-			wantOutput:  "[15:30:45] 📣 SYSTEM:\n  Tool execution completed\n",
-			description: "Simple system message",
-		},
-		{
-			name: "system_message_with_level",
-			event: &SystemMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeSystem,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Content: "Rate limit warning",
-				IsMeta:  false,
-				Level:   "warning",
-			},
-			wantOutput:  "[15:30:45] 📣 SYSTEM [warning]:\n  ⚠️ Rate limit warning\n",
-			description: "System message with warning level",
-		},
-		{
-			name: "system_message_with_tooluse",
-			event: &SystemMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeSystem,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Content:   "Tool execution started",
-				IsMeta:    false,
-				ToolUseID: "toolu_123",
-			},
-			wantOutput:  "[15:30:45] 📣 SYSTEM:\n  Tool execution started\n",
-			description: "System message with tool use ID",
-		},
-		// Summary Event Tests
-		{
-			name: "summary_event",
-			event: &SummaryEvent{
-				EventType: EventTypeSummary,
-				Summary:   "Summary text",
-				LeafUUID:  "leaf_123",
-			},
-			wantOutput:  "📋 [SUMMARY] Summary text\n",
-			description: "Summary event",
-		},
 		// Unknown Event Tests
 		{
 			name: "unknown_event",
@@ -647,20 +591,6 @@ func TestFormatter_DebugMode(t *testing.T) {
 			},
 			wantContain: "[UUID: test-uuid-123]",
 			description: "User message should show UUID in debug mode",
-		},
-		{
-			name: "system_message_meta_debug",
-			event: &SystemMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeSystem,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "sys-uuid-456",
-				},
-				Content: "Meta message",
-				IsMeta:  true,
-			},
-			wantContain: "META",
-			description: "System message should show META flag in debug mode",
 		},
 		{
 			name: "assistant_message_debug",
@@ -794,44 +724,6 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-opus-4-20250514","content":[{"type":"thinking","thinking":"すべてのタスクが完了しました。結果をまとめてユーザーに報告します。","signature":"xxx"}],"usage":{"input_tokens":11,"output_tokens":14,"cache_read_input_tokens":45769,"cache_creation_input_tokens":772}}}`,
 			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-opus-4-20250514):\n  💬 すべてのタスクが完了しました。結果をまとめてユーザーに報告します。\n  💰 Tokens: input=11, output=14, cache_read=45769, cache_creation=772\n",
 			description:    "Parse and format assistant message with thinking content",
-		},
-		// System Message Tests
-		{
-			name:           "system_message_simple",
-			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution completed","isMeta":false}`,
-			expectedOutput: "[15:30:45] 📣 SYSTEM:\n  Tool execution completed\n",
-			description:    "Parse and format simple system message",
-		},
-		{
-			name:           "system_message_with_warning",
-			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Rate limit warning","isMeta":false,"level":"warning"}`,
-			expectedOutput: "[15:30:45] 📣 SYSTEM [warning]:\n  ⚠️ Rate limit warning\n",
-			description:    "Parse and format system message with warning level",
-		},
-		{
-			name:           "system_message_with_error",
-			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"API error occurred","isMeta":false,"level":"error"}`,
-			expectedOutput: "[15:30:45] 📣 SYSTEM [error]:\n  ❌ API error occurred\n",
-			description:    "Parse and format system message with error level",
-		},
-		{
-			name:           "system_message_meta_hidden",
-			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Internal metadata","isMeta":true}`,
-			expectedOutput: "", // Meta messages are hidden in normal mode
-			description:    "Parse and format meta system message (should be hidden)",
-		},
-		{
-			name:           "system_message_with_tooluse",
-			input:          `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","content":"Tool execution started","isMeta":false,"toolUseID":"toolu_123"}`,
-			expectedOutput: "[15:30:45] 📣 SYSTEM:\n  Tool execution started\n",
-			description:    "Parse and format system message with tool use ID",
-		},
-		// Summary Event Tests
-		{
-			name:           "summary_event",
-			input:          `{"type":"summary","timestamp":"2025-01-26T15:30:45Z","uuid":"123","summary":"Summary text","leafUuid":"leaf_123"}`,
-			expectedOutput: "📋 [SUMMARY] Summary text\n",
-			description:    "Parse and format summary event",
 		},
 	}
 

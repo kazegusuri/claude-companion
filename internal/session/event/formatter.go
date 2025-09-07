@@ -11,7 +11,6 @@ import (
 
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
-	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // Formatter handles formatting of parsed events
@@ -19,7 +18,6 @@ type Formatter struct {
 	narrator       narrator.Narrator
 	fileOperations []string
 	currentTool    string
-	emitter        handler.MessageEmitter
 }
 
 // NewFormatter creates a new Formatter instance
@@ -28,11 +26,6 @@ func NewFormatter(narrator narrator.Narrator) *Formatter {
 		narrator:       narrator,
 		fileOperations: make([]string, 0),
 	}
-}
-
-// SetMessageEmitter sets the message emitter for sending events
-func (f *Formatter) SetMessageEmitter(emitter handler.MessageEmitter) {
-	f.emitter = emitter
 }
 
 // SetDebugMode enables or disables debug mode (deprecated - uses global logger debug mode)
@@ -48,12 +41,8 @@ func (f *Formatter) Format(event Event) (string, error) {
 		return f.formatUserMessage(e)
 	case *AssistantMessage:
 		return f.formatAssistantMessage(e)
-	case *SystemMessage:
-		return f.formatSystemMessage(e)
 	case *HookEvent:
 		return f.formatHookEvent(e)
-	case *SummaryEvent:
-		return f.formatSummaryEvent(e)
 	case *TaskCompletionMessage:
 		return f.formatTaskCompletionMessage(e)
 	case *BaseEvent:
@@ -79,24 +68,6 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 
 	// Check if this is a user command (XML tag format)
 	isUserCommand := f.isUserCommand(textContent)
-
-	// Send to WebSocket if emitter is available and it's not a user command, meta message, or tool_result only
-	if f.emitter != nil && !isUserCommand && !event.IsMeta && !f.hasOnlyToolResult(event.Message.Content) {
-		chatMsg := &handler.ChatMessage{
-			Type:      handler.MessageTypeUser,
-			ID:        event.UUID,
-			Role:      handler.MessageRoleUser,
-			Text:      textContent,
-			Priority:  1,
-			Timestamp: event.Timestamp,
-			Metadata: handler.Metadata{
-				EventType: "user_message",
-				SessionID: event.SessionID,
-				Role:      handler.MessageRoleUser,
-			},
-		}
-		f.emitter.BroadcastChat(chatMsg)
-	}
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] 👤 USER:", event.Timestamp.Format("15:04:05"))
@@ -439,77 +410,6 @@ func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
 	}
 
 	return output.String(), nil
-}
-
-func (f *Formatter) formatSystemMessage(event *SystemMessage) (string, error) {
-	if event.IsMeta && !logger.IsDebugMode() {
-		return "", nil // Skip meta messages unless in debug mode
-	}
-
-	// Send to WebSocket if emitter is available and it's not a meta message
-	if f.emitter != nil && !event.IsMeta {
-		chatMsg := &handler.ChatMessage{
-			Type:      handler.MessageTypeSystem,
-			ID:        event.UUID,
-			Role:      handler.MessageRoleSystem,
-			Text:      event.Content,
-			Priority:  1,
-			Timestamp: event.Timestamp,
-			Metadata: handler.Metadata{
-				EventType: "system_message",
-				SessionID: event.SessionID,
-				Role:      handler.MessageRoleSystem,
-			},
-		}
-		f.emitter.BroadcastChat(chatMsg)
-	}
-
-	levelStr := ""
-	if event.Level != "" {
-		levelStr = fmt.Sprintf(" [%s]", event.Level)
-	}
-
-	// Build header with optional debug info
-	header := fmt.Sprintf("[%s] 📣 SYSTEM%s", event.Timestamp.Format("15:04:05"), levelStr)
-	if logger.IsDebugMode() {
-		debugInfo := fmt.Sprintf(" [UUID: %s", event.UUID)
-		if event.IsMeta {
-			debugInfo += ", META"
-		}
-		if event.ToolUseID != "" {
-			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
-		}
-		debugInfo += "]"
-		header += debugInfo
-	}
-	header += ":\n"
-
-	// Get level emoji for content
-	contentEmoji := ""
-	switch event.Level {
-	case "error":
-		contentEmoji = "❌ "
-	case "warning":
-		contentEmoji = "⚠️ "
-	case "info":
-		contentEmoji = "ℹ️ "
-	case "debug":
-		contentEmoji = "🐛 "
-	}
-
-	// Build message with content on new line
-	message := header + fmt.Sprintf("  %s%s", contentEmoji, event.Content)
-
-	return message + "\n", nil
-}
-
-func (f *Formatter) formatSummaryEvent(event *SummaryEvent) (string, error) {
-	// Build message with optional debug info
-	message := fmt.Sprintf("📋 [SUMMARY] %s", event.Summary)
-	if logger.IsDebugMode() {
-		message += fmt.Sprintf(" [LeafUUID: %s]", event.LeafUUID)
-	}
-	return message + "\n", nil
 }
 
 func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {

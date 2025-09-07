@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,11 @@ type FormatterInterface interface {
 	SetDebugMode(debug bool)
 }
 
+// CentralEventHandler is the interface for central event handler
+type CentralEventHandler interface {
+	SendEvent(event internalevent.Event)
+}
+
 // Handler processes events from multiple sources
 type Handler struct {
 	narrator       narrator.Narrator
@@ -34,7 +40,7 @@ type Handler struct {
 	done           chan struct{}
 	taskTracker    *TaskTracker
 	sessionManager *handler.SessionManager
-	centralHandler *internalevent.Handler // Central event handler
+	centralHandler CentralEventHandler // Central event handler
 
 	// Buffering support
 	bufferMutex sync.Mutex
@@ -42,7 +48,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new event handler
-func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler *internalevent.Handler) *Handler {
+func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler CentralEventHandler) *Handler {
 	formatter := NewFormatter(narrator)
 	taskTracker := NewTaskTracker()
 
@@ -190,16 +196,19 @@ func (h *Handler) processEvent(event Event) {
 	case *NotificationEvent:
 		// Convert to internal/event.NotificationEvent and forward to central handler
 		centralEvent := &internalevent.NotificationEvent{
-			SessionID:          e.SessionID,
-			TranscriptPath:     e.TranscriptPath,
-			CWD:                e.CWD,
+			Session: internalevent.Session{
+				SessionID:      e.SessionID,
+				TranscriptPath: e.TranscriptPath,
+			},
 			HookEventName:      e.HookEventName,
 			Message:            e.Message,
 			Trigger:            e.Trigger,
 			CustomInstructions: e.CustomInstructions,
 			Source:             e.Source,
 		}
-		h.centralHandler.SendEvent(centralEvent)
+		if h.centralHandler != nil {
+			h.centralHandler.SendEvent(centralEvent)
+		}
 		// NotificationEvent display is now handled by central handler's printer
 	case *AssistantMessage:
 		// Track Task tool uses
@@ -224,6 +233,33 @@ func (h *Handler) processEvent(event Event) {
 				fmt.Print(output)
 			}
 		}
+
+		// Send to WebSocket via central handler if appropriate
+		if !e.IsMeta && !h.isUserCommand(e) && !h.hasOnlyToolResult(e.Message.Content) {
+			textContent := h.extractTextFromUserContent(e.Message.Content)
+			chatMsg := &handler.ChatMessage{
+				Type:      handler.MessageTypeUser,
+				ID:        e.UUID,
+				Role:      handler.MessageRoleUser,
+				Text:      textContent,
+				Priority:  1,
+				Timestamp: e.Timestamp,
+				Metadata: handler.Metadata{
+					EventType: "user_message",
+					SessionID: e.SessionID,
+					Role:      handler.MessageRoleUser,
+				},
+			}
+			emitterEvent := &internalevent.EmitterEvent{
+				SessionID: e.SessionID,
+				Message:   chatMsg,
+				Timestamp: e.Timestamp,
+			}
+			if h.centralHandler != nil {
+				h.centralHandler.SendEvent(emitterEvent)
+			}
+		}
+
 		// Normal formatting
 		output, err := h.formatter.Format(e)
 		if err != nil {
@@ -253,7 +289,56 @@ func (h *Handler) processEvent(event Event) {
 		if output != "" {
 			fmt.Print(output)
 		}
-	case *SystemMessage, *SummaryEvent, *BaseEvent, *TaskCompletionMessage:
+	case *SystemMessage:
+		// Convert to internal/event.SystemMessage and forward to central handler
+		// Get transcript path from session if available
+		transcriptPath := ""
+		if e.Session != nil {
+			transcriptPath = e.Session.Path
+		}
+		centralEvent := &internalevent.SystemMessage{
+			SessionMessageBase: internalevent.SessionMessageBase{
+				UUID:        e.UUID,
+				Type:        internalevent.MessageTypeSystem,
+				IsSidechain: e.IsSidechain,
+				CWD:         e.CWD,
+				Timestamp:   e.Timestamp,
+				IsMeta:      e.IsMeta,
+			},
+			Session: internalevent.Session{
+				SessionID:      e.SessionID,
+				TranscriptPath: transcriptPath,
+			},
+			Content:   e.Content,
+			Level:     e.Level,
+			ToolUseID: e.ToolUseID,
+		}
+		if h.centralHandler != nil {
+			h.centralHandler.SendEvent(centralEvent)
+		}
+		// SystemMessage display is now handled by central handler's printer
+	case *SummaryEvent:
+		// Convert to internal/event.SummaryEvent and forward to central handler
+		// Get SessionID and TranscriptPath from Session if available
+		sessionID := ""
+		transcriptPath := ""
+		if e.Session != nil {
+			sessionID = e.Session.Session
+			transcriptPath = e.Session.Path
+		}
+		centralEvent := &internalevent.SummaryEvent{
+			Session: internalevent.Session{
+				SessionID:      sessionID,
+				TranscriptPath: transcriptPath,
+			},
+			LeafUUID: e.LeafUUID,
+			Summary:  e.Summary,
+		}
+		if h.centralHandler != nil {
+			h.centralHandler.SendEvent(centralEvent)
+		}
+		// SummaryEvent display is now handled by central handler's printer
+	case *BaseEvent, *TaskCompletionMessage:
 		// Format and display parsed events
 		output, err := h.formatter.Format(e)
 		if err != nil {
@@ -469,4 +554,84 @@ func (h *Handler) releaseBuffer(sessionName string, reason string) {
 	delete(h.buffers, sessionName)
 
 	// Buffered events are discarded (not re-enqueued)
+}
+
+// isUserCommand checks if the UserMessage is a command
+func (h *Handler) isUserCommand(msg *UserMessage) bool {
+	textContent := h.extractTextFromUserContent(msg.Message.Content)
+	if textContent == "" {
+		return false
+	}
+
+	// Get the first line
+	lines := strings.Split(textContent, "\n")
+	if len(lines) == 0 {
+		return false
+	}
+
+	firstLine := strings.TrimSpace(lines[0])
+
+	// Check if the first line looks like an XML tag: <tag>content</tag>
+	if len(firstLine) > 0 && firstLine[0] == '<' {
+		// Find the end of the opening tag
+		endIdx := strings.Index(firstLine, ">")
+		if endIdx > 1 {
+			// Extract tag name (between < and >)
+			tagName := firstLine[1:endIdx]
+
+			// Check if the line ends with the corresponding closing tag
+			expectedClosingTag := "</" + tagName + ">"
+			if strings.HasSuffix(firstLine, expectedClosingTag) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// extractTextFromUserContent extracts text from user message content
+func (h *Handler) extractTextFromUserContent(content interface{}) string {
+	switch c := content.(type) {
+	case string:
+		return c
+	case []interface{}:
+		var texts []string
+		for _, item := range c {
+			if contentMap, ok := item.(map[string]interface{}); ok {
+				if contentType, ok := contentMap["type"].(string); ok && contentType == "text" {
+					if text, ok := contentMap["text"].(string); ok {
+						texts = append(texts, text)
+					}
+				}
+			}
+		}
+		return strings.Join(texts, "\n")
+	default:
+		return ""
+	}
+}
+
+// hasOnlyToolResult checks if the user message content contains only tool_result type
+func (h *Handler) hasOnlyToolResult(content interface{}) bool {
+	contentArray, ok := content.([]interface{})
+	if !ok || len(contentArray) == 0 {
+		return false
+	}
+
+	// Check if all items are tool_result type
+	for _, item := range contentArray {
+		if contentMap, ok := item.(map[string]interface{}); ok {
+			if contentType, ok := contentMap["type"].(string); ok {
+				if contentType != "tool_result" {
+					return false
+				}
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	return true
 }

@@ -190,17 +190,15 @@ func main() {
 	// Create printer for central event handler
 	printer := print.NewNotificationPrinter()
 
-	// Create central event handler
-	centralEventHandler := internalevent.NewHandler(sessionManager, n, printer)
+	// Create central event handler with emitter
+	var emitter handler.MessageEmitter
+	if wsServer != nil {
+		emitter = wsServer
+	}
+	centralEventHandler := internalevent.NewHandler(sessionManager, n, printer, emitter)
 
 	// Create session event handler with central handler
 	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler)
-
-	// Set message emitter in formatter if server is enabled
-	if wsServer != nil {
-		// WebSocket server implements MessageEmitter interface
-		sessionEventHandler.GetFormatter().SetMessageEmitter(wsServer)
-	}
 
 	// Start both handlers
 	centralEventHandler.Start()

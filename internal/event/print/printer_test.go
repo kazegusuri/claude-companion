@@ -37,7 +37,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "precompact_event",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-123",
+					Session: event.Session{
+						SessionID: "session-123",
+					},
 					HookEventName: "PreCompact",
 					Message:       "Compacting conversation...",
 					Narration: &event.NarrationMessage{
@@ -52,7 +54,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "precompact_event_with_debug",
 				debugMode: true,
 				event: &event.NotificationEvent{
-					SessionID:     "session-123456789abc",
+					Session: event.Session{
+						SessionID: "session-123456789abc",
+					},
 					HookEventName: "PreCompact",
 					Message:       "Compacting conversation...",
 					Narration: &event.NarrationMessage{
@@ -67,7 +71,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "precompact_event_no_narration",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-123",
+					Session: event.Session{
+						SessionID: "session-123",
+					},
 					HookEventName: "PreCompact",
 					Message:       "Compacting conversation...",
 				},
@@ -80,7 +86,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "sessionstart_startup",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-456",
+					Session: event.Session{
+						SessionID: "session-456",
+					},
 					HookEventName: "SessionStart",
 					Source:        "startup",
 					Message:       "Session started",
@@ -96,7 +104,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "sessionstart_clear",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-456",
+					Session: event.Session{
+						SessionID: "session-456",
+					},
 					HookEventName: "SessionStart",
 					Source:        "clear",
 					Message:       "Session cleared",
@@ -112,7 +122,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "sessionstart_resume",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-456",
+					Session: event.Session{
+						SessionID: "session-456",
+					},
 					HookEventName: "SessionStart",
 					Source:        "resume",
 					Message:       "Session resumed",
@@ -128,7 +140,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "sessionstart_no_source",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-456",
+					Session: event.Session{
+						SessionID: "session-456",
+					},
 					HookEventName: "SessionStart",
 					Message:       "Session started",
 					Narration: &event.NarrationMessage{
@@ -143,7 +157,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "sessionstart_with_debug",
 				debugMode: true,
 				event: &event.NotificationEvent{
-					SessionID:     "session-456789012abc",
+					Session: event.Session{
+						SessionID: "session-456789012abc",
+					},
 					HookEventName: "SessionStart",
 					Source:        "startup",
 					Message:       "Session started",
@@ -161,7 +177,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_general",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Something happened",
 					Narration: &event.NarrationMessage{
@@ -177,7 +195,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_permission_approve",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Claude will use WebSearch: approve",
 					Narration: &event.NarrationMessage{
@@ -193,7 +213,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_permission_deny",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Claude will use Bash: deny",
 					Narration: &event.NarrationMessage{
@@ -209,7 +231,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_permission_mcp",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Claude will use mcp__playwright__browser_click: approve",
 					Narration: &event.NarrationMessage{
@@ -225,7 +249,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_contains_permission",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Permission required for this action",
 				},
@@ -237,7 +263,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_no_narration",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789",
+					Session: event.Session{
+						SessionID: "session-789",
+					},
 					HookEventName: "Notification",
 					Message:       "Simple notification",
 				},
@@ -249,7 +277,9 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "notification_with_debug",
 				debugMode: true,
 				event: &event.NotificationEvent{
-					SessionID:     "session-789012345abc",
+					Session: event.Session{
+						SessionID: "session-789012345abc",
+					},
 					HookEventName: "Notification",
 					Message:       "Debug notification",
 				},
@@ -263,12 +293,219 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				name:      "unknown_hook_event",
 				debugMode: false,
 				event: &event.NotificationEvent{
-					SessionID:     "session-unknown",
+					Session: event.Session{
+						SessionID: "session-unknown",
+					},
 					HookEventName: "UnknownEvent",
 					Message:       "Unknown event type",
 				},
 				wantOutput:  "",
 				description: "Unknown hook event type should return empty string",
+			},
+		},
+		"SystemMessage": {
+			{
+				name:      "system_message_simple",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "System notification",
+					Level:   "info",
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [info]:\n" +
+					"  ℹ️ System notification\n",
+				description: "Simple system message with info level",
+			},
+			{
+				name:      "system_message_error",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "Error occurred",
+					Level:   "error",
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [error]:\n" +
+					"  ❌ Error occurred\n",
+				description: "System message with error level",
+			},
+			{
+				name:      "system_message_warning",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "Warning message",
+					Level:   "warning",
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [warning]:\n" +
+					"  ⚠️ Warning message\n",
+				description: "System message with warning level",
+			},
+			{
+				name:      "system_message_debug",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "Debug info",
+					Level:   "debug",
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [debug]:\n" +
+					"  🐛 Debug info\n",
+				description: "System message with debug level",
+			},
+			{
+				name:      "system_message_with_narration",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "System notification",
+					Level:   "info",
+					Narration: &event.NarrationMessage{
+						Text: "システム通知",
+					},
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [info]:\n" +
+					"  ℹ️ System notification\n" +
+					"  💬 システム通知\n",
+				description: "System message with narration",
+			},
+			{
+				name:      "system_message_meta_skip",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      true,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "Meta message",
+					Level:   "info",
+				},
+				wantOutput:  "",
+				description: "Meta system message should be skipped without debug mode",
+			},
+			{
+				name:      "system_message_meta_debug",
+				debugMode: true,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      true,
+					},
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					Content: "Meta message",
+					Level:   "info",
+					ToolUseID: "tool-456",
+				},
+				wantOutput: "[15:30:45] 📣 SYSTEM [info] [UUID: uuid-123, META, Tool: tool-456]:\n" +
+					"  ℹ️ Meta message\n",
+				description: "Meta system message with debug mode shows details",
+			},
+		},
+		"SummaryEvent": {
+			{
+				name:      "summary_event_simple",
+				debugMode: false,
+				event: &event.SummaryEvent{
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					LeafUUID:  "leaf-uuid-123",
+					Summary:   "Session summary text",
+				},
+				wantOutput:  "📋 [SUMMARY] Session summary text\n",
+				description: "Simple summary event",
+			},
+			{
+				name:      "summary_event_with_debug",
+				debugMode: true,
+				event: &event.SummaryEvent{
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					LeafUUID:  "leaf-uuid-123",
+					Summary:   "Session summary text",
+				},
+				wantOutput:  "📋 [SUMMARY] Session summary text [LeafUUID: leaf-uuid-123]\n",
+				description: "Summary event with debug mode shows UUID",
+			},
+			{
+				name:      "summary_event_with_narration",
+				debugMode: false,
+				event: &event.SummaryEvent{
+					Session: event.Session{
+						SessionID: "session-789",
+					},
+					LeafUUID:  "leaf-uuid-123",
+					Summary:   "Session summary text",
+					Narration: &event.NarrationMessage{
+						Text: "セッションの要約",
+					},
+				},
+				wantOutput: "📋 [SUMMARY] Session summary text\n" +
+					"  💬 セッションの要約\n",
+				description: "Summary event with narration",
 			},
 		},
 		"UnsupportedEventType": {
