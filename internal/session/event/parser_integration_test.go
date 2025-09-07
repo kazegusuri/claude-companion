@@ -223,88 +223,61 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 				},
 			},
 		},
-		"HookEvent": {
-			{
-				name:  "hook_event_precompact",
-				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-123","sessionID":"hook-session","cwd":"/test/workspace","content":"PreCompact [/usr/local/bin/hook.sh] completed","isMeta":false,"toolUseID":"tool-456","level":"info"}`,
-				wantEvent: &internalevent.SystemMessage{
-					SessionMessageBase: internalevent.SessionMessageBase{
-						UUID:        "hook-123",
-						Type:        internalevent.MessageTypeSystem,
-						IsSidechain: false,
-						CWD:         "/test/workspace",
-						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
-						IsMeta:      false,
-					},
-					Session: internalevent.Session{
-						SessionID:      "hook-session",
-						TranscriptPath: "",
-					},
-					RawContent: "PreCompact [/usr/local/bin/hook.sh] completed",
-					Content: &internalevent.HookSystemMessageContent{
-						HookName: "PreCompact",
-						Command:  "/usr/local/bin/hook.sh",
-						Status:   "completed",
-						Type:     "PreCompact",
-						Message:  "PreCompact [/usr/local/bin/hook.sh] completed",
-					},
-					Level:     "info",
-					ToolUseID: "tool-456",
-				},
-			},
-			{
-				name:  "hook_event_sessionstart_resume",
-				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-456","sessionID":"session-start","cwd":"/workspace","content":"SessionStart:resume [/bin/start.sh] completed","isMeta":true,"level":"debug"}`,
-				wantEvent: &internalevent.SystemMessage{
-					SessionMessageBase: internalevent.SessionMessageBase{
-						UUID:        "hook-456",
-						Type:        internalevent.MessageTypeSystem,
-						IsSidechain: false,
-						CWD:         "/workspace",
-						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
-						IsMeta:      true,
-					},
-					Session: internalevent.Session{
-						SessionID:      "session-start",
-						TranscriptPath: "",
-					},
-					RawContent: "SessionStart:resume [/bin/start.sh] completed",
-					Content: &internalevent.HookSystemMessageContent{
-						HookName: "SessionStart",
-						Command:  "/bin/start.sh",
-						Status:   "completed",
-						Type:     "SessionStart:resume",
-						Message:  "SessionStart:resume [/bin/start.sh] completed",
-					},
-					Level: "debug",
-				},
-			},
+		"HookEventAsSystemMessage": {
 			{
 				name:  "hook_event_stop",
-				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-789","sessionID":"stop-session","cwd":"/tmp","content":"Stop [/usr/bin/cleanup.sh] failed","isMeta":false,"level":"error","toolUseID":"tool-cleanup"}`,
+				input: `{"parentUuid":"c55f08ec-93cc-4e4e-9bfe-3be0035464f3","isSidechain":false,"userType":"external","cwd":"/tmp/test/project","sessionId":"78f17a9d-d4da-4d94-ba71-18a48aac42a3","version":"1.0.64","gitBranch":"main","type":"system","content":"\u001b[1mStop\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully","isMeta":false,"timestamp":"2025-07-31T15:42:02.113Z","uuid":"ef16ec60-d3f6-4d59-bd99-d903bcddd8da","toolUseID":"5a59f1ad-02af-4ddf-b129-3af63d9d0049","level":"info"}`,
 				wantEvent: &internalevent.SystemMessage{
 					SessionMessageBase: internalevent.SessionMessageBase{
-						UUID:        "hook-789",
+						UUID:        "ef16ec60-d3f6-4d59-bd99-d903bcddd8da",
 						Type:        internalevent.MessageTypeSystem,
 						IsSidechain: false,
-						CWD:         "/tmp",
-						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						CWD:         "/tmp/test/project",
+						Timestamp:   mustParseTime("2025-07-31T15:42:02.113Z"),
 						IsMeta:      false,
 					},
 					Session: internalevent.Session{
-						SessionID:      "stop-session",
+						SessionID:      "78f17a9d-d4da-4d94-ba71-18a48aac42a3",
 						TranscriptPath: "",
 					},
-					RawContent: "Stop [/usr/bin/cleanup.sh] failed",
+					RawContent: "\u001b[1mStop\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
 					Content: &internalevent.HookSystemMessageContent{
 						HookName: "Stop",
-						Command:  "/usr/bin/cleanup.sh",
-						Status:   "failed",
-						Type:     "Stop",
-						Message:  "Stop [/usr/bin/cleanup.sh] failed",
+						Command:  "/usr/local/bin/claude-notification.sh",
+						Status:   "completed successfully",
+						Type:     "",
+						Message:  "\u001b[1mStop\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
 					},
-					Level:     "error",
-					ToolUseID: "tool-cleanup",
+					Level:     "info",
+					ToolUseID: "",
+				},
+			},
+			{
+				name:  "hook_event_session_start_resume",
+				input: `{"parentUuid":"ef16ec60-d3f6-4d59-bd99-d903bcddd8da","isSidechain":false,"userType":"external","cwd":"/tmp/test/project","sessionId":"d99240fe-3539-438d-85c6-c51f5eb51902","version":"1.0.67","gitBranch":"feature/test","type":"system","content":"\u001b[1mSessionStart:resume\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully","isMeta":false,"timestamp":"2025-08-03T13:09:46.461Z","uuid":"aa1fc221-60fc-4756-a892-93ffecbd47b9","toolUseID":"e51379a0-afd9-4434-bb3b-40cd178a0dc6","level":"info"}`,
+				wantEvent: &internalevent.SystemMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "aa1fc221-60fc-4756-a892-93ffecbd47b9",
+						Type:        internalevent.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/tmp/test/project",
+						Timestamp:   mustParseTime("2025-08-03T13:09:46.461Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "d99240fe-3539-438d-85c6-c51f5eb51902",
+						TranscriptPath: "",
+					},
+					RawContent: "\u001b[1mSessionStart:resume\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
+					Content: &internalevent.HookSystemMessageContent{
+						HookName: "SessionStart",
+						Command:  "/usr/local/bin/claude-notification.sh",
+						Status:   "completed successfully",
+						Type:     "resume",
+						Message:  "\u001b[1mSessionStart:resume\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
+					},
+					Level:     "info",
+					ToolUseID: "",
 				},
 			},
 		},
@@ -342,7 +315,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 
 					// Check events sent to central handler based on event type
 					switch event.(type) {
-					case *SystemMessage, *SummaryEvent, *NotificationEvent:
+					case *SystemMessage, *SummaryEvent, *NotificationEvent, *HookEvent:
 						// These should be sent to central handler
 						if len(mockCentral.events) != 1 {
 							t.Errorf("Expected 1 event sent to central handler, got %d", len(mockCentral.events))

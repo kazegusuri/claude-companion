@@ -554,9 +554,9 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 		t.Error("Buffer should be released after SessionStart:resume")
 	}
 
-	// Hook event itself should be processed
-	if mockFormatter.getProcessedCount() != 1 {
-		t.Errorf("Expected 1 event (hook) to be processed, got %d", mockFormatter.getProcessedCount())
+	// Hook event is now sent to central handler and not formatted by session handler
+	if mockFormatter.getProcessedCount() != 0 {
+		t.Errorf("Expected 0 events to be processed by session handler (HookEvent sent to central), got %d", mockFormatter.getProcessedCount())
 	}
 }
 
@@ -688,8 +688,8 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 		t.Error("Session2 buffer should still exist")
 	}
 
-	// Only the hook event should be processed
-	if mockFormatter.getProcessedCount() != 1 {
-		t.Errorf("Only hook event should be processed, got %d", mockFormatter.getProcessedCount())
+	// Hook event is now sent to central handler and not processed by session handler
+	if mockFormatter.getProcessedCount() != 0 {
+		t.Errorf("Expected 0 events to be processed by session handler (HookEvent sent to central), got %d", mockFormatter.getProcessedCount())
 	}
 }
