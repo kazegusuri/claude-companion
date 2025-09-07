@@ -203,27 +203,33 @@ func (p *NotificationPrinter) parseNotificationMessage(message string) (emoji st
 }
 
 // formatSystemMessage formats a system message event
-func (p *NotificationPrinter) formatSystemMessage(event *event.SystemMessage) string {
-	if event.SessionMessageBase.IsMeta && !logger.IsDebugMode() {
+func (p *NotificationPrinter) formatSystemMessage(msg *event.SystemMessage) string {
+	if msg.SessionMessageBase.IsMeta && !logger.IsDebugMode() {
 		return "" // Skip meta messages unless in debug mode
+	}
+
+	// Check if this is a HookEvent (HookSystemMessageContent)
+	switch content := msg.Content.(type) {
+	case *event.HookSystemMessageContent:
+		return p.formatHookSystemMessage(msg, *content)
 	}
 
 	var output strings.Builder
 
 	levelStr := ""
-	if event.Level != "" {
-		levelStr = fmt.Sprintf(" [%s]", event.Level)
+	if msg.Level != "" {
+		levelStr = fmt.Sprintf(" [%s]", msg.Level)
 	}
 
 	// Build header with optional debug info
 	header := fmt.Sprintf("[%s] 📣 SYSTEM%s", p.timeFunc().Format("15:04:05"), levelStr)
 	if logger.IsDebugMode() {
-		debugInfo := fmt.Sprintf(" [UUID: %s", event.SessionMessageBase.UUID)
-		if event.SessionMessageBase.IsMeta {
+		debugInfo := fmt.Sprintf(" [UUID: %s", msg.SessionMessageBase.UUID)
+		if msg.SessionMessageBase.IsMeta {
 			debugInfo += ", META"
 		}
-		if event.ToolUseID != "" {
-			debugInfo += fmt.Sprintf(", Tool: %s", event.ToolUseID)
+		if msg.ToolUseID != "" {
+			debugInfo += fmt.Sprintf(", Tool: %s", msg.ToolUseID)
 		}
 		debugInfo += "]"
 		header += debugInfo
@@ -232,7 +238,7 @@ func (p *NotificationPrinter) formatSystemMessage(event *event.SystemMessage) st
 
 	// Get level emoji for content
 	contentEmoji := ""
-	switch event.Level {
+	switch msg.Level {
 	case "error":
 		contentEmoji = "❌ "
 	case "warning":
@@ -245,11 +251,50 @@ func (p *NotificationPrinter) formatSystemMessage(event *event.SystemMessage) st
 
 	// Build message with content on new line
 	output.WriteString(header)
-	output.WriteString(fmt.Sprintf("  %s%s\n", contentEmoji, event.Content))
+	output.WriteString(fmt.Sprintf("  %s%s\n", contentEmoji, msg.RawContent))
 
 	// Add narration if available
-	if event.Narration != nil && event.Narration.Text != "" {
-		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	if msg.Narration != nil && msg.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", msg.Narration.Text))
+	}
+
+	return output.String()
+}
+
+// formatHookSystemMessage formats a HookEvent presented as SystemMessage
+func (p *NotificationPrinter) formatHookSystemMessage(msg *event.SystemMessage, hookContent event.HookSystemMessageContent) string {
+	// Only display in debug mode
+	if !logger.IsDebugMode() {
+		return ""
+	}
+
+	var output strings.Builder
+
+	// Build header
+	header := fmt.Sprintf("[%s] 🪝 HOOK [%s]", p.timeFunc().Format("15:04:05"), hookContent.Type)
+	debugInfo := fmt.Sprintf(" [UUID: %s", msg.SessionMessageBase.UUID)
+	if msg.ToolUseID != "" {
+		debugInfo += fmt.Sprintf(", Tool: %s", msg.ToolUseID)
+	}
+	debugInfo += "]"
+	header += debugInfo
+	output.WriteString(header + "\n")
+
+	// Show hook details
+	if hookContent.Command != "" {
+		output.WriteString(fmt.Sprintf("  📟 Command: %s\n", hookContent.Command))
+	}
+	if hookContent.Status != "" {
+		output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", hookContent.Status))
+	}
+	if hookContent.Message != "" {
+		output.WriteString(fmt.Sprintf("  💬 Message: %s\n", hookContent.Message))
+	}
+
+	// Add debug info
+	output.WriteString(fmt.Sprintf("  🏷️  Level: %s\n", msg.Level))
+	if msg.SessionMessageBase.CWD != "" {
+		output.WriteString(fmt.Sprintf("  📂 CWD: %s\n", msg.SessionMessageBase.CWD))
 	}
 
 	return output.String()

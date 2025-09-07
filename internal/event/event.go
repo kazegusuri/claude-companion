@@ -66,14 +66,41 @@ type NarrationMessage struct {
 	Text string `json:"text"`
 }
 
+// SystemMessageContent is the interface for system message content
+type SystemMessageContent interface {
+	// Marker method to ensure type safety
+	isSystemMessageContent()
+}
+
+// DefaultSystemMessageContent represents default system message content
+type DefaultSystemMessageContent struct {
+	Text string `json:"text"`
+}
+
+// isSystemMessageContent implements SystemMessageContent interface
+func (d *DefaultSystemMessageContent) isSystemMessageContent() {}
+
+// HookSystemMessageContent represents hook-specific system message content
+type HookSystemMessageContent struct {
+	HookName string `json:"hook_name"`
+	Command  string `json:"command,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Message  string `json:"message,omitempty"`
+}
+
+// isSystemMessageContent implements SystemMessageContent interface
+func (h *HookSystemMessageContent) isSystemMessageContent() {}
+
 // SystemMessage represents a system message event
 type SystemMessage struct {
 	SessionMessageBase
-	Session   Session           `json:"session"`
-	Content   string            `json:"content"`
-	Level     string            `json:"level"` // error, warning, info, debug
-	ToolUseID string            `json:"tool_use_id,omitempty"`
-	Narration *NarrationMessage `json:"narration,omitempty"`
+	Session    Session               `json:"session"`
+	RawContent string                `json:"raw_content"`
+	Content    SystemMessageContent  `json:"content,omitempty"`
+	Level      string                `json:"level"` // error, warning, info, debug
+	ToolUseID  string                `json:"tool_use_id,omitempty"`
+	Narration  *NarrationMessage     `json:"narration,omitempty"`
 }
 
 // Type returns the event type

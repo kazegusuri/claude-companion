@@ -280,14 +280,47 @@ func (h *Handler) processEvent(event Event) {
 			// Create a new session
 			h.sessionManager.CreateSession(e.SessionID, e.UUID, e.CWD, transcriptPath)
 		}
-		// Format and display the event
-		output, err := h.formatter.Format(e)
-		if err != nil {
-			logger.LogError("Error formatting HookEvent: %v", err)
-			return
+
+		// Convert HookEvent to SystemMessage and send to central handler
+		transcriptPath := ""
+		if e.Session != nil {
+			transcriptPath = e.Session.Path
 		}
-		if output != "" {
-			fmt.Print(output)
+
+		// Parse hook type and status from HookEventType (e.g., "SessionStart:resume" or "Stop")
+		hookName := e.HookEventType
+		hookType := ""
+		if colonIdx := strings.Index(e.HookEventType, ":"); colonIdx > 0 {
+			hookName = e.HookEventType[:colonIdx]
+			hookType = e.HookEventType[colonIdx+1:]
+		}
+
+		centralEvent := &internalevent.SystemMessage{
+			SessionMessageBase: internalevent.SessionMessageBase{
+				UUID:        e.UUID,
+				Type:        internalevent.MessageTypeSystem,
+				IsSidechain: e.IsSidechain,
+				CWD:         e.CWD,
+				Timestamp:   e.Timestamp,
+				IsMeta:      e.IsMeta,
+			},
+			Session: internalevent.Session{
+				SessionID:      e.SessionID,
+				TranscriptPath: transcriptPath,
+			},
+			RawContent: e.Content,
+			Content: &internalevent.HookSystemMessageContent{
+				HookName: hookName,
+				Command:  e.HookCommand,
+				Status:   e.HookStatus,
+				Type:     hookType,
+				Message:  e.Content,
+			},
+			Level: "info", // Default level for hook events
+		}
+
+		if h.centralHandler != nil {
+			h.centralHandler.SendEvent(centralEvent)
 		}
 	case *SystemMessage:
 		// Convert to internal/event.SystemMessage and forward to central handler
@@ -309,9 +342,9 @@ func (h *Handler) processEvent(event Event) {
 				SessionID:      e.SessionID,
 				TranscriptPath: transcriptPath,
 			},
-			Content:   e.Content,
-			Level:     e.Level,
-			ToolUseID: e.ToolUseID,
+			RawContent: e.Content,
+			Level:      e.Level,
+			ToolUseID:  e.ToolUseID,
 		}
 		if h.centralHandler != nil {
 			h.centralHandler.SendEvent(centralEvent)

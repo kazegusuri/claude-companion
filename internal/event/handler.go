@@ -212,13 +212,20 @@ func (h *Handler) parsePermissionMessage(message string) (isPermission bool, too
 
 // handleSystemMessage processes system message events
 func (h *Handler) handleSystemMessage(event *SystemMessage) {
+	// Set default content if not already set
+	if event.Content == nil && event.RawContent != "" {
+		event.Content = &DefaultSystemMessageContent{
+			Text: event.RawContent,
+		}
+	}
+
 	// Send to WebSocket if not a meta message
 	if h.emitter != nil && !event.SessionMessageBase.IsMeta {
 		chatMsg := &handler.ChatMessage{
 			Type:      handler.MessageTypeSystem,
 			ID:        event.SessionMessageBase.UUID,
 			Role:      handler.MessageRoleSystem,
-			Text:      event.Content,
+			Text:      event.RawContent,
 			Priority:  1,
 			Timestamp: event.SessionMessageBase.Timestamp,
 			Metadata: handler.Metadata{
@@ -237,7 +244,7 @@ func (h *Handler) handleSystemMessage(event *SystemMessage) {
 			CWD:       event.SessionMessageBase.CWD,
 			Timestamp: event.SessionMessageBase.Timestamp,
 		}
-		narrationText, _ := h.narrator.NarrateText(event.Content, false, meta)
+		narrationText, _ := h.narrator.NarrateText(event.RawContent, false, meta)
 		if narrationText != "" {
 			event.Narration = &NarrationMessage{
 				Text: narrationText,

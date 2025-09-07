@@ -319,7 +319,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "System notification",
+					RawContent: "System notification",
 					Level:   "info",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [info]:\n" +
@@ -341,7 +341,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "Error occurred",
+					RawContent: "Error occurred",
 					Level:   "error",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [error]:\n" +
@@ -363,7 +363,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "Warning message",
+					RawContent: "Warning message",
 					Level:   "warning",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [warning]:\n" +
@@ -385,7 +385,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "Debug info",
+					RawContent: "Debug info",
 					Level:   "debug",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [debug]:\n" +
@@ -407,7 +407,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "System notification",
+					RawContent: "System notification",
 					Level:   "info",
 					Narration: &event.NarrationMessage{
 						Text: "システム通知",
@@ -433,7 +433,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "Meta message",
+					RawContent: "Meta message",
 					Level:   "info",
 				},
 				wantOutput:  "",
@@ -454,13 +454,72 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					Content: "Meta message",
+					RawContent: "Meta message",
 					Level:   "info",
 					ToolUseID: "tool-456",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [info] [UUID: uuid-123, META, Tool: tool-456]:\n" +
 					"  ℹ️ Meta message\n",
 				description: "Meta system message with debug mode shows details",
+			},
+			{
+				name:      "system_message_hook_event",
+				debugMode: true,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "hook-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/workspace",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "hook-session",
+					},
+					Content: &event.HookSystemMessageContent{
+						HookName: "PreCompact",
+						Command:  "/usr/local/bin/hook.sh",
+						Status:   "completed",
+						Type:     "PreCompact",
+						Message:  "Hook executed successfully",
+					},
+					RawContent: "Hook executed successfully",
+					Level:      "info",
+					ToolUseID:  "tool-456",
+				},
+				wantOutput: "[15:30:45] 🪝 HOOK [PreCompact] [UUID: hook-123, Tool: tool-456]\n" +
+					"  📟 Command: /usr/local/bin/hook.sh\n" +
+					"  ✅ Status: completed\n" +
+					"  💬 Message: Hook executed successfully\n" +
+					"  🏷️  Level: info\n" +
+					"  📂 CWD: /test/workspace\n",
+				description: "HookEvent displayed as SystemMessage in debug mode",
+			},
+			{
+				name:      "system_message_hook_event_no_debug",
+				debugMode: false,
+				event: &event.SystemMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "hook-123",
+						Type:        event.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/workspace",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "hook-session",
+					},
+					Content: &event.HookSystemMessageContent{
+						HookName: "PreCompact",
+						Type:     "PreCompact",
+					},
+					RawContent: "Hook executed successfully",
+					Level:      "info",
+				},
+				wantOutput: "",
+				description: "HookEvent should not display when debug mode is off",
 			},
 		},
 		"SummaryEvent": {

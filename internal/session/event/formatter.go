@@ -41,8 +41,6 @@ func (f *Formatter) Format(event Event) (string, error) {
 		return f.formatUserMessage(e)
 	case *AssistantMessage:
 		return f.formatAssistantMessage(e)
-	case *HookEvent:
-		return f.formatHookEvent(e)
 	case *TaskCompletionMessage:
 		return f.formatTaskCompletionMessage(e)
 	case *BaseEvent:
@@ -383,34 +381,6 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	return result, nil
 }
 
-func (f *Formatter) formatHookEvent(event *HookEvent) (string, error) {
-	if event.IsMeta && !logger.IsDebugMode() {
-		return "", nil // Skip meta messages unless in debug mode
-	}
-
-	var output strings.Builder
-
-	// Build header
-	header := fmt.Sprintf("[%s] 🪝 HOOK [%s]", event.Timestamp.Format("15:04:05"), event.HookEventType)
-	if logger.IsDebugMode() {
-		debugInfo := fmt.Sprintf(" [UUID: %s, Tool: %s]", event.UUID, event.ToolUseID)
-		header += debugInfo
-	}
-	output.WriteString(header + "\n")
-
-	// Show hook details
-	output.WriteString(fmt.Sprintf("  📟 Command: %s\n", event.HookCommand))
-	output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", event.HookStatus))
-
-	// Add debug info
-	if logger.IsDebugMode() {
-		output.WriteString(fmt.Sprintf("  🏷️  Level: %s\n", event.Level))
-		output.WriteString(fmt.Sprintf("  📂 CWD: %s\n", event.CWD))
-		output.WriteString(fmt.Sprintf("  🌳 Branch: %s\n", event.GitBranch))
-	}
-
-	return output.String(), nil
-}
 
 func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
 	// Build message with optional debug info

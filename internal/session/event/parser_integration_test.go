@@ -2,12 +2,22 @@ package event
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
+
+// mustParseTime is a helper function to parse time in tests
+func mustParseTime(s string) time.Time {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
 
 // TestIntegration_ParseAndSendToCentral tests parsing JSON input and sending to central handler
 func TestIntegration_ParseAndSendToCentral(t *testing.T) {
@@ -33,7 +43,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content: "Tool execution completed",
+					RawContent: "Tool execution completed",
 					Level:   "",
 				},
 			},
@@ -53,7 +63,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content: "Rate limit warning",
+					RawContent: "Rate limit warning",
 					Level:   "warning",
 				},
 			},
@@ -73,7 +83,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content: "API error occurred",
+					RawContent: "API error occurred",
 					Level:   "error",
 				},
 			},
@@ -93,7 +103,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content:   "Tool execution started",
+					RawContent: "Tool execution started",
 					Level:     "",
 					ToolUseID: "toolu_123",
 				},
@@ -114,7 +124,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content: "Meta message",
+					RawContent: "Meta message",
 					Level:   "info",
 				},
 			},
@@ -134,7 +144,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						SessionID:      "test-session",
 						TranscriptPath: "",
 					},
-					Content:   "Debug info",
+					RawContent: "Debug info",
 					Level:     "debug",
 					ToolUseID: "tool-456",
 				},
@@ -213,6 +223,91 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 				},
 			},
 		},
+		"HookEvent": {
+			{
+				name:  "hook_event_precompact",
+				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-123","sessionID":"hook-session","cwd":"/test/workspace","content":"PreCompact [/usr/local/bin/hook.sh] completed","isMeta":false,"toolUseID":"tool-456","level":"info"}`,
+				wantEvent: &internalevent.SystemMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "hook-123",
+						Type:        internalevent.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/test/workspace",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "hook-session",
+						TranscriptPath: "",
+					},
+					RawContent: "PreCompact [/usr/local/bin/hook.sh] completed",
+					Content: &internalevent.HookSystemMessageContent{
+						HookName: "PreCompact",
+						Command:  "/usr/local/bin/hook.sh",
+						Status:   "completed",
+						Type:     "PreCompact",
+						Message:  "PreCompact [/usr/local/bin/hook.sh] completed",
+					},
+					Level:     "info",
+					ToolUseID: "tool-456",
+				},
+			},
+			{
+				name:  "hook_event_sessionstart_resume",
+				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-456","sessionID":"session-start","cwd":"/workspace","content":"SessionStart:resume [/bin/start.sh] completed","isMeta":true,"level":"debug"}`,
+				wantEvent: &internalevent.SystemMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "hook-456",
+						Type:        internalevent.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/workspace",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      true,
+					},
+					Session: internalevent.Session{
+						SessionID:      "session-start",
+						TranscriptPath: "",
+					},
+					RawContent: "SessionStart:resume [/bin/start.sh] completed",
+					Content: &internalevent.HookSystemMessageContent{
+						HookName: "SessionStart",
+						Command:  "/bin/start.sh",
+						Status:   "completed",
+						Type:     "SessionStart:resume",
+						Message:  "SessionStart:resume [/bin/start.sh] completed",
+					},
+					Level: "debug",
+				},
+			},
+			{
+				name:  "hook_event_stop",
+				input: `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"hook-789","sessionID":"stop-session","cwd":"/tmp","content":"Stop [/usr/bin/cleanup.sh] failed","isMeta":false,"level":"error","toolUseID":"tool-cleanup"}`,
+				wantEvent: &internalevent.SystemMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "hook-789",
+						Type:        internalevent.MessageTypeSystem,
+						IsSidechain: false,
+						CWD:         "/tmp",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "stop-session",
+						TranscriptPath: "",
+					},
+					RawContent: "Stop [/usr/bin/cleanup.sh] failed",
+					Content: &internalevent.HookSystemMessageContent{
+						HookName: "Stop",
+						Command:  "/usr/bin/cleanup.sh",
+						Status:   "failed",
+						Type:     "Stop",
+						Message:  "Stop [/usr/bin/cleanup.sh] failed",
+					},
+					Level:     "error",
+					ToolUseID: "tool-cleanup",
+				},
+			},
+		},
 	}
 
 	for groupName, tests := range testGroups {
@@ -278,4 +373,5 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 		})
 	}
 }
+
 

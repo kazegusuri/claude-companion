@@ -3,7 +3,6 @@ package event
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/narrator"
@@ -748,14 +747,6 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 	}
 }
 
-// Helper function to parse time
-func mustParseTime(s string) time.Time {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
 
 // Helper function to create string pointer
 func stringPtr(s string) *string {
