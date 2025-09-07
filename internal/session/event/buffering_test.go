@@ -129,8 +129,9 @@ func TestBufferingNormalStartup(t *testing.T) {
 
 	// Expected UUIDs that should be formatted
 	// Note: HookEvent is now sent to central handler and not formatted by session handler
+	// Note: UserMessage is now handled by central event handler and not formatted by session handler
 	expectedUUIDs := []string{
-		"09d4a6f0-3f25-4b66-b101-faa8e9138848", // userEvent
+		// "09d4a6f0-3f25-4b66-b101-faa8e9138848", // userEvent - now handled by central handler
 		"3b9f2a92-b18e-458d-8ac9-00d69b0e1de6", // assistantEvent
 	}
 
@@ -363,10 +364,11 @@ func TestBufferingWithResume(t *testing.T) {
 
 	// Expected UUIDs that should be formatted (buffered events are discarded)
 	// Note: HookEvents are now sent to central handler and not formatted by session handler
+	// Note: UserMessage is now handled by central event handler and not formatted by session handler
 	expectedUUIDs := []string{
-		userEvent1UUID, // userEvent1
-		userEvent4UUID, // userEvent4 (after buffer release)
-		// Note: hookEvents are sent to central handler, userEvent2, userEvent3 are buffered and discarded
+		// userEvent1UUID, // userEvent1 - now handled by central handler
+		// userEvent4UUID, // userEvent4 (after buffer release) - now handled by central handler
+		// Note: hookEvents and userEvents are sent to central handler, userEvent2, userEvent3 are buffered and discarded
 	}
 
 	// Check formatted events count

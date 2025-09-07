@@ -113,8 +113,8 @@ func (h *Handler) processEvent(event Event) {
 		h.handleSystemMessage(e)
 	case *SummaryEvent:
 		h.handleSummaryEvent(e)
-	case *EmitterEvent:
-		h.handleEmitterEvent(e)
+	case *UserMessage:
+		h.handleUserMessage(e)
 	default:
 		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
@@ -280,16 +280,31 @@ func (h *Handler) handleSummaryEvent(event *SummaryEvent) {
 	}
 }
 
-// handleEmitterEvent processes emitter events (WebSocket broadcasts)
-func (h *Handler) handleEmitterEvent(event *EmitterEvent) {
-	// Emit to WebSocket through emitter
-	if h.emitter != nil {
-		// Check if message is a ChatMessage
-		if chatMsg, ok := event.Message.(*handler.ChatMessage); ok {
+// handleUserMessage processes user message events
+func (h *Handler) handleUserMessage(event *UserMessage) {
+	// Send to WebSocket only if:
+	// 1. Not a meta message
+	// 2. Content is UserMessageContentMessage (not UserMessageContentList)
+	if h.emitter != nil && !event.SessionMessageBase.IsMeta {
+		if msgContent, ok := event.Message.Content.(*UserMessageContentMessage); ok {
+			chatMsg := &handler.ChatMessage{
+				Type:      handler.MessageTypeUser,
+				ID:        event.SessionMessageBase.UUID,
+				Role:      handler.MessageRoleUser,
+				Text:      msgContent.Text,
+				Priority:  1,
+				Timestamp: event.SessionMessageBase.Timestamp,
+				Metadata: handler.Metadata{
+					EventType: "user_message",
+					SessionID: event.Session.SessionID,
+					Role:      handler.MessageRoleUser,
+				},
+			}
 			h.emitter.BroadcastChat(chatMsg)
 		}
 	}
 }
+
 
 // notifySubscribers notifies all subscribers of an event type
 func (h *Handler) notifySubscribers(eventType Type, event Event) {

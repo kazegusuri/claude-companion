@@ -350,6 +350,10 @@ func (p *NotificationPrinter) formatUserMessage(msg *event.UserMessage) string {
 		output.WriteString(p.formatUserMessageContentLocalCommand(content))
 	case *event.UserMessageContentList:
 		output.WriteString(p.formatUserMessageContentList(content))
+	case *event.UserMessageContentToolResult:
+		output.WriteString(p.formatUserMessageContentToolResult(content))
+	case *event.UserMessageContentUnknown:
+		output.WriteString(p.formatUserMessageContentUnknown(content))
 	default:
 		// Fallback for unknown content types
 		output.WriteString(fmt.Sprintf("  %v\n", msg.Message.Content))
@@ -435,6 +439,69 @@ func (p *NotificationPrinter) formatUserMessageContentLocalCommand(content *even
 	return output.String()
 }
 
+// formatUserMessageContentUnknown formats UserMessageContentUnknown
+func (p *NotificationPrinter) formatUserMessageContentUnknown(content *event.UserMessageContentUnknown) string {
+	var output strings.Builder
+
+	if content.Type != "" {
+		output.WriteString(fmt.Sprintf("  ❓ Unknown Content Type: %s\n", content.Type))
+	} else {
+		output.WriteString("  ❓ Unknown Content (no type field)\n")
+	}
+
+	// Show a preview of the raw data in debug mode
+	if logger.IsDebugMode() && len(content.Data) > 0 {
+		preview := string(content.Data)
+		if len(preview) > 100 {
+			preview = preview[:100] + "..."
+		}
+		output.WriteString(fmt.Sprintf("  [DEBUG] Raw data: %s\n", preview))
+	}
+
+	return output.String()
+}
+
+// formatUserMessageContentToolResult formats UserMessageContentToolResult
+func (p *NotificationPrinter) formatUserMessageContentToolResult(content *event.UserMessageContentToolResult) string {
+	var output strings.Builder
+
+	if content.IsError {
+		output.WriteString(fmt.Sprintf("  🛠️❌ Tool Result (Error)\n"))
+		output.WriteString(fmt.Sprintf("  Tool ID: %s\n", content.ToolUseID))
+		// Show error content
+		lines := strings.Split(strings.TrimSpace(content.Content), "\n")
+		for i, line := range lines {
+			if i < 3 {
+				output.WriteString(fmt.Sprintf("  %s\n", line))
+			} else if i == 3 && len(lines) > 4 {
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
+				break
+			}
+		}
+	} else {
+		output.WriteString(fmt.Sprintf("  🛠️✅ Tool Result\n"))
+		output.WriteString(fmt.Sprintf("  Tool ID: %s\n", content.ToolUseID))
+		// Show result content (truncated)
+		lines := strings.Split(strings.TrimSpace(content.Content), "\n")
+		for i, line := range lines {
+			if i < 3 {
+				output.WriteString(fmt.Sprintf("  %s\n", line))
+			} else if i == 3 && len(lines) > 4 {
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
+				break
+			}
+		}
+	}
+
+	// Add full content in debug mode
+	if logger.IsDebugMode() {
+		lines := strings.Split(content.Content, "\n")
+		output.WriteString(fmt.Sprintf("  [DEBUG] Full content: %d lines, %d chars\n", len(lines), len(content.Content)))
+	}
+
+	return output.String()
+}
+
 // formatUserMessageContentList formats UserMessageContentList
 func (p *NotificationPrinter) formatUserMessageContentList(content *event.UserMessageContentList) string {
 	var output strings.Builder
@@ -467,6 +534,18 @@ func (p *NotificationPrinter) formatUserMessageContentList(content *event.UserMe
 			output.WriteString("📤 Command output\n")
 		case *event.UserMessageContentInterrupted:
 			output.WriteString(fmt.Sprintf("⛔ %s\n", c.Reason))
+		case *event.UserMessageContentToolResult:
+			if c.IsError {
+				output.WriteString(fmt.Sprintf("🛠️❌ Tool error: %s\n", c.ToolUseID))
+			} else {
+				output.WriteString(fmt.Sprintf("🛠️✅ Tool result: %s\n", c.ToolUseID))
+			}
+		case *event.UserMessageContentUnknown:
+			if c.Type != "" {
+				output.WriteString(fmt.Sprintf("❓ Unknown type: %s\n", c.Type))
+			} else {
+				output.WriteString("❓ Unknown content (no type)\n")
+			}
 		default:
 			output.WriteString(fmt.Sprintf("Unknown type: %T\n", item))
 		}

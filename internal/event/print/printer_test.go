@@ -997,6 +997,195 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					"  [1] ⛔ [Request interrupted by user for tool use]\n",
 				description: "User message with interrupted for tool use content",
 			},
+			{
+				name:      "user_message_tool_result_success",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-tool-result-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentToolResult{
+							ToolUseID: "toolu_01ABC123",
+							Content:   "Tool executed successfully\nResult: 42",
+							IsError:   false,
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  🛠️✅ Tool Result\n" +
+					"  Tool ID: toolu_01ABC123\n" +
+					"  Tool executed successfully\n" +
+					"  Result: 42\n",
+				description: "User message with successful tool result",
+			},
+			{
+				name:      "user_message_tool_result_error",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-tool-error-456",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentToolResult{
+							ToolUseID: "toolu_01DEF456",
+							Content:   "<tool_use_error>File does not exist.</tool_use_error>",
+							IsError:   true,
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  🛠️❌ Tool Result (Error)\n" +
+					"  Tool ID: toolu_01DEF456\n" +
+					"  <tool_use_error>File does not exist.</tool_use_error>\n",
+				description: "User message with tool result error",
+			},
+			{
+				name:      "user_message_tool_result_in_list",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-tool-list-789",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentToolResult{
+									ToolUseID: "toolu_01GHI789",
+									Content:   "Success",
+									IsError:   false,
+								},
+								&event.UserMessageContentToolResult{
+									ToolUseID: "toolu_01JKL012",
+									Content:   "Error occurred",
+									IsError:   true,
+								},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (2 items):\n" +
+					"  [1] 🛠️✅ Tool result: toolu_01GHI789\n" +
+					"  [2] 🛠️❌ Tool error: toolu_01JKL012\n",
+				description: "User message with tool results in list",
+			},
+			{
+				name:      "user_message_unknown_content_type",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-unknown-type",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentUnknown{
+							Type: "custom_type",
+							Data: []byte(`{"type":"custom_type","value":123}`),
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  ❓ Unknown Content Type: custom_type\n",
+				description: "User message with unknown content type",
+			},
+			{
+				name:      "user_message_no_type_field",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-no-type",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentUnknown{
+							Data: []byte(`{"custom":"data"}`),
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  ❓ Unknown Content (no type field)\n",
+				description: "User message with no type field",
+			},
+			{
+				name:      "user_message_unknown_in_list",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-unknown-list",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentMessage{
+									Text: "Normal text",
+								},
+								&event.UserMessageContentUnknown{
+									Type: "future_type",
+									Data: []byte(`{}`),
+								},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (2 items):\n" +
+					"  [1] 💬 Normal text\n" +
+					"  [2] ❓ Unknown type: future_type\n",
+				description: "User message with unknown content in list",
+			},
 		},
 		"SummaryEvent": {
 			{

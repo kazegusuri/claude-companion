@@ -582,7 +582,28 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
 
 	// Send event with ParentUUID==nil
-	event1 := createTestUserMessage(sessionName, nil)
+	// Use AssistantMessage instead of UserMessage since UserMessage is now handled by central handler
+	event1 := &AssistantMessage{
+		BaseEvent: BaseEvent{
+			IsSidechain: false,
+			TypeString:  EventTypeAssistant,
+			UUID:        "assistant-1",
+			Timestamp:   time.Now(),
+			ParentUUID:  nil,
+			SessionID:   sessionName,
+			Session: &SessionFile{
+				Path:    "/test/path.jsonl",
+				Project: "test-project",
+				Session: sessionName,
+			},
+		},
+		Message: AssistantMessageContent{
+			Model: "test-model",
+			Content: []AssistantContent{
+				{Type: "text", Text: "Test response"},
+			},
+		},
+	}
 	handler.SendEvent(event1)
 
 	time.Sleep(100 * time.Millisecond)
@@ -616,7 +637,28 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 
 	// New event should be processed normally
 	parentUUID := "new-parent"
-	event2 := createTestUserMessage(sessionName, &parentUUID)
+	// Use AssistantMessage instead of UserMessage since UserMessage is now handled by central handler
+	event2 := &AssistantMessage{
+		BaseEvent: BaseEvent{
+			IsSidechain: false,
+			TypeString:  EventTypeAssistant,
+			UUID:        "assistant-2",
+			Timestamp:   time.Now(),
+			ParentUUID:  &parentUUID,
+			SessionID:   sessionName,
+			Session: &SessionFile{
+				Path:    "/test/path.jsonl",
+				Project: "test-project",
+				Session: sessionName,
+			},
+		},
+		Message: AssistantMessageContent{
+			Model: "test-model",
+			Content: []AssistantContent{
+				{Type: "text", Text: "Test response 2"},
+			},
+		},
+	}
 	handler.SendEvent(event2)
 
 	time.Sleep(100 * time.Millisecond)

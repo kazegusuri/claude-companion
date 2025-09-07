@@ -1,6 +1,9 @@
 package event
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Type represents the type of event
 type Type string
@@ -19,7 +22,6 @@ const (
 	EventTypeNotification = "notification"
 	EventTypeHook         = "hook"
 	EventTypeTaskComplete = "task_completion"
-	EventTypeEmitter      = "emitter"
 )
 
 // MessageType constants for SessionMessageBase
@@ -171,6 +173,31 @@ type UserMessageContentInterrupted struct {
 // isUserMessageContentItem implements UserMessageContentItem interface (not UserMessageContent)
 func (u *UserMessageContentInterrupted) isUserMessageContentItem() {}
 
+// UserMessageContentToolResult represents a tool result content
+type UserMessageContentToolResult struct {
+	ToolUseID string `json:"tool_use_id"`
+	Content   string `json:"content"`
+	IsError   bool   `json:"is_error,omitempty"`
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentToolResult) isUserMessageContent() {}
+
+// isUserMessageContentItem implements UserMessageContentItem interface
+func (u *UserMessageContentToolResult) isUserMessageContentItem() {}
+
+// UserMessageContentUnknown represents unknown content type with raw JSON data
+type UserMessageContentUnknown struct {
+	Type string          `json:"type,omitempty"` // The type field if present
+	Data json.RawMessage `json:"data"`           // Raw JSON data
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentUnknown) isUserMessageContent() {}
+
+// isUserMessageContentItem implements UserMessageContentItem interface
+func (u *UserMessageContentUnknown) isUserMessageContentItem() {}
+
 // UserMessageData represents the message data in a user message
 type UserMessageData struct {
 	Role    string             `json:"role"` // "user"
@@ -180,9 +207,10 @@ type UserMessageData struct {
 // UserMessage represents a user message event
 type UserMessage struct {
 	SessionMessageBase
-	Session   Session           `json:"session"`
-	Message   UserMessageData   `json:"message"`
-	Narration *NarrationMessage `json:"narration,omitempty"`
+	Session       Session           `json:"session"`
+	Message       UserMessageData   `json:"message"`
+	Narration     *NarrationMessage `json:"narration,omitempty"`
+	ToolUseResult interface{}       `json:"toolUseResult,omitempty"` // Optional field for tool use result data
 }
 
 // Type returns the event type
@@ -203,17 +231,6 @@ func (e *SummaryEvent) Type() Type {
 	return EventTypeSummary
 }
 
-// EmitterEvent represents an event for emitting messages to WebSocket clients
-type EmitterEvent struct {
-	SessionID string      `json:"session_id"`
-	Message   interface{} `json:"message"`
-	Timestamp time.Time   `json:"timestamp"`
-}
-
-// Type returns the event type
-func (e *EmitterEvent) Type() Type {
-	return EventTypeEmitter
-}
 
 // Printer is the interface for printing events
 type Printer interface {

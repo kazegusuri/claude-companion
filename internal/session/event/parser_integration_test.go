@@ -1,6 +1,7 @@
 package event
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -539,6 +540,162 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 					},
 				},
 			},
+			{
+				name:            "tool_result_success",
+				input:           `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-tool-success","sessionId":"test-session","cwd":"/test/dir","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01ABC","content":"Tool executed successfully"}]},"isMeta":false}`,
+				expectEventSent: true,
+				wantEvent: &internalevent.UserMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "user-tool-success",
+						Type:        internalevent.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "test-session",
+						TranscriptPath: "",
+					},
+					Message: internalevent.UserMessageData{
+						Role: "user",
+						Content: &internalevent.UserMessageContentList{
+							Items: []internalevent.UserMessageContentItem{
+								&internalevent.UserMessageContentToolResult{
+									ToolUseID: "toolu_01ABC",
+									Content:   "Tool executed successfully",
+									IsError:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				name:            "tool_result_error",
+				input:           `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-tool-error","sessionId":"test-session","cwd":"/test/dir","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01DEF","content":"<tool_use_error>File not found</tool_use_error>","is_error":true}]},"isMeta":false}`,
+				expectEventSent: true,
+				wantEvent: &internalevent.UserMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "user-tool-error",
+						Type:        internalevent.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "test-session",
+						TranscriptPath: "",
+					},
+					Message: internalevent.UserMessageData{
+						Role: "user",
+						Content: &internalevent.UserMessageContentList{
+							Items: []internalevent.UserMessageContentItem{
+								&internalevent.UserMessageContentToolResult{
+									ToolUseID: "toolu_01DEF",
+									Content:   "<tool_use_error>File not found</tool_use_error>",
+									IsError:   true,
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				name:            "tool_result_mixed_with_text",
+				input:           `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-tool-mixed","sessionId":"test-session","cwd":"/test/dir","message":{"role":"user","content":[{"type":"text","text":"Running tool..."},{"type":"tool_result","tool_use_id":"toolu_01GHI","content":"Result: 42"}]},"isMeta":false}`,
+				expectEventSent: true,
+				wantEvent: &internalevent.UserMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "user-tool-mixed",
+						Type:        internalevent.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "test-session",
+						TranscriptPath: "",
+					},
+					Message: internalevent.UserMessageData{
+						Role: "user",
+						Content: &internalevent.UserMessageContentList{
+							Items: []internalevent.UserMessageContentItem{
+								&internalevent.UserMessageContentMessage{
+									Text: "Running tool...",
+								},
+								&internalevent.UserMessageContentToolResult{
+									ToolUseID: "toolu_01GHI",
+									Content:   "Result: 42",
+									IsError:   false,
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				name:            "unknown_content_type",
+				input:           `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-unknown-type","sessionId":"test-session","cwd":"/test/dir","message":{"role":"user","content":[{"type":"unknown_type","data":"some data"}]},"isMeta":false}`,
+				expectEventSent: true,
+				wantEvent: &internalevent.UserMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "user-unknown-type",
+						Type:        internalevent.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "test-session",
+						TranscriptPath: "",
+					},
+					Message: internalevent.UserMessageData{
+						Role: "user",
+						Content: &internalevent.UserMessageContentList{
+							Items: []internalevent.UserMessageContentItem{
+								&internalevent.UserMessageContentUnknown{
+									Type: "unknown_type",
+									Data: json.RawMessage(`{"data":"some data","type":"unknown_type"}`),
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				name:            "no_type_field",
+				input:           `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user-no-type","sessionId":"test-session","cwd":"/test/dir","message":{"role":"user","content":[{"custom_field":"custom_value"}]},"isMeta":false}`,
+				expectEventSent: true,
+				wantEvent: &internalevent.UserMessage{
+					SessionMessageBase: internalevent.SessionMessageBase{
+						UUID:        "user-no-type",
+						Type:        internalevent.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
+						IsMeta:      false,
+					},
+					Session: internalevent.Session{
+						SessionID:      "test-session",
+						TranscriptPath: "",
+					},
+					Message: internalevent.UserMessageData{
+						Role: "user",
+						Content: &internalevent.UserMessageContentList{
+							Items: []internalevent.UserMessageContentItem{
+								&internalevent.UserMessageContentUnknown{
+									Type: "",
+									Data: json.RawMessage(`{"custom_field":"custom_value"}`),
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"HookEventAsSystemMessage": {
 			{
@@ -627,6 +784,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 						centralHandler: mockCentral,
 						formatter:      &mockFormatter{},
 						buffers:        make(map[string]*BufferInfo),
+						taskTracker:    NewTaskTracker(),
 					}
 
 					// Process the event

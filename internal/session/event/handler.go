@@ -1,6 +1,7 @@
 package event
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -265,50 +266,16 @@ func (h *Handler) processEvent(event Event) {
 					Role:    "user",
 					Content: content,
 				},
+				// Copy optional fields from the parsed event
+				ToolUseResult: e.ToolUseResult,
 			}
 			if h.centralHandler != nil {
 				h.centralHandler.SendEvent(centralEvent)
 			}
 		}
 
-		// Send to WebSocket via central handler if appropriate
-		// TODO: Re-enable this when needed
-		/*
-			if !e.IsMeta && !h.isUserCommand(e) && !h.hasOnlyToolResult(e.Message.Content) {
-				textContent := h.extractTextFromUserContent(e.Message.Content)
-				chatMsg := &handler.ChatMessage{
-					Type:      handler.MessageTypeUser,
-					ID:        e.UUID,
-					Role:      handler.MessageRoleUser,
-					Text:      textContent,
-					Priority:  1,
-					Timestamp: e.Timestamp,
-					Metadata: handler.Metadata{
-						EventType: "user_message",
-						SessionID: e.SessionID,
-						Role:      handler.MessageRoleUser,
-					},
-				}
-				emitterEvent := &internalevent.EmitterEvent{
-					SessionID: e.SessionID,
-					Message:   chatMsg,
-					Timestamp: e.Timestamp,
-				}
-				if h.centralHandler != nil {
-					h.centralHandler.SendEvent(emitterEvent)
-				}
-			}
-		*/
-
-		// Normal formatting
-		output, err := h.formatter.Format(e)
-		if err != nil {
-			logger.LogError("Error formatting UserMessage: %v", err)
-			return
-		}
-		if output != "" {
-			fmt.Print(output)
-		}
+		// UserMessage is now handled by central event handler
+		// WebSocket broadcast is done in central handler for UserMessageContentMessage
 	case *HookEvent:
 		// Handle SessionStart event
 		if e.HookEventType == "SessionStart" {
@@ -629,99 +596,65 @@ func (h *Handler) releaseBuffer(sessionName string, reason string) {
 	// Buffered events are discarded (not re-enqueued)
 }
 
-// isUserCommand checks if the UserMessage is a command
-func (h *Handler) isUserCommand(msg *UserMessage) bool {
-	textContent := h.extractTextFromUserContent(msg.Message.Content)
-	if textContent == "" {
-		return false
-	}
-
-	// Get the first line
-	lines := strings.Split(textContent, "\n")
-	if len(lines) == 0 {
-		return false
-	}
-
-	firstLine := strings.TrimSpace(lines[0])
-
-	// Check if the first line looks like an XML tag: <tag>content</tag>
-	if len(firstLine) > 0 && firstLine[0] == '<' {
-		// Find the end of the opening tag
-		endIdx := strings.Index(firstLine, ">")
-		if endIdx > 1 {
-			// Extract tag name (between < and >)
-			tagName := firstLine[1:endIdx]
-
-			// Check if the line ends with the corresponding closing tag
-			expectedClosingTag := "</" + tagName + ">"
-			if strings.HasSuffix(firstLine, expectedClosingTag) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// extractTextFromUserContent extracts text from user message content
-func (h *Handler) extractTextFromUserContent(content interface{}) string {
-	switch c := content.(type) {
-	case string:
-		return c
-	case []interface{}:
-		var texts []string
-		for _, item := range c {
-			if contentMap, ok := item.(map[string]interface{}); ok {
-				if contentType, ok := contentMap["type"].(string); ok && contentType == "text" {
-					if text, ok := contentMap["text"].(string); ok {
-						texts = append(texts, text)
-					}
-				}
-			}
-		}
-		return strings.Join(texts, "\n")
-	default:
-		return ""
-	}
-}
-
-// hasOnlyToolResult checks if the user message content contains only tool_result type
-func (h *Handler) hasOnlyToolResult(content interface{}) bool {
-	contentArray, ok := content.([]interface{})
-	if !ok || len(contentArray) == 0 {
-		return false
-	}
-
-	// Check if all items are tool_result type
-	for _, item := range contentArray {
-		if contentMap, ok := item.(map[string]interface{}); ok {
-			if contentType, ok := contentMap["type"].(string); ok {
-				if contentType != "tool_result" {
-					return false
-				}
-			} else {
-				return false
-			}
-		} else {
-			return false
-		}
-	}
-	return true
-}
-
 // parseUserMessageContentArray parses array content and returns UserMessageContentList
 func (h *Handler) parseUserMessageContentArray(contentArray []interface{}) internalevent.UserMessageContent {
 	var items []internalevent.UserMessageContentItem
 
 	for _, item := range contentArray {
 		if contentMap, ok := item.(map[string]interface{}); ok {
-			if contentType, ok := contentMap["type"].(string); ok && contentType == "text" {
+			contentType, hasType := contentMap["type"].(string)
+
+			if !hasType {
+				// No type field - create UserMessageContentUnknown
+				rawData, err := json.Marshal(contentMap)
+				if err == nil {
+					unknown := &internalevent.UserMessageContentUnknown{
+						Data: json.RawMessage(rawData),
+					}
+					items = append(items, unknown)
+				}
+				continue
+			}
+
+			switch contentType {
+			case "text":
 				if text, ok := contentMap["text"].(string); ok {
 					// Parse each text item as array item
 					parsedContent := h.parseUserMessageContentItem(text)
 					if parsedContent != nil {
 						items = append(items, parsedContent)
 					}
+				}
+
+			case "tool_result":
+				toolResult := &internalevent.UserMessageContentToolResult{}
+
+				// Extract tool_use_id
+				if toolUseID, ok := contentMap["tool_use_id"].(string); ok {
+					toolResult.ToolUseID = toolUseID
+				}
+
+				// Extract content
+				if content, ok := contentMap["content"].(string); ok {
+					toolResult.Content = content
+				}
+
+				// Extract is_error (optional)
+				if isError, ok := contentMap["is_error"].(bool); ok {
+					toolResult.IsError = isError
+				}
+
+				items = append(items, toolResult)
+
+			default:
+				// Unknown type - create UserMessageContentUnknown
+				rawData, err := json.Marshal(contentMap)
+				if err == nil {
+					unknown := &internalevent.UserMessageContentUnknown{
+						Type: contentType,
+						Data: json.RawMessage(rawData),
+					}
+					items = append(items, unknown)
 				}
 			}
 		}

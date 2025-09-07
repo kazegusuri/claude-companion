@@ -88,8 +88,9 @@ type UserMessageContent struct {
 // UserMessage represents a user input
 type UserMessage struct {
 	BaseEvent
-	Message UserMessageContent `json:"message"`
-	IsMeta  bool               `json:"isMeta,omitempty"`
+	Message       UserMessageContent `json:"message"`
+	IsMeta        bool               `json:"isMeta,omitempty"`
+	ToolUseResult interface{}        `json:"toolUseResult,omitempty"` // Optional field for tool use result data
 }
 
 // AssistantContent represents a content item in an assistant message

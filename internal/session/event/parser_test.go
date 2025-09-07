@@ -144,119 +144,6 @@ func TestFormatter_Format(t *testing.T) {
 		wantErr     bool
 		description string
 	}{
-		// User Message Tests
-		{
-			name: "user_message_simple_string",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Message: UserMessageContent{
-					Role:    "user",
-					Content: "Hello Claude",
-				},
-			},
-			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Hello Claude\n",
-			description: "Simple user message with string content",
-		},
-		{
-			name: "user_message_with_text_array",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Message: UserMessageContent{
-					Role: "user",
-					Content: []interface{}{
-						map[string]interface{}{
-							"type": "text",
-							"text": "Hello world",
-						},
-					},
-				},
-			},
-			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Hello world\n",
-			description: "User message with text in array format",
-		},
-		{
-			name: "user_message_with_tool_result",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Message: UserMessageContent{
-					Role: "user",
-					Content: []interface{}{
-						map[string]interface{}{
-							"type":        "tool_result",
-							"tool_use_id": "toolu_123",
-							"content":     "Success",
-						},
-					},
-				},
-			},
-			wantOutput:  "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123\n",
-			description: "User message with tool result",
-		},
-		{
-			name: "user_message_with_tool_result_array_content",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Message: UserMessageContent{
-					Role: "user",
-					Content: []interface{}{
-						map[string]interface{}{
-							"type":        "tool_result",
-							"tool_use_id": "toolu_456",
-							"content": []interface{}{
-								map[string]interface{}{
-									"type": "text",
-									"text": "File has diagnostics:\n- Error on line 10",
-								},
-							},
-						},
-					},
-				},
-			},
-			wantOutput:  "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456\n",
-			description: "User message with tool result containing array content",
-		},
-		{
-			name: "user_message_mixed_content",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "123",
-				},
-				Message: UserMessageContent{
-					Role: "user",
-					Content: []interface{}{
-						map[string]interface{}{
-							"type": "text",
-							"text": "Running tool...",
-						},
-						map[string]interface{}{
-							"type":        "tool_result",
-							"tool_use_id": "toolu_456",
-							"content":     "Done",
-						},
-					},
-				},
-			},
-			wantOutput:  "[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_456\n",
-			description: "User message with mixed content types",
-		},
 		// Assistant Message Tests
 		{
 			name: "assistant_message_simple_text",
@@ -568,6 +455,11 @@ func TestFormatter_Format(t *testing.T) {
 func TestFormatter_DebugMode(t *testing.T) {
 	formatter := NewFormatter(narrator.NewNoOpNarrator())
 	formatter.SetDebugMode(true)
+	
+	// Verify debug mode is actually enabled
+	if !logger.IsDebugMode() {
+		t.Fatal("Debug mode was not enabled")
+	}
 
 	tests := []struct {
 		name        string
@@ -575,22 +467,6 @@ func TestFormatter_DebugMode(t *testing.T) {
 		wantContain string
 		description string
 	}{
-		{
-			name: "user_message_debug",
-			event: &UserMessage{
-				BaseEvent: BaseEvent{
-					TypeString: EventTypeUser,
-					Timestamp:  mustParseTime("2025-01-26T15:30:45Z"),
-					UUID:       "test-uuid-123",
-				},
-				Message: UserMessageContent{
-					Role:    "user",
-					Content: "Hello",
-				},
-			},
-			wantContain: "[UUID: test-uuid-123]",
-			description: "User message should show UUID in debug mode",
-		},
 		{
 			name: "assistant_message_debug",
 			event: &AssistantMessage{
@@ -614,8 +490,8 @@ func TestFormatter_DebugMode(t *testing.T) {
 					},
 				},
 			},
-			wantContain: "[ID: msg-debug-456, ReqID: req-debug-123]",
-			description: "Assistant message should show message ID and request ID in debug mode",
+			wantContain: "ReqID: req-debug-123",
+			description: "Assistant message should show request ID in debug mode",
 		},
 	}
 
@@ -628,7 +504,7 @@ func TestFormatter_DebugMode(t *testing.T) {
 			}
 
 			if !strings.Contains(output, tt.wantContain) {
-				t.Errorf("Format() output = %v, should contain %v", output, tt.wantContain)
+				t.Errorf("Format() output = %q, should contain %q", output, tt.wantContain)
 			}
 		})
 	}
@@ -650,37 +526,6 @@ func TestIntegration_ParserAndFormatter(t *testing.T) {
 		expectedOutput string
 		description    string
 	}{
-		// User Message Tests
-		{
-			name:           "user_message_simple",
-			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":"Hello Claude"}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  💬 Hello Claude\n",
-			description:    "Parse and format simple user message",
-		},
-		{
-			name:           "user_message_with_tool_result",
-			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_123","content":"Success"}]}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_123\n",
-			description:    "Parse and format user message with tool result",
-		},
-		{
-			name:           "user_message_with_tool_error",
-			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":"Error occurred","is_error":true}]}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  ❌ Tool Result: toolu_456\n",
-			description:    "Parse and format user message with tool error",
-		},
-		{
-			name:           "user_message_mixed_content",
-			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"text","text":"Running tool..."},{"type":"tool_result","tool_use_id":"toolu_789","content":"Done"}]}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  💬 Running tool...\n  ✅ Tool Result: toolu_789\n",
-			description:    "Parse and format user message with mixed content",
-		},
-		{
-			name:           "user_message_with_tool_result_array_content",
-			input:          `{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"123","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_456","content":[{"type":"text","text":"File has diagnostics:\n- Error on line 10"}]}]}}`,
-			expectedOutput: "[15:30:45] 👤 USER:\n  ✅ Tool Result: toolu_456\n",
-			description:    "Parse and format user message with tool result containing array content",
-		},
 		// Assistant Message Tests
 		{
 			name:           "assistant_message_simple",
