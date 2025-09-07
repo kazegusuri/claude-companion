@@ -234,31 +234,71 @@ func (h *Handler) processEvent(event Event) {
 			}
 		}
 
-		// Send to WebSocket via central handler if appropriate
-		if !e.IsMeta && !h.isUserCommand(e) && !h.hasOnlyToolResult(e.Message.Content) {
-			textContent := h.extractTextFromUserContent(e.Message.Content)
-			chatMsg := &handler.ChatMessage{
-				Type:      handler.MessageTypeUser,
-				ID:        e.UUID,
-				Role:      handler.MessageRoleUser,
-				Text:      textContent,
-				Priority:  1,
-				Timestamp: e.Timestamp,
-				Metadata: handler.Metadata{
-					EventType: "user_message",
-					SessionID: e.SessionID,
-					Role:      handler.MessageRoleUser,
+		// Convert to internal/event.UserMessage and send to central handler
+		var content internalevent.UserMessageContent
+
+		switch c := e.Message.Content.(type) {
+		case string:
+			// Parse the string to check for special formats
+			content = h.parseUserMessageContent(c)
+		case []interface{}:
+			// Handle array content - create UserMessageContentList
+			content = h.parseUserMessageContentArray(c)
+		}
+
+		// Only send if we successfully parsed content
+		if content != nil {
+			centralEvent := &internalevent.UserMessage{
+				SessionMessageBase: internalevent.SessionMessageBase{
+					UUID:        e.UUID,
+					Type:        internalevent.MessageTypeUser,
+					IsSidechain: e.IsSidechain,
+					CWD:         e.CWD,
+					Timestamp:   e.Timestamp,
+					IsMeta:      e.IsMeta,
+				},
+				Session: internalevent.Session{
+					SessionID:      e.SessionID,
+					TranscriptPath: "", // UserMessage doesn't have TranscriptPath
+				},
+				Message: internalevent.UserMessageData{
+					Role:    "user",
+					Content: content,
 				},
 			}
-			emitterEvent := &internalevent.EmitterEvent{
-				SessionID: e.SessionID,
-				Message:   chatMsg,
-				Timestamp: e.Timestamp,
-			}
 			if h.centralHandler != nil {
-				h.centralHandler.SendEvent(emitterEvent)
+				h.centralHandler.SendEvent(centralEvent)
 			}
 		}
+
+		// Send to WebSocket via central handler if appropriate
+		// TODO: Re-enable this when needed
+		/*
+			if !e.IsMeta && !h.isUserCommand(e) && !h.hasOnlyToolResult(e.Message.Content) {
+				textContent := h.extractTextFromUserContent(e.Message.Content)
+				chatMsg := &handler.ChatMessage{
+					Type:      handler.MessageTypeUser,
+					ID:        e.UUID,
+					Role:      handler.MessageRoleUser,
+					Text:      textContent,
+					Priority:  1,
+					Timestamp: e.Timestamp,
+					Metadata: handler.Metadata{
+						EventType: "user_message",
+						SessionID: e.SessionID,
+						Role:      handler.MessageRoleUser,
+					},
+				}
+				emitterEvent := &internalevent.EmitterEvent{
+					SessionID: e.SessionID,
+					Message:   chatMsg,
+					Timestamp: e.Timestamp,
+				}
+				if h.centralHandler != nil {
+					h.centralHandler.SendEvent(emitterEvent)
+				}
+			}
+		*/
 
 		// Normal formatting
 		output, err := h.formatter.Format(e)
@@ -667,4 +707,158 @@ func (h *Handler) hasOnlyToolResult(content interface{}) bool {
 		}
 	}
 	return true
+}
+
+// parseUserMessageContentArray parses array content and returns UserMessageContentList
+func (h *Handler) parseUserMessageContentArray(contentArray []interface{}) internalevent.UserMessageContent {
+	var items []internalevent.UserMessageContentItem
+
+	for _, item := range contentArray {
+		if contentMap, ok := item.(map[string]interface{}); ok {
+			if contentType, ok := contentMap["type"].(string); ok && contentType == "text" {
+				if text, ok := contentMap["text"].(string); ok {
+					// Parse each text item as array item
+					parsedContent := h.parseUserMessageContentItem(text)
+					if parsedContent != nil {
+						items = append(items, parsedContent)
+					}
+				}
+			}
+		}
+	}
+
+	// If we found items, return UserMessageContentList
+	if len(items) > 0 {
+		return &internalevent.UserMessageContentList{
+			Items: items,
+		}
+	}
+
+	return nil
+}
+
+// parseUserMessageContentItem parses text that appears in array and returns UserMessageContentItem
+func (h *Handler) parseUserMessageContentItem(text string) internalevent.UserMessageContentItem {
+	// Check for interrupted message patterns (only in arrays)
+	if text == "[Request interrupted by user]" || text == "[Request interrupted by user for tool use]" {
+		return &internalevent.UserMessageContentInterrupted{
+			Reason: text,
+		}
+	}
+
+	// Check for local command stdout pattern
+	if strings.Contains(text, "<local-command-stdout>") && strings.Contains(text, "</local-command-stdout>") {
+		// Extract content between tags
+		start := strings.Index(text, "<local-command-stdout>")
+		end := strings.Index(text, "</local-command-stdout>")
+		if start != -1 && end != -1 && end > start {
+			output := text[start+len("<local-command-stdout>") : end]
+			// Handle special case "(no content)"
+			if output == "(no content)" {
+				output = ""
+			}
+			return &internalevent.UserMessageContentLocalCommand{
+				Output: output,
+			}
+		}
+	}
+
+	// Check for command pattern
+	if strings.Contains(text, "<command-name>") && strings.Contains(text, "</command-name>") {
+		commandName := ""
+		commandMessage := ""
+		commandArgs := ""
+
+		// Extract command name
+		if start := strings.Index(text, "<command-name>"); start != -1 {
+			if end := strings.Index(text, "</command-name>"); end != -1 && end > start {
+				commandName = text[start+len("<command-name>") : end]
+			}
+		}
+
+		// Extract command message
+		if start := strings.Index(text, "<command-message>"); start != -1 {
+			if end := strings.Index(text, "</command-message>"); end != -1 && end > start {
+				commandMessage = text[start+len("<command-message>") : end]
+			}
+		}
+
+		// Extract command args
+		if start := strings.Index(text, "<command-args>"); start != -1 {
+			if end := strings.Index(text, "</command-args>"); end != -1 && end > start {
+				commandArgs = text[start+len("<command-args>") : end]
+			}
+		}
+
+		return &internalevent.UserMessageContentCommand{
+			CommandName:    commandName,
+			CommandMessage: commandMessage,
+			CommandArgs:    commandArgs,
+		}
+	}
+
+	// Default to message content
+	return &internalevent.UserMessageContentMessage{
+		Text: text,
+	}
+}
+
+// parseUserMessageContent parses the user message content and returns the appropriate type
+func (h *Handler) parseUserMessageContent(text string) internalevent.UserMessageContent {
+
+	// Check for local command stdout pattern
+	if strings.Contains(text, "<local-command-stdout>") && strings.Contains(text, "</local-command-stdout>") {
+		// Extract content between tags
+		start := strings.Index(text, "<local-command-stdout>")
+		end := strings.Index(text, "</local-command-stdout>")
+		if start != -1 && end != -1 && end > start {
+			output := text[start+len("<local-command-stdout>") : end]
+			// Handle special case "(no content)"
+			if output == "(no content)" {
+				output = ""
+			}
+			return &internalevent.UserMessageContentLocalCommand{
+				Output: output,
+			}
+		}
+	}
+
+	// Check for command pattern
+	if strings.Contains(text, "<command-name>") && strings.Contains(text, "</command-name>") {
+		commandName := ""
+		commandMessage := ""
+		commandArgs := ""
+
+		// Extract command name
+		if start := strings.Index(text, "<command-name>"); start != -1 {
+			if end := strings.Index(text, "</command-name>"); end != -1 && end > start {
+				commandName = text[start+len("<command-name>") : end]
+			}
+		}
+
+		// Extract command message
+		if start := strings.Index(text, "<command-message>"); start != -1 {
+			if end := strings.Index(text, "</command-message>"); end != -1 && end > start {
+				commandMessage = text[start+len("<command-message>") : end]
+			}
+		}
+
+		// Extract command args
+		if start := strings.Index(text, "<command-args>"); start != -1 {
+			if end := strings.Index(text, "</command-args>"); end != -1 && end > start {
+				commandArgs = text[start+len("<command-args>") : end]
+			}
+		}
+
+		return &internalevent.UserMessageContentCommand{
+			CommandName:    commandName,
+			CommandMessage: commandMessage,
+			CommandArgs:    commandArgs,
+		}
+	}
+
+	// Default to message content
+	return &internalevent.UserMessageContentMessage{
+		Text: text,
+	}
 }

@@ -95,17 +95,99 @@ func (h *HookSystemMessageContent) isSystemMessageContent() {}
 // SystemMessage represents a system message event
 type SystemMessage struct {
 	SessionMessageBase
-	Session    Session               `json:"session"`
-	RawContent string                `json:"raw_content"`
-	Content    SystemMessageContent  `json:"content,omitempty"`
-	Level      string                `json:"level"` // error, warning, info, debug
-	ToolUseID  string                `json:"tool_use_id,omitempty"`
-	Narration  *NarrationMessage     `json:"narration,omitempty"`
+	Session    Session              `json:"session"`
+	RawContent string               `json:"raw_content"`
+	Content    SystemMessageContent `json:"content,omitempty"`
+	Level      string               `json:"level"` // error, warning, info, debug
+	ToolUseID  string               `json:"tool_use_id,omitempty"`
+	Narration  *NarrationMessage    `json:"narration,omitempty"`
 }
 
 // Type returns the event type
 func (e *SystemMessage) Type() Type {
 	return EventTypeSystem
+}
+
+// UserMessageContent is the interface for user message content
+type UserMessageContent interface {
+	// Marker method to ensure type safety
+	isUserMessageContent()
+}
+
+// UserMessageContentItem is the interface for items that can appear in content arrays
+type UserMessageContentItem interface {
+	// Marker method to ensure type safety
+	isUserMessageContentItem()
+}
+
+// UserMessageContentMessage represents user message content
+type UserMessageContentMessage struct {
+	Text string `json:"text"`
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentMessage) isUserMessageContent() {}
+
+// isUserMessageContentItem implements UserMessageContentItem interface
+func (u *UserMessageContentMessage) isUserMessageContentItem() {}
+
+// UserMessageContentCommand represents a command execution content
+type UserMessageContentCommand struct {
+	CommandName    string `json:"command_name"`
+	CommandMessage string `json:"command_message"`
+	CommandArgs    string `json:"command_args"`
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentCommand) isUserMessageContent() {}
+
+// isUserMessageContentItem implements UserMessageContentItem interface
+func (u *UserMessageContentCommand) isUserMessageContentItem() {}
+
+// UserMessageContentLocalCommand represents local command output content
+type UserMessageContentLocalCommand struct {
+	Output string `json:"output"`
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentLocalCommand) isUserMessageContent() {}
+
+// isUserMessageContentItem implements UserMessageContentItem interface
+func (u *UserMessageContentLocalCommand) isUserMessageContentItem() {}
+
+// UserMessageContentList represents a list of user message content items
+type UserMessageContentList struct {
+	Items []UserMessageContentItem `json:"items"`
+}
+
+// isUserMessageContent implements UserMessageContent interface
+func (u *UserMessageContentList) isUserMessageContent() {}
+
+// UserMessageContentInterrupted represents an interrupted message (only appears in arrays)
+type UserMessageContentInterrupted struct {
+	Reason string `json:"reason"` // e.g., "Request interrupted by user" or "Request interrupted by user for tool use"
+}
+
+// isUserMessageContentItem implements UserMessageContentItem interface (not UserMessageContent)
+func (u *UserMessageContentInterrupted) isUserMessageContentItem() {}
+
+// UserMessageData represents the message data in a user message
+type UserMessageData struct {
+	Role    string             `json:"role"` // "user"
+	Content UserMessageContent `json:"content"`
+}
+
+// UserMessage represents a user message event
+type UserMessage struct {
+	SessionMessageBase
+	Session   Session           `json:"session"`
+	Message   UserMessageData   `json:"message"`
+	Narration *NarrationMessage `json:"narration,omitempty"`
+}
+
+// Type returns the event type
+func (e *UserMessage) Type() Type {
+	return EventTypeUser
 }
 
 // SummaryEvent represents a summary event

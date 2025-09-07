@@ -38,6 +38,8 @@ func (p *NotificationPrinter) Print(e interface{}) {
 		output = p.formatNotificationEvent(evt)
 	case *event.SystemMessage:
 		output = p.formatSystemMessage(evt)
+	case *event.UserMessage:
+		output = p.formatUserMessage(evt)
 	case *event.SummaryEvent:
 		output = p.formatSummaryEvent(evt)
 	default:
@@ -314,6 +316,166 @@ func (p *NotificationPrinter) formatSummaryEvent(event *event.SummaryEvent) stri
 	// Add narration if available
 	if event.Narration != nil && event.Narration.Text != "" {
 		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	}
+
+	return output.String()
+}
+
+// formatUserMessage formats a user message event
+func (p *NotificationPrinter) formatUserMessage(msg *event.UserMessage) string {
+	// Skip meta messages unless in debug mode
+	if msg.SessionMessageBase.IsMeta && !logger.IsDebugMode() {
+		return ""
+	}
+
+	var output strings.Builder
+
+	// Build header with optional debug info
+	header := fmt.Sprintf("[%s] 👤 USER:", p.timeFunc().Format("15:04:05"))
+	if msg.SessionMessageBase.IsMeta {
+		header += " [META]"
+	}
+	if logger.IsDebugMode() {
+		header += fmt.Sprintf(" [UUID: %s]", msg.SessionMessageBase.UUID)
+	}
+	output.WriteString(header + "\n")
+
+	// Format content based on type
+	switch content := msg.Message.Content.(type) {
+	case *event.UserMessageContentMessage:
+		output.WriteString(p.formatUserMessageContentMessage(content))
+	case *event.UserMessageContentCommand:
+		output.WriteString(p.formatUserMessageContentCommand(content))
+	case *event.UserMessageContentLocalCommand:
+		output.WriteString(p.formatUserMessageContentLocalCommand(content))
+	case *event.UserMessageContentList:
+		output.WriteString(p.formatUserMessageContentList(content))
+	default:
+		// Fallback for unknown content types
+		output.WriteString(fmt.Sprintf("  %v\n", msg.Message.Content))
+		if logger.IsDebugMode() {
+			output.WriteString(fmt.Sprintf("  [DEBUG] Unknown content type: %T\n", msg.Message.Content))
+		}
+	}
+
+	// Add narration if available
+	if msg.Narration != nil && msg.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", msg.Narration.Text))
+	}
+
+	// Ensure message ends with newline
+	result := output.String()
+	if result != "" && !strings.HasSuffix(result, "\n") {
+		result += "\n"
+	}
+	return result
+}
+
+// formatUserMessageContentMessage formats UserMessageContentMessage
+func (p *NotificationPrinter) formatUserMessageContentMessage(content *event.UserMessageContentMessage) string {
+	var output strings.Builder
+
+	// Truncate long messages
+	lines := strings.Split(strings.TrimSpace(content.Text), "\n")
+	for i, line := range lines {
+		if i < 3 {
+			if i == 0 {
+				output.WriteString(fmt.Sprintf("  💬 %s\n", line))
+			} else {
+				output.WriteString(fmt.Sprintf("  %s\n", line))
+			}
+		} else if i == 3 && len(lines) > 4 {
+			output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
+			break
+		}
+	}
+	// Add full content in debug mode
+	if logger.IsDebugMode() && len(lines) > 3 {
+		output.WriteString(fmt.Sprintf("  [DEBUG] Full content: %d lines, %d chars\n", len(lines), len(content.Text)))
+	}
+
+	return output.String()
+}
+
+// formatUserMessageContentCommand formats UserMessageContentCommand
+func (p *NotificationPrinter) formatUserMessageContentCommand(content *event.UserMessageContentCommand) string {
+	var output strings.Builder
+
+	output.WriteString(fmt.Sprintf("  🎯 Command: %s\n", content.CommandName))
+	if content.CommandMessage != "" {
+		output.WriteString(fmt.Sprintf("  📝 Message: %s\n", content.CommandMessage))
+	}
+	if content.CommandArgs != "" {
+		output.WriteString(fmt.Sprintf("  📦 Args: %s\n", content.CommandArgs))
+	}
+
+	return output.String()
+}
+
+// formatUserMessageContentLocalCommand formats UserMessageContentLocalCommand
+func (p *NotificationPrinter) formatUserMessageContentLocalCommand(content *event.UserMessageContentLocalCommand) string {
+	var output strings.Builder
+
+	if content.Output == "" {
+		output.WriteString("  📤 Command output: (no content)\n")
+	} else {
+		// Truncate long output
+		lines := strings.Split(strings.TrimSpace(content.Output), "\n")
+		output.WriteString("  📤 Command output:\n")
+		for i, line := range lines {
+			if i < 5 {
+				output.WriteString(fmt.Sprintf("    %s\n", line))
+			} else if i == 5 && len(lines) > 6 {
+				output.WriteString(fmt.Sprintf("    ... (%d more lines)\n", len(lines)-5))
+				break
+			}
+		}
+	}
+
+	return output.String()
+}
+
+// formatUserMessageContentList formats UserMessageContentList
+func (p *NotificationPrinter) formatUserMessageContentList(content *event.UserMessageContentList) string {
+	var output strings.Builder
+
+	if len(content.Items) == 0 {
+		output.WriteString("  📋 Empty list\n")
+		return output.String()
+	}
+
+	output.WriteString(fmt.Sprintf("  📋 List (%d items):\n", len(content.Items)))
+
+	for i, item := range content.Items {
+		output.WriteString(fmt.Sprintf("  [%d] ", i+1))
+
+		// Format each item based on its type
+		switch c := item.(type) {
+		case *event.UserMessageContentMessage:
+			// Show only first line for list items
+			lines := strings.Split(strings.TrimSpace(c.Text), "\n")
+			if len(lines) > 0 {
+				firstLine := lines[0]
+				if len(firstLine) > 50 {
+					firstLine = firstLine[:50] + "..."
+				}
+				output.WriteString(fmt.Sprintf("💬 %s\n", firstLine))
+			}
+		case *event.UserMessageContentCommand:
+			output.WriteString(fmt.Sprintf("🎯 Command: %s\n", c.CommandName))
+		case *event.UserMessageContentLocalCommand:
+			output.WriteString("📤 Command output\n")
+		case *event.UserMessageContentInterrupted:
+			output.WriteString(fmt.Sprintf("⛔ %s\n", c.Reason))
+		default:
+			output.WriteString(fmt.Sprintf("Unknown type: %T\n", item))
+		}
+
+		// Limit to showing first 3 items
+		if i >= 2 && len(content.Items) > 3 {
+			output.WriteString(fmt.Sprintf("  ... (%d more items)\n", len(content.Items)-3))
+			break
+		}
 	}
 
 	return output.String()

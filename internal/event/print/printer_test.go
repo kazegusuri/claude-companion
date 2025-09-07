@@ -320,7 +320,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "System notification",
-					Level:   "info",
+					Level:      "info",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [info]:\n" +
 					"  ℹ️ System notification\n",
@@ -342,7 +342,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "Error occurred",
-					Level:   "error",
+					Level:      "error",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [error]:\n" +
 					"  ❌ Error occurred\n",
@@ -364,7 +364,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "Warning message",
-					Level:   "warning",
+					Level:      "warning",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [warning]:\n" +
 					"  ⚠️ Warning message\n",
@@ -386,7 +386,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "Debug info",
-					Level:   "debug",
+					Level:      "debug",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [debug]:\n" +
 					"  🐛 Debug info\n",
@@ -408,7 +408,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "System notification",
-					Level:   "info",
+					Level:      "info",
 					Narration: &event.NarrationMessage{
 						Text: "システム通知",
 					},
@@ -434,7 +434,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "Meta message",
-					Level:   "info",
+					Level:      "info",
 				},
 				wantOutput:  "",
 				description: "Meta system message should be skipped without debug mode",
@@ -455,8 +455,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					RawContent: "Meta message",
-					Level:   "info",
-					ToolUseID: "tool-456",
+					Level:      "info",
+					ToolUseID:  "tool-456",
 				},
 				wantOutput: "[15:30:45] 📣 SYSTEM [info] [UUID: uuid-123, META, Tool: tool-456]:\n" +
 					"  ℹ️ Meta message\n",
@@ -518,8 +518,484 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					RawContent: "Hook executed successfully",
 					Level:      "info",
 				},
-				wantOutput: "",
+				wantOutput:  "",
 				description: "HookEvent should not display when debug mode is off",
+			},
+		},
+		"UserMessage": {
+			{
+				name:      "user_message_simple_string",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Hello, this is a test message",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  💬 Hello, this is a test message\n",
+				description: "Simple user message with string content",
+			},
+			{
+				name:      "user_message_multiline",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Line 1\nLine 2\nLine 3\nLine 4\nLine 5",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  💬 Line 1\n" +
+					"  Line 2\n" +
+					"  Line 3\n" +
+					"  ... (2 more lines)\n",
+				description: "User message with multiple lines should truncate",
+			},
+			{
+				name:      "user_message_content_input",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "This is a UserMessageContentInput",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  💬 This is a UserMessageContentInput\n",
+				description: "User message with UserMessageContentInput",
+			},
+			{
+				name:      "user_message_with_narration",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Test message",
+						},
+					},
+					Narration: &event.NarrationMessage{
+						Text: "ユーザーメッセージ",
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  💬 Test message\n" +
+					"  💬 ユーザーメッセージ\n",
+				description: "User message with narration",
+			},
+			{
+				name:      "user_message_meta_skip",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      true,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Meta message",
+						},
+					},
+				},
+				wantOutput:  "",
+				description: "Meta user message should be skipped without debug mode",
+			},
+			{
+				name:      "user_message_meta_debug",
+				debugMode: true,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      true,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Meta message",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER: [META] [UUID: uuid-user-123]\n" +
+					"  💬 Meta message\n",
+				description: "Meta user message with debug mode shows details",
+			},
+			{
+				name:      "user_message_debug_multiline",
+				debugMode: true,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-user-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentMessage{
+							Text: "Line 1\nLine 2\nLine 3\nLine 4\nLine 5",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER: [UUID: uuid-user-123]\n" +
+					"  💬 Line 1\n" +
+					"  Line 2\n" +
+					"  Line 3\n" +
+					"  ... (2 more lines)\n" +
+					"  [DEBUG] Full content: 5 lines, 34 chars\n",
+				description: "User message with debug mode shows full content info",
+			},
+			{
+				name:      "user_message_command",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-cmd-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentCommand{
+							CommandName:    "/clear",
+							CommandMessage: "clear",
+							CommandArgs:    "",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  🎯 Command: /clear\n" +
+					"  📝 Message: clear\n",
+				description: "User message with command content",
+			},
+			{
+				name:      "user_message_command_with_args",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-cmd-456",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentCommand{
+							CommandName:    "/search",
+							CommandMessage: "search",
+							CommandArgs:    "test query",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  🎯 Command: /search\n" +
+					"  📝 Message: search\n" +
+					"  📦 Args: test query\n",
+				description: "User message with command content including args",
+			},
+			{
+				name:      "user_message_local_command_no_output",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-local-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentLocalCommand{
+							Output: "",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📤 Command output: (no content)\n",
+				description: "User message with local command output (empty)",
+			},
+			{
+				name:      "user_message_local_command_with_output",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-local-456",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentLocalCommand{
+							Output: "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7",
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📤 Command output:\n" +
+					"    Line 1\n" +
+					"    Line 2\n" +
+					"    Line 3\n" +
+					"    Line 4\n" +
+					"    Line 5\n" +
+					"    ... (2 more lines)\n",
+				description: "User message with local command output (truncated)",
+			},
+			{
+				name:      "user_message_content_list",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-list-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentMessage{
+									Text: "This is the first text item",
+								},
+								&event.UserMessageContentCommand{
+									CommandName:    "/example",
+									CommandMessage: "example",
+									CommandArgs:    "args",
+								},
+								&event.UserMessageContentLocalCommand{
+									Output: "Command output",
+								},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (3 items):\n" +
+					"  [1] 💬 This is the first text item\n" +
+					"  [2] 🎯 Command: /example\n" +
+					"  [3] 📤 Command output\n",
+				description: "User message with content list",
+			},
+			{
+				name:      "user_message_content_list_many_items",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-list-456",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentMessage{Text: "Item 1"},
+								&event.UserMessageContentMessage{Text: "Item 2"},
+								&event.UserMessageContentMessage{Text: "Item 3"},
+								&event.UserMessageContentMessage{Text: "Item 4"},
+								&event.UserMessageContentMessage{Text: "Item 5"},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (5 items):\n" +
+					"  [1] 💬 Item 1\n" +
+					"  [2] 💬 Item 2\n" +
+					"  [3] 💬 Item 3\n" +
+					"  ... (2 more items)\n",
+				description: "User message with content list (truncated)",
+			},
+			{
+				name:      "user_message_content_list_empty",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-list-789",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 Empty list\n",
+				description: "User message with empty content list",
+			},
+			{
+				name:      "user_message_interrupted",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-interrupted-123",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentInterrupted{
+									Reason: "[Request interrupted by user]",
+								},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (1 items):\n" +
+					"  [1] ⛔ [Request interrupted by user]\n",
+				description: "User message with interrupted content",
+			},
+			{
+				name:      "user_message_interrupted_for_tool_use",
+				debugMode: false,
+				event: &event.UserMessage{
+					SessionMessageBase: event.SessionMessageBase{
+						UUID:        "uuid-interrupted-456",
+						Type:        event.MessageTypeUser,
+						IsSidechain: false,
+						CWD:         "/test/dir",
+						Timestamp:   fixedTime,
+						IsMeta:      false,
+					},
+					Session: event.Session{
+						SessionID: "session-user",
+					},
+					Message: event.UserMessageData{
+						Role: "user",
+						Content: &event.UserMessageContentList{
+							Items: []event.UserMessageContentItem{
+								&event.UserMessageContentInterrupted{
+									Reason: "[Request interrupted by user for tool use]",
+								},
+							},
+						},
+					},
+				},
+				wantOutput: "[15:30:45] 👤 USER:\n" +
+					"  📋 List (1 items):\n" +
+					"  [1] ⛔ [Request interrupted by user for tool use]\n",
+				description: "User message with interrupted for tool use content",
 			},
 		},
 		"SummaryEvent": {
@@ -530,8 +1006,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					LeafUUID:  "leaf-uuid-123",
-					Summary:   "Session summary text",
+					LeafUUID: "leaf-uuid-123",
+					Summary:  "Session summary text",
 				},
 				wantOutput:  "📋 [SUMMARY] Session summary text\n",
 				description: "Simple summary event",
@@ -543,8 +1019,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					LeafUUID:  "leaf-uuid-123",
-					Summary:   "Session summary text",
+					LeafUUID: "leaf-uuid-123",
+					Summary:  "Session summary text",
 				},
 				wantOutput:  "📋 [SUMMARY] Session summary text [LeafUUID: leaf-uuid-123]\n",
 				description: "Summary event with debug mode shows UUID",
@@ -556,8 +1032,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Session: event.Session{
 						SessionID: "session-789",
 					},
-					LeafUUID:  "leaf-uuid-123",
-					Summary:   "Session summary text",
+					LeafUUID: "leaf-uuid-123",
+					Summary:  "Session summary text",
 					Narration: &event.NarrationMessage{
 						Text: "セッションの要約",
 					},

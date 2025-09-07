@@ -238,7 +238,7 @@ func (h *Handler) handleSystemMessage(event *SystemMessage) {
 	}
 
 	// Generate narration if needed
-	if !event.SessionMessageBase.IsMeta || logger.IsDebugMode() {
+	if _, ok := event.Content.(*DefaultSystemMessageContent); ok && !event.SessionMessageBase.IsMeta {
 		meta := &narrator.EventMeta{
 			SessionID: event.Session.SessionID,
 			CWD:       event.SessionMessageBase.CWD,
@@ -264,7 +264,7 @@ func (h *Handler) handleSummaryEvent(event *SummaryEvent) {
 	// Note: SummaryEvent doesn't have timestamp in the original JSON, so we use zero value
 	meta := &narrator.EventMeta{
 		SessionID: event.Session.SessionID,
-		CWD:       "", // CWD is not available in SummaryEvent
+		CWD:       "",          // CWD is not available in SummaryEvent
 		Timestamp: time.Time{}, // Summary events don't include timestamp
 	}
 	narrationText, _ := h.narrator.NarrateText(event.Summary, false, meta)

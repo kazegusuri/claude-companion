@@ -81,25 +81,6 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 	output.WriteString(header + "\n")
 
 	switch content := event.Message.Content.(type) {
-	case string:
-		// Truncate long messages
-		lines := strings.Split(strings.TrimSpace(content), "\n")
-		for i, line := range lines {
-			if i < 3 {
-				if i == 0 {
-					output.WriteString(fmt.Sprintf("  💬 %s\n", line))
-				} else {
-					output.WriteString(fmt.Sprintf("  %s\n", line))
-				}
-			} else if i == 3 && len(lines) > 4 {
-				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
-				break
-			}
-		}
-		// Add full content in debug mode
-		if logger.IsDebugMode() && len(lines) > 3 {
-			output.WriteString(fmt.Sprintf("  [DEBUG] Full content: %d lines, %d chars\n", len(lines), len(content)))
-		}
 	case []interface{}:
 		for _, item := range content {
 			if contentMap, ok := item.(map[string]interface{}); ok {
@@ -140,6 +121,21 @@ func (f *Formatter) formatUserMessage(event *UserMessage) (string, error) {
 						output.WriteString(resultLine + "\n")
 					}
 				}
+			}
+		}
+	case string:
+		// String content - format with 💬 emoji
+		lines := strings.Split(strings.TrimSpace(content), "\n")
+		for i, line := range lines {
+			if i < 3 {
+				if i == 0 {
+					output.WriteString(fmt.Sprintf("  💬 %s\n", line))
+				} else {
+					output.WriteString(fmt.Sprintf("  %s\n", line))
+				}
+			} else if i == 3 && len(lines) > 4 {
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-3))
+				break
 			}
 		}
 	default:
@@ -380,7 +376,6 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 	}
 	return result, nil
 }
-
 
 func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
 	// Build message with optional debug info
