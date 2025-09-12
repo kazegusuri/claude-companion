@@ -700,6 +700,9 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 		case "Bash":
 			// Show command after narration for Bash
 			if bashInput, ok := content.Input.(*event.ToolUseBash); ok {
+				if bashInput.Description != "" {
+					output.WriteString(fmt.Sprintf("  📝 %s\n", bashInput.Description))
+				}
 				output.WriteString(fmt.Sprintf("  $ %s\n", bashInput.Command))
 			}
 		default:
@@ -728,10 +731,10 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 				output.WriteString(fmt.Sprintf("    %d. %s %s\n", i+1, emoji, todo.Content))
 			}
 		case *event.ToolUseBash:
-			output.WriteString(fmt.Sprintf("    Command: %s\n", toolInput.Command))
 			if toolInput.Description != "" {
 				output.WriteString(fmt.Sprintf("    Description: %s\n", toolInput.Description))
 			}
+			output.WriteString(fmt.Sprintf("    Command: %s\n", toolInput.Command))
 		case *event.ToolUseRead:
 			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
 			if toolInput.Limit > 0 {
