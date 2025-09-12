@@ -710,7 +710,7 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 		Message: AssistantMessageContent{
 			Model: "test-model",
 			Content: []AssistantContent{
-				{Type: "text", Text: "Test response 2"},
+				{Type: "tool_use", ID: "tool-456", Name: "test_tool", Input: map[string]interface{}{"param": "value"}},
 			},
 		},
 	}

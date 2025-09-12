@@ -218,6 +218,112 @@ func (e *UserMessage) Type() Type {
 	return EventTypeUser
 }
 
+// AssistantMessageContent is the interface for assistant message content
+type AssistantMessageContent interface {
+	// Marker method to ensure type safety
+	isAssistantMessageContent()
+}
+
+// AssistantMessageContentItem is the interface for items that can appear in content arrays
+type AssistantMessageContentItem interface {
+	// Marker method to ensure type safety
+	isAssistantMessageContentItem()
+}
+
+// CodeBlock represents a code block extracted from text
+type CodeBlock struct {
+	Language string `json:"language"`
+	Content  string `json:"content"`
+}
+
+// AssistantMessageContentText represents text or thinking content in an assistant message
+type AssistantMessageContentText struct {
+	Type          string            `json:"type"`                     // "text" or "thinking"
+	Text          string            `json:"text"`                     // The actual text content
+	IsThinking    bool              `json:"is_thinking,omitempty"`    // Whether this is thinking content
+	ProcessedText string            `json:"processed_text,omitempty"` // Text with code blocks replaced by placeholders
+	CodeBlocks    []CodeBlock       `json:"code_blocks,omitempty"`    // Extracted code blocks
+	Narration     *NarrationMessage `json:"narration,omitempty"`      // Narration for this content
+}
+
+// isAssistantMessageContent implements AssistantMessageContent interface
+func (a *AssistantMessageContentText) isAssistantMessageContent() {}
+
+// isAssistantMessageContentItem implements AssistantMessageContentItem interface
+func (a *AssistantMessageContentText) isAssistantMessageContentItem() {}
+
+// AssistantMessageContentToolUse represents tool use content in an assistant message
+type AssistantMessageContentToolUse struct {
+	Type  string      `json:"type"` // "tool_use"
+	ID    string      `json:"id"`
+	Name  string      `json:"name"`
+	Input interface{} `json:"input"`
+}
+
+// isAssistantMessageContentItem implements AssistantMessageContentItem interface
+func (a *AssistantMessageContentToolUse) isAssistantMessageContentItem() {}
+
+// AssistantMessageContentList represents a list of assistant message content items
+type AssistantMessageContentList struct {
+	Items []AssistantMessageContentItem `json:"items"`
+}
+
+// isAssistantMessageContent implements AssistantMessageContent interface
+func (a *AssistantMessageContentList) isAssistantMessageContent() {}
+
+// APIErrorDetail represents details of an API error
+type APIErrorDetail struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// APIErrorMessageContent represents API error content in an assistant message
+type APIErrorMessageContent struct {
+	StatusCode int            `json:"status_code"`
+	ErrorType  string         `json:"error_type"`
+	Error      APIErrorDetail `json:"error"`
+	RawText    string         `json:"raw_text"` // Original error text for fallback
+}
+
+// isAssistantMessageContent implements AssistantMessageContent interface
+func (a *APIErrorMessageContent) isAssistantMessageContent() {}
+
+// TokenUsage represents token usage information for assistant messages
+type TokenUsage struct {
+	InputTokens              int    `json:"input_tokens"`
+	CacheCreationInputTokens int    `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int    `json:"cache_read_input_tokens,omitempty"`
+	OutputTokens             int    `json:"output_tokens"`
+	ServiceTier              string `json:"service_tier,omitempty"`
+}
+
+// AssistantMessageData represents the message data in an assistant message
+type AssistantMessageData struct {
+	ID         string                  `json:"id"`
+	Type       string                  `json:"type"` // "message"
+	Role       string                  `json:"role"` // "assistant"
+	Model      string                  `json:"model"`
+	Content    AssistantMessageContent `json:"content"`
+	StopReason *string                 `json:"stop_reason,omitempty"`
+	StopSeq    *string                 `json:"stop_seq,omitempty"`
+	Usage      *TokenUsage             `json:"usage,omitempty"` // Token usage information
+}
+
+// AssistantMessage represents an assistant message event
+type AssistantMessage struct {
+	SessionMessageBase
+	Session           Session              `json:"session"`
+	RequestID         string               `json:"request_id,omitempty"`
+	Message           AssistantMessageData `json:"message"`
+	IsApiErrorMessage bool                 `json:"is_api_error_message,omitempty"`
+	Narration         *NarrationMessage    `json:"narration,omitempty"`
+}
+
+// Type returns the event type
+func (e *AssistantMessage) Type() Type {
+	return EventTypeAssistant
+}
+
 // SummaryEvent represents a summary event
 type SummaryEvent struct {
 	Session   Session           `json:"session"`

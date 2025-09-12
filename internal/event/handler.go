@@ -118,6 +118,8 @@ func (h *Handler) processEvent(event Event) {
 		h.handleUserMessage(e)
 	case *TaskCompletionMessage:
 		h.handleTaskCompletionMessage(e)
+	case *AssistantMessage:
+		h.handleAssistantMessage(e)
 	default:
 		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
@@ -342,6 +344,77 @@ func (h *Handler) handleTaskCompletionMessage(event *TaskCompletionMessage) {
 	}
 
 	// Print the task completion
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+}
+
+// handleAssistantMessage processes assistant messages
+func (h *Handler) handleAssistantMessage(event *AssistantMessage) {
+	// Generate narration based on content type
+	switch content := event.Message.Content.(type) {
+	case *APIErrorMessageContent:
+		// Generate narration for API errors
+		narrationText, _ := h.narrator.NarrateAPIError(
+			content.StatusCode,
+			content.ErrorType,
+			content.Error.Message,
+		)
+
+		if narrationText != "" {
+			event.Narration = &NarrationMessage{
+				Text: narrationText,
+			}
+		}
+
+	case *AssistantMessageContentText:
+		// Generate narration for text content
+		meta := &narrator.EventMeta{
+			SessionID: event.Session.SessionID,
+			CWD:       event.SessionMessageBase.CWD,
+			Timestamp: event.SessionMessageBase.Timestamp,
+		}
+
+		// Use ProcessedText if available, otherwise use Text
+		textToNarrate := content.ProcessedText
+		if textToNarrate == "" {
+			textToNarrate = content.Text
+		}
+
+		narrationText, _ := h.narrator.NarrateText(textToNarrate, content.IsThinking, meta)
+		if narrationText != "" {
+			content.Narration = &NarrationMessage{
+				Text: narrationText,
+			}
+		}
+
+	case *AssistantMessageContentList:
+		// Generate narration for each text item in the list
+		meta := &narrator.EventMeta{
+			SessionID: event.Session.SessionID,
+			CWD:       event.SessionMessageBase.CWD,
+			Timestamp: event.SessionMessageBase.Timestamp,
+		}
+
+		for _, item := range content.Items {
+			if textItem, ok := item.(*AssistantMessageContentText); ok {
+				// Use ProcessedText if available, otherwise use Text
+				textToNarrate := textItem.ProcessedText
+				if textToNarrate == "" {
+					textToNarrate = textItem.Text
+				}
+
+				narrationText, _ := h.narrator.NarrateText(textToNarrate, textItem.IsThinking, meta)
+				if narrationText != "" {
+					textItem.Narration = &NarrationMessage{
+						Text: narrationText,
+					}
+				}
+			}
+		}
+	}
+
+	// Print the assistant message
 	if h.printer != nil {
 		h.printer.Print(event)
 	}

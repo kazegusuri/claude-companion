@@ -20,14 +20,17 @@ func mustParseTime(s string) time.Time {
 	return t
 }
 
+// parserIntegrationTestCase defines a test case for parser integration tests
+type parserIntegrationTestCase struct {
+	name            string
+	input           string
+	wantEvent       interface{} // Expected event sent to central handler
+	expectEventSent bool        // Whether event should be sent to central handler
+}
+
 // TestIntegration_ParseAndSendToCentral tests parsing JSON input and sending to central handler
 func TestIntegration_ParseAndSendToCentral(t *testing.T) {
-	testGroups := map[string][]struct {
-		name            string
-		input           string
-		wantEvent       interface{} // Expected event sent to central handler
-		expectEventSent bool        // Whether event should be sent to central handler
-	}{
+	testGroups := map[string][]parserIntegrationTestCase{
 		"SystemMessage": {
 			{
 				name:            "simple",
@@ -697,6 +700,7 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 				},
 			},
 		},
+		"AssistantMessage": assistantMessageTestCases,
 		"HookEventAsSystemMessage": {
 			{
 				name:            "hook_event_stop",

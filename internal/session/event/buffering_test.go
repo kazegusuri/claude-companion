@@ -117,7 +117,7 @@ func TestBufferingNormalStartup(t *testing.T) {
 		Message: AssistantMessageContent{
 			Role: "assistant",
 			Content: []AssistantContent{
-				{Type: "text", Text: "I need more context to help you."},
+				{Type: "tool_use", ID: "tool-123", Name: "calculator", Input: map[string]interface{}{"expression": "2+2"}},
 			},
 		},
 	}
