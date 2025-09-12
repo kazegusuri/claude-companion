@@ -6,18 +6,6 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
-// mockFormatterWithTracking tracks which events were formatted
-type mockFormatterWithTracking struct {
-	formattedEvents []Event
-}
-
-func (m *mockFormatterWithTracking) Format(event Event) (string, error) {
-	m.formattedEvents = append(m.formattedEvents, event)
-	return "", nil
-}
-
-func (m *mockFormatterWithTracking) SetDebugMode(debug bool) {}
-
 // getEventUUID extracts UUID from any event type
 func getEventUUID(event Event) string {
 	switch e := event.(type) {
@@ -42,14 +30,12 @@ func TestBufferingNormalStartup(t *testing.T) {
 	// All events should be processed normally
 
 	sessionManager := handler.NewSessionManager()
-	formatter := &mockFormatterWithTracking{}
 
 	// Create a mock central handler to process AssistantMessage
 	centralHandler := NewMockCentralHandler()
 
 	h := &Handler{
 		sessionManager: sessionManager,
-		formatter:      formatter,
 		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
@@ -136,15 +122,7 @@ func TestBufferingNormalStartup(t *testing.T) {
 	// Note: HookEvent is now sent to central handler and not formatted by session handler
 	// Note: UserMessage is now handled by central event handler and not formatted by session handler
 	// Note: AssistantMessage is now handled by central event handler and not formatted by session handler
-	// All events are now handled by central handler, none by formatter
-
-	// Check that no events were formatted (all go through central handler)
-	if len(formatter.formattedEvents) != 0 {
-		t.Errorf("Expected 0 events to be formatted, got %d", len(formatter.formattedEvents))
-		for i, e := range formatter.formattedEvents {
-			t.Logf("Unexpected formatted event %d: UUID=%s", i, getEventUUID(e))
-		}
-	}
+	// All events are now handled by central handler
 
 	// Check that events were sent to central handler
 	centralEvents := centralHandler.GetEvents()
@@ -163,14 +141,12 @@ func TestBufferingWithResume(t *testing.T) {
 	// Events are processed and some are buffered, then released on resume
 
 	sessionManager := handler.NewSessionManager()
-	formatter := &mockFormatterWithTracking{}
 
 	// Create a mock central handler to process AssistantMessage
 	centralHandler := NewMockCentralHandler()
 
 	h := &Handler{
 		sessionManager: sessionManager,
-		formatter:      formatter,
 		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
@@ -372,14 +348,7 @@ func TestBufferingWithResume(t *testing.T) {
 	h.processEvent(hookEvent4) // Should be formatted and release buffer for session1
 	h.processEvent(userEvent4) // Should be formatted (after buffer release)
 
-	// All events are now sent to central handler, none to formatter
-	// Check that no events were formatted (all go through central handler)
-	if len(formatter.formattedEvents) != 0 {
-		t.Errorf("Expected 0 events to be formatted, got %d", len(formatter.formattedEvents))
-		for i, e := range formatter.formattedEvents {
-			t.Logf("Unexpected formatted event %d: UUID=%s", i, getEventUUID(e))
-		}
-	}
+	// All events are now sent to central handler
 
 	// Check that events were sent to central handler (non-buffered ones)
 	centralEvents := centralHandler.GetEvents()

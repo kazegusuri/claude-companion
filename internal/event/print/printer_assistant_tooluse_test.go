@@ -144,7 +144,8 @@ var assistantMessageToolUseTestCases = []printerTestCase{
 			},
 		},
 		wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-			"  💬 Listing files in the current directory\n",
+			"  💬 Listing files in the current directory\n" +
+			"  $ ls -la\n",
 		description: "Assistant message with Bash tool use",
 	},
 	{

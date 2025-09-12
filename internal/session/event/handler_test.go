@@ -421,12 +421,6 @@ func TestHandler_NonTaskToolResult(t *testing.T) {
 
 // ===== Buffering Tests =====
 
-// mockFormatterWithRecording records processed events for testing
-type mockFormatterWithRecording struct {
-	processedEvents []Event
-	mu              sync.Mutex
-}
-
 // mockCentralHandlerWithLock is an extended version with mutex for thread safety
 type mockCentralHandlerWithLock struct {
 	capturedEvents []internalevent.Event
@@ -443,27 +437,6 @@ func (m *mockCentralHandlerWithLock) getCapturedEvents() []internalevent.Event {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return append([]internalevent.Event{}, m.capturedEvents...)
-}
-
-func (m *mockFormatterWithRecording) Format(event Event) (string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.processedEvents = append(m.processedEvents, event)
-	return fmt.Sprintf("Processed: %T\n", event), nil
-}
-
-func (m *mockFormatterWithRecording) SetDebugMode(debug bool) {}
-
-func (m *mockFormatterWithRecording) getProcessedCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.processedEvents)
-}
-
-func (m *mockFormatterWithRecording) clearProcessed() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.processedEvents = nil
 }
 
 // Helper function to create test events
@@ -515,12 +488,12 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 
 // Test basic buffering behavior with ParentUUID==nil
 func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
-	// Create handler with mock formatter
-	mockFormatter := &mockFormatterWithRecording{}
+	// Create handler with mock central handler
+	centralHandler := NewMockCentralHandler()
 	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
 		narrator:       &mockNarrator{},
-		formatter:      mockFormatter,
+		centralHandler: centralHandler,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -542,10 +515,10 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 	// Wait a bit to ensure processing
 	time.Sleep(100 * time.Millisecond)
 
-	// Check that event was buffered (not processed)
-	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Event with ParentUUID==nil should be buffered, but %d events were processed",
-			mockFormatter.getProcessedCount())
+	// Check that event was buffered (not sent to central handler)
+	if len(centralHandler.GetEvents()) != 0 {
+		t.Errorf("Event with ParentUUID==nil should be buffered, but %d events were sent to central handler",
+			len(centralHandler.GetEvents()))
 	}
 
 	// Check buffer exists
@@ -567,10 +540,10 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// Still no events should be processed
-	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Subsequent events should also be buffered, but %d events were processed",
-			mockFormatter.getProcessedCount())
+	// Still no events should be sent to central handler
+	if len(centralHandler.GetEvents()) != 0 {
+		t.Errorf("Subsequent events should also be buffered, but %d events were sent to central handler",
+			len(centralHandler.GetEvents()))
 	}
 
 	handler.bufferMutex.Lock()
@@ -587,11 +560,11 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 
 // Test buffer release on SessionStart:resume
 func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
-	mockFormatter := &mockFormatterWithRecording{}
+	centralHandler := NewMockCentralHandler()
 	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
 		narrator:       &mockNarrator{},
-		formatter:      mockFormatter,
+		centralHandler: centralHandler,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -636,20 +609,19 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 		t.Error("Buffer should be released after SessionStart:resume")
 	}
 
-	// Hook event is now sent to central handler and not formatted by session handler
-	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Expected 0 events to be processed by session handler (HookEvent sent to central), got %d", mockFormatter.getProcessedCount())
+	// Check that HookEvent was sent to central handler
+	events := centralHandler.GetEvents()
+	if len(events) == 0 {
+		t.Error("HookEvent should be sent to central handler")
 	}
 }
 
 // Test buffer release on timeout
 func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
-	mockFormatter := &mockFormatterWithRecording{}
-	sessionManager := handler.NewSessionManager()
 	centralHandler := NewMockCentralHandler()
+	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
 		narrator:       &mockNarrator{},
-		formatter:      mockFormatter,
 		centralHandler: centralHandler,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
@@ -713,11 +685,8 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 		t.Error("Buffer should be released after timeout")
 	}
 
-	// Buffered events are discarded, so nothing should be processed
-	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Buffered events should be discarded, but %d events were processed",
-			mockFormatter.getProcessedCount())
-	}
+	// Buffered events are discarded, so nothing should be sent to central handler initially
+	// (they were discarded after timeout)
 
 	// Check central handler events before sending new event
 	centralEventsBefore := len(centralHandler.GetEvents())
@@ -758,11 +727,11 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 
 // Test multiple sessions buffering independently
 func TestHandler_MultipleSessionBuffering(t *testing.T) {
-	mockFormatter := &mockFormatterWithRecording{}
+	centralHandler := NewMockCentralHandler()
 	sessionManager := handler.NewSessionManager()
 	handler := &Handler{
 		narrator:       &mockNarrator{},
-		formatter:      mockFormatter,
+		centralHandler: centralHandler,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -817,8 +786,10 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 		t.Error("Session2 buffer should still exist")
 	}
 
-	// Hook event is now sent to central handler and not processed by session handler
-	if mockFormatter.getProcessedCount() != 0 {
-		t.Errorf("Expected 0 events to be processed by session handler (HookEvent sent to central), got %d", mockFormatter.getProcessedCount())
+	// Check that HookEvent was sent to central handler
+	// Only the HookEvent for session-1 should be sent (session-2 remains buffered)
+	events := centralHandler.GetEvents()
+	if len(events) != 1 {
+		t.Errorf("Expected 1 event to be sent to central handler (HookEvent for session-1), got %d", len(events))
 	}
 }

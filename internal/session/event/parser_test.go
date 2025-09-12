@@ -2,9 +2,6 @@ package event
 
 import (
 	"testing"
-
-	"github.com/kazegusuri/claude-companion/internal/logger"
-	"github.com/kazegusuri/claude-companion/internal/narrator"
 )
 
 func TestParser_Parse(t *testing.T) {
@@ -131,91 +128,6 @@ func TestParser_Parse(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestIntegration_ParserAndFormatter(t *testing.T) {
-	t.Skip("Skipping formatter tests - migrating to central event handler")
-	// Reset debug mode to ensure test isolation
-	logger.SetDebugMode(false)
-
-	parser := NewParser()
-	formatter := NewFormatter(narrator.NewNoOpNarrator())
-
-	tests := []struct {
-		name           string
-		input          string
-		expectedOutput string
-		description    string
-	}{
-		// Assistant Message Tests
-		{
-			name:           "assistant_message_simple",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hello! How can I help?"}],"usage":{"input_tokens":10,"output_tokens":20,"cache_read_input_tokens":100,"cache_creation_input_tokens":50}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hello! How can I help?\n  💰 Tokens: input=10, output=20, cache_read=100, cache_creation=50\n",
-			description:    "Parse and format assistant message with tokens",
-		},
-		{
-			name:           "assistant_message_with_tool_use",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_789","name":"WebSearch","input":{"query":"weather today"}}],"usage":{"input_tokens":5,"output_tokens":15,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: WebSearch (id: toolu_789)\n  💰 Tokens: input=5, output=15, cache_read=0, cache_creation=0\n",
-			description:    "Parse and format assistant message with tool use",
-		},
-		{
-			name:           "assistant_message_mixed_content",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Let me search for that."},{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"usage":{"input_tokens":1,"output_tokens":2,"cache_read_input_tokens":3,"cache_creation_input_tokens":4}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Let me search for that.\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=1, output=2, cache_read=3, cache_creation=4\n",
-			description:    "Parse and format assistant message with mixed content",
-		},
-		{
-			name:           "assistant_message_no_tokens",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Hi"}],"usage":{"input_tokens":0,"output_tokens":0,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Hi\n",
-			description:    "Parse and format assistant message without token display (all zeros)",
-		},
-		{
-			name:           "assistant_message_stop_reason_tool_use",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"tool_use","id":"toolu_999","name":"Search","input":{"q":"test"}}],"stop_reason":"tool_use","usage":{"input_tokens":5,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  🔧 Tool: Search (id: toolu_999)\n  💰 Tokens: input=5, output=10, cache_read=0, cache_creation=0\n",
-			description:    "Parse and format assistant message with stop_reason tool_use",
-		},
-		{
-			name:           "assistant_message_stop_reason_end_turn",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-opus","content":[{"type":"text","text":"Finished."}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n  💬 Finished.\n  💰 Tokens: input=1, output=1, cache_read=0, cache_creation=0\n",
-			description:    "Parse and format assistant message with stop_reason end_turn",
-		},
-		{
-			name:           "assistant_message_with_thinking",
-			input:          `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"123","requestId":"req_123","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-opus-4-20250514","content":[{"type":"thinking","thinking":"すべてのタスクが完了しました。結果をまとめてユーザーに報告します。","signature":"xxx"}],"usage":{"input_tokens":11,"output_tokens":14,"cache_read_input_tokens":45769,"cache_creation_input_tokens":772}}}`,
-			expectedOutput: "[15:30:45] 🤖 ASSISTANT (claude-opus-4-20250514):\n  💬 すべてのタスクが完了しました。結果をまとめてユーザーに報告します。\n  💰 Tokens: input=11, output=14, cache_read=45769, cache_creation=772\n",
-			description:    "Parse and format assistant message with thinking content",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Parse the event
-			event, err := parser.Parse(tt.input)
-			if err != nil {
-				t.Fatalf("Parse() error = %v", err)
-			}
-
-			// Format the event
-			output, err := formatter.Format(event)
-			if err != nil {
-				t.Fatalf("Format() error = %v", err)
-			}
-
-			if output != tt.expectedOutput {
-				t.Errorf("Integration test output = %v, want %v", output, tt.expectedOutput)
-			}
-		})
-	}
-}
-
-// Helper function to create string pointer
-func stringPtr(s string) *string {
-	return &s
 }
 
 func TestParserWithPath(t *testing.T) {

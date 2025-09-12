@@ -786,7 +786,6 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 					h := &Handler{
 						sessionManager: sessionManager,
 						centralHandler: mockCentral,
-						formatter:      &mockFormatter{},
 						buffers:        make(map[string]*BufferInfo),
 						taskTracker:    NewTaskTracker(),
 					}

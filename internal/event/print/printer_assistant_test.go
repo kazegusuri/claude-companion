@@ -189,9 +189,14 @@ var assistantMessageTestCases = []printerTestCase{
 		},
 		wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
 			"  💬 Generated a simple hello function\n" +
+			"  📝 Here is a simple function:\n" +
+			"  This prints Hello.\n" +
+			"\n" +
 			"  📝 Code Block 1 (python):\n" +
+			"    ```\n" +
 			"    def hello():\n" +
-			"        print('Hello')\n",
+			"        print('Hello')\n" +
+			"    ```\n",
 		description: "Assistant message with text content and code block",
 	},
 	{

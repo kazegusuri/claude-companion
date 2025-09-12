@@ -7,15 +7,6 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
-// mockFormatter is a simple formatter for testing
-type mockFormatter struct{}
-
-func (m *mockFormatter) Format(event Event) (string, error) {
-	return "", nil
-}
-
-func (m *mockFormatter) SetDebugMode(debug bool) {}
-
 // mockCentralHandler captures events sent to central handler
 type mockCentralHandler struct {
 	events []internalevent.Event
@@ -41,7 +32,6 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,
-					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
 
@@ -94,7 +84,6 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				h := &Handler{
 					sessionManager: sessionManager,
 					centralHandler: centralHandler,
-					formatter:      &mockFormatter{},
 					buffers:        make(map[string]*BufferInfo),
 				}
 

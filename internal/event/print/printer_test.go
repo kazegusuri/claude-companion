@@ -190,9 +190,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 				},
 				wantOutput: "[15:30:45] 🔔 Notification\n" +
-					"  Something happened\n" +
 					"  💬 何か起きました\n",
-				description: "General notification should show message and narration",
+				description: "General notification should show narration only when available",
 			},
 			{
 				name:      "notification_permission_approve",
@@ -208,7 +207,6 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 				},
 				wantOutput: "[15:30:45] ✅ Notification\n" +
-					"  Permission approve: WebSearch\n" +
 					"  💬 WebSearchツールを使用します\n",
 				description: "Permission approve should show ✅ emoji",
 			},
@@ -226,7 +224,6 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 				},
 				wantOutput: "[15:30:45] ❌ Notification\n" +
-					"  Permission deny: Bash\n" +
 					"  💬 Bashツールの使用を拒否しました\n",
 				description: "Permission deny should show ❌ emoji",
 			},
@@ -244,7 +241,6 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 				},
 				wantOutput: "[15:30:45] ✅ Notification\n" +
-					"  Permission approve: browser_click (MCP: playwright)\n" +
 					"  💬 MCPツールを使用します\n",
 				description: "MCP permission should parse MCP tool name",
 			},

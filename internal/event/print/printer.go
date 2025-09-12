@@ -151,16 +151,16 @@ func (p *NotificationPrinter) formatGeneralNotificationEvent(event *event.Notifi
 	}
 	output.WriteString(header + "\n")
 
-	// Add message
-	if displayToolName != "" {
-		output.WriteString(fmt.Sprintf("  %s: %s\n", formattedMessage, displayToolName))
-	} else {
-		output.WriteString(fmt.Sprintf("  %s\n", event.Message))
-	}
-
-	// Add narration if available
+	// Display narration if available, otherwise display message
 	if event.Narration != nil && event.Narration.Text != "" {
 		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	} else {
+		// Only show message if no narration
+		if displayToolName != "" {
+			output.WriteString(fmt.Sprintf("  %s: %s\n", formattedMessage, displayToolName))
+		} else {
+			output.WriteString(fmt.Sprintf("  %s\n", event.Message))
+		}
 	}
 
 	return output.String()
@@ -680,8 +680,9 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 	if content.Narration != nil && content.Narration.Text != "" {
 		output.WriteString(fmt.Sprintf("  💬 %s\n", content.Narration.Text))
 
-		// Special handling for TodoWrite - show details even when narrator is used
-		if content.Name == "TodoWrite" {
+		// Special handling for specific tools even when narrator is used
+		switch content.Name {
+		case "TodoWrite":
 			if todoInput, ok := content.Input.(*event.ToolUseTodoWrite); ok {
 				for i, todo := range todoInput.Todos {
 					emoji := ""
@@ -695,6 +696,11 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 					}
 					output.WriteString(fmt.Sprintf("    %d. %s %s\n", i+1, emoji, todo.Content))
 				}
+			}
+		case "Bash":
+			// Show command after narration for Bash
+			if bashInput, ok := content.Input.(*event.ToolUseBash); ok {
+				output.WriteString(fmt.Sprintf("  $ %s\n", bashInput.Command))
 			}
 		}
 	} else {
@@ -768,6 +774,21 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 func (p *NotificationPrinter) formatAssistantTextContent(content *event.AssistantMessageContentText) string {
 	var output strings.Builder
 
+	// Prepare processed text for display
+	processedText := strings.TrimSpace(content.Text)
+	if len(content.CodeBlocks) > 0 {
+		// Replace code blocks with placeholders
+		for i, block := range content.CodeBlocks {
+			placeholder := fmt.Sprintf("[CODE BLOCK %d: %s]", i+1, block.Language)
+			// Find and replace the original code block
+			original := fmt.Sprintf("```%s\n%s```", block.Language, block.Content)
+			if block.Language == "text" || block.Language == "" {
+				original = fmt.Sprintf("```\n%s```", block.Content)
+			}
+			processedText = strings.Replace(processedText, original, placeholder, 1)
+		}
+	}
+
 	// Display narration if available
 	if content.Narration != nil && content.Narration.Text != "" {
 		if content.IsThinking {
@@ -777,37 +798,25 @@ func (p *NotificationPrinter) formatAssistantTextContent(content *event.Assistan
 		}
 	}
 
-	// Display code blocks if any
-	for i, block := range content.CodeBlocks {
-		language := block.Language
-		if language == "" {
-			language = "text"
-		}
-		output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):\n", i+1, language))
+	// Show the main text (only if multiple lines)
+	lines := strings.Split(strings.TrimSpace(processedText), "\n")
 
-		// Display code content with indentation
-		lines := strings.Split(strings.TrimRight(block.Content, "\n"), "\n")
-		maxLines := 10
-		for j, line := range lines {
-			if j < maxLines {
-				output.WriteString(fmt.Sprintf("    %s\n", line))
-			} else if j == maxLines && len(lines) > maxLines+1 {
-				output.WriteString(fmt.Sprintf("    ... (%d more lines)\n", len(lines)-maxLines))
-				break
+	// Filter out code block placeholders if any
+	var displayLines []string
+	if len(content.CodeBlocks) > 0 {
+		for _, line := range lines {
+			if !strings.HasPrefix(strings.TrimSpace(line), "[CODE BLOCK") || !strings.HasSuffix(strings.TrimSpace(line), "]") {
+				displayLines = append(displayLines, line)
 			}
 		}
+	} else {
+		displayLines = lines
 	}
 
-	// If no narration or code blocks, fall back to displaying raw text
-	if content.Narration == nil && len(content.CodeBlocks) == 0 {
-		text := strings.TrimSpace(content.Text)
-		if text == "" {
-			return ""
-		}
-
-		lines := strings.Split(text, "\n")
+	// Display text lines with 📝 or 🤔 emoji (only if multiple lines or if no narration)
+	if len(displayLines) > 1 || (content.Narration == nil || content.Narration.Text == "") {
 		maxLines := 5
-		for i, line := range lines {
+		for i, line := range displayLines {
 			if i < maxLines {
 				if i == 0 {
 					if content.IsThinking {
@@ -818,10 +827,38 @@ func (p *NotificationPrinter) formatAssistantTextContent(content *event.Assistan
 				} else {
 					output.WriteString(fmt.Sprintf("  %s\n", line))
 				}
-			} else if i == maxLines && len(lines) > maxLines+1 {
-				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-maxLines))
+			} else if i == maxLines && len(displayLines) > maxLines+1 {
+				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(displayLines)-maxLines))
 				break
 			}
+		}
+	}
+
+	// Display code blocks if any
+	if len(content.CodeBlocks) > 0 {
+		for i, block := range content.CodeBlocks {
+			if len(displayLines) > 0 || i > 0 {
+				output.WriteString("\n")
+			}
+			language := block.Language
+			if language == "" {
+				language = "text"
+			}
+			output.WriteString(fmt.Sprintf("  📝 Code Block %d (%s):\n", i+1, language))
+			output.WriteString("    ```\n")
+
+			// Display code content with indentation
+			lines := strings.Split(strings.TrimRight(block.Content, "\n"), "\n")
+			maxLines := 10
+			for j, line := range lines {
+				if j < maxLines {
+					output.WriteString(fmt.Sprintf("    %s\n", line))
+				} else if j == maxLines && len(lines) > maxLines+1 {
+					output.WriteString(fmt.Sprintf("    ... (%d more lines)\n", len(lines)-maxLines))
+					break
+				}
+			}
+			output.WriteString("    ```\n")
 		}
 	}
 

@@ -260,8 +260,15 @@ func (cn *RuleBasedNarrator) NarrateToolUse(toolName string, input map[string]in
 	case "MultiEdit":
 		if path, ok := input["file_path"].(string); ok {
 			fileName := filepath.Base(path)
+			// Try both []interface{} and []map[string]interface{}
+			var count int
 			if edits, ok := input["edits"].([]interface{}); ok {
-				count := len(edits)
+				count = len(edits)
+			} else if edits, ok := input["edits"].([]map[string]interface{}); ok {
+				count = len(edits)
+			}
+
+			if count > 0 {
 				msg := strings.ReplaceAll(rules.Default, "{filename}", fileName)
 				msg = strings.ReplaceAll(msg, "{count}", fmt.Sprintf("%d", count))
 				return msg, false

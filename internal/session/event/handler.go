@@ -20,12 +20,6 @@ type BufferInfo struct {
 	startTime   time.Time
 }
 
-// FormatterInterface defines the interface for event formatters
-type FormatterInterface interface {
-	Format(event Event) (string, error)
-	SetDebugMode(debug bool)
-}
-
 // CentralEventHandler is the interface for central event handler
 type CentralEventHandler interface {
 	SendEvent(event internalevent.Event)
@@ -34,7 +28,6 @@ type CentralEventHandler interface {
 // Handler processes events from multiple sources
 type Handler struct {
 	narrator       narrator.Narrator
-	formatter      FormatterInterface
 	eventChan      chan Event
 	wg             sync.WaitGroup
 	done           chan struct{}
@@ -49,12 +42,10 @@ type Handler struct {
 
 // NewHandler creates a new event handler
 func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler CentralEventHandler) *Handler {
-	formatter := NewFormatter(narrator)
 	taskTracker := NewTaskTracker()
 
 	return &Handler{
 		narrator:       narrator,
-		formatter:      formatter,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    taskTracker,
@@ -62,14 +53,6 @@ func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManag
 		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 	}
-}
-
-// GetFormatter returns the handler's formatter
-func (h *Handler) GetFormatter() *Formatter {
-	if formatter, ok := h.formatter.(*Formatter); ok {
-		return formatter
-	}
-	return nil
 }
 
 // GetSessionManager returns the handler's session manager
