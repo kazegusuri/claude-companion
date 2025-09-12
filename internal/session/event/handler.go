@@ -2,7 +2,6 @@ package event
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -398,16 +397,6 @@ func (h *Handler) processEvent(event Event) {
 			h.centralHandler.SendEvent(centralEvent)
 		}
 		// SummaryEvent display is now handled by central handler's printer
-	case *BaseEvent, *TaskCompletionMessage:
-		// Format and display parsed events
-		output, err := h.formatter.Format(e)
-		if err != nil {
-			logger.LogError("Error formatting %T: %v", e, err)
-			return
-		}
-		if output != "" {
-			fmt.Print(output)
-		}
 	default:
 		logger.DebugWarning("Unknown event type: %T", event)
 	}
