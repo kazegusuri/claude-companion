@@ -48,7 +48,7 @@ func (sm *SessionManager) CreateSession(sessionID, uuid, cwd, transcriptPath str
 	}
 
 	sm.sessions[sessionID] = session
-	logger.LogInfo("New session created: %s (UUID: %s, CWD: %s, Transcript: %s)", sessionID, uuid, cwd, transcriptPath)
+	logger.DebugInfo("New session created: %s (UUID: %s, CWD: %s, Transcript: %s)", sessionID, uuid, cwd, transcriptPath)
 
 	return session
 }

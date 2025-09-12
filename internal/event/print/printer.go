@@ -702,6 +702,11 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 			if bashInput, ok := content.Input.(*event.ToolUseBash); ok {
 				output.WriteString(fmt.Sprintf("  $ %s\n", bashInput.Command))
 			}
+		default:
+			// For MCP tools, display the tool name after narration
+			if strings.HasPrefix(content.Name, "mcp__") {
+				output.WriteString(fmt.Sprintf("  🔧 %s\n", content.Name))
+			}
 		}
 	} else {
 		// Fallback: display tool name and basic info

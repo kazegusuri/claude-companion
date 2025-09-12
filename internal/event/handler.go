@@ -265,24 +265,7 @@ func (h *Handler) handleSystemMessage(event *SystemMessage) {
 
 // handleSummaryEvent processes summary events
 func (h *Handler) handleSummaryEvent(event *SummaryEvent) {
-	// Generate narration
-	// Note: SummaryEvent doesn't have timestamp in the original JSON, so we use zero value
-	meta := &narrator.EventMeta{
-		SessionID: event.Session.SessionID,
-		CWD:       "",          // CWD is not available in SummaryEvent
-		Timestamp: time.Time{}, // Summary events don't include timestamp
-	}
-	narrationText, _ := h.narrator.NarrateText(event.Summary, false, meta)
-	if narrationText != "" {
-		event.Narration = &NarrationMessage{
-			Text: narrationText,
-		}
-	}
-
-	// Print the summary
-	if h.printer != nil {
-		h.printer.Print(event)
-	}
+	// do nothing
 }
 
 // handleUserMessage processes user message events
