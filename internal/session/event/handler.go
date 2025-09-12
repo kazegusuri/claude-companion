@@ -226,12 +226,28 @@ func (h *Handler) processEvent(event Event) {
 	case *UserMessage:
 		// Check if this is a Task result and create TaskCompletionMessage
 		if taskCompletion := h.checkTaskResultFromUser(e); taskCompletion != nil {
-			// Process the task completion event
-			output, err := h.formatter.Format(taskCompletion)
-			if err != nil {
-				logger.LogError("Error formatting TaskCompletionMessage: %v", err)
-			} else if output != "" {
-				fmt.Print(output)
+			// Send TaskCompletionMessage to central handler
+			if h.centralHandler != nil {
+				// Get session info from the event
+				sessionID := ""
+				transcriptPath := ""
+				if e.SessionID != "" {
+					sessionID = e.SessionID
+				}
+
+				centralTaskCompletion := &internalevent.TaskCompletionMessage{
+					Session: internalevent.Session{
+						SessionID:      sessionID,
+						TranscriptPath: transcriptPath,
+					},
+					TaskInfo: internalevent.TaskInfo{
+						ToolUseID:    taskCompletion.TaskInfo.ToolUseID,
+						Description:  taskCompletion.TaskInfo.Description,
+						SubagentType: taskCompletion.TaskInfo.SubagentType,
+					},
+					Timestamp: taskCompletion.Timestamp,
+				}
+				h.centralHandler.SendEvent(centralTaskCompletion)
 			}
 		}
 

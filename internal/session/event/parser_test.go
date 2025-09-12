@@ -455,7 +455,7 @@ func TestFormatter_Format(t *testing.T) {
 func TestFormatter_DebugMode(t *testing.T) {
 	formatter := NewFormatter(narrator.NewNoOpNarrator())
 	formatter.SetDebugMode(true)
-	
+
 	// Verify debug mode is actually enabled
 	if !logger.IsDebugMode() {
 		t.Fatal("Debug mode was not enabled")

@@ -42,6 +42,8 @@ func (p *NotificationPrinter) Print(e interface{}) {
 		output = p.formatUserMessage(evt)
 	case *event.SummaryEvent:
 		output = p.formatSummaryEvent(evt)
+	case *event.TaskCompletionMessage:
+		output = p.formatTaskCompletionMessage(evt)
 	default:
 		// Unknown event types are silently ignored
 		return
@@ -555,6 +557,33 @@ func (p *NotificationPrinter) formatUserMessageContentList(content *event.UserMe
 			output.WriteString(fmt.Sprintf("  ... (%d more items)\n", len(content.Items)-3))
 			break
 		}
+	}
+
+	return output.String()
+}
+
+// formatTaskCompletionMessage formats a task completion message
+func (p *NotificationPrinter) formatTaskCompletionMessage(event *event.TaskCompletionMessage) string {
+	var output strings.Builder
+
+	// Build header with timestamp
+	timestamp := event.Timestamp.Format("15:04:05")
+	header := fmt.Sprintf("[%s] ✨ Task Completed: %s", timestamp, event.TaskInfo.Description)
+
+	// Add debug info if enabled
+	if logger.IsDebugMode() {
+		header += fmt.Sprintf(" [Session: %s, ToolUse: %s]", event.Session.SessionID, event.TaskInfo.ToolUseID)
+	}
+	output.WriteString(header + "\n")
+
+	// Add agent type if available
+	if event.TaskInfo.SubagentType != "" {
+		output.WriteString(fmt.Sprintf("  Agent: %s\n", event.TaskInfo.SubagentType))
+	}
+
+	// Add narration if available
+	if event.Narration != nil && event.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
 	}
 
 	return output.String()

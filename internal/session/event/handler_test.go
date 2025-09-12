@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 
@@ -181,20 +182,19 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 }
 
 func TestHandler_TaskToolResultNarration(t *testing.T) {
-	// Create handler with mock narrator and session manager
+	// Create handler with mock central handler to capture events
 	sessionManager := handler.NewSessionManager()
 	mockNarr := &mockNarrator{}
-	mockPrint := &mockPrinter{}
-	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	mockCentral := &mockCentralHandlerWithLock{}
+	handler := NewHandler(mockNarr, sessionManager, mockCentral)
 	handler.Start()
 	defer handler.Stop()
 
 	tests := []struct {
-		name           string
-		taskMessage    *AssistantMessage
-		resultMessage  *UserMessage
-		expectedOutput string
+		name          string
+		taskMessage   *AssistantMessage
+		resultMessage *UserMessage
+		expectedEvent *internalevent.TaskCompletionMessage
 	}{
 		{
 			name: "Task with subagent_type",
@@ -227,6 +227,7 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 					TypeString:  "user",
 					UUID:        "result-uuid",
 					Timestamp:   time.Now(),
+					SessionID:   "test-session",
 				},
 				Message: UserMessageContent{
 					Role: "user",
@@ -239,7 +240,18 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 					},
 				},
 			},
-			expectedOutput: "database-engineer agentがタスク「データベース最適化」を完了しました",
+			expectedEvent: &internalevent.TaskCompletionMessage{
+				Session: internalevent.Session{
+					SessionID:      "test-session",
+					TranscriptPath: "",
+				},
+				TaskInfo: internalevent.TaskInfo{
+					ToolUseID:    "task-id-123",
+					Description:  "データベース最適化",
+					SubagentType: "database-engineer",
+				},
+				// Timestamp will be set during test
+			},
 		},
 		{
 			name: "Task without subagent_type",
@@ -271,6 +283,7 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 					TypeString:  "user",
 					UUID:        "result-uuid-2",
 					Timestamp:   time.Now(),
+					SessionID:   "test-session",
 				},
 				Message: UserMessageContent{
 					Role: "user",
@@ -283,32 +296,56 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 					},
 				},
 			},
-			expectedOutput: "タスク「コード解析」が完了しました",
+			expectedEvent: &internalevent.TaskCompletionMessage{
+				Session: internalevent.Session{
+					SessionID:      "test-session",
+					TranscriptPath: "",
+				},
+				TaskInfo: internalevent.TaskInfo{
+					ToolUseID:    "task-id-456",
+					Description:  "コード解析",
+					SubagentType: "",
+				},
+				// Timestamp will be set during test
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Clear captured events
+			mockCentral.capturedEvents = nil
+
 			// Send task message first
 			handler.SendEvent(tt.taskMessage)
 			time.Sleep(50 * time.Millisecond)
 
-			// Capture output when sending result message
-			output := captureOutput(t, func() {
-				handler.SendEvent(tt.resultMessage)
-				time.Sleep(50 * time.Millisecond)
-			})
+			// Send result message
+			handler.SendEvent(tt.resultMessage)
+			time.Sleep(100 * time.Millisecond) // Wait for async processing
 
-			// Debug: show the full output
-			t.Logf("Full output: %q", output)
+			// Get captured events
+			capturedEvents := mockCentral.getCapturedEvents()
 
-			// Check if expected narration is in output
-			if !strings.Contains(output, tt.expectedOutput) {
-				t.Errorf("Expected output to contain '%s', got: %s", tt.expectedOutput, output)
+			// Filter for TaskCompletionMessage events
+			var taskCompletionEvents []*internalevent.TaskCompletionMessage
+			for _, event := range capturedEvents {
+				if taskEvent, ok := event.(*internalevent.TaskCompletionMessage); ok {
+					taskCompletionEvents = append(taskCompletionEvents, taskEvent)
+				}
 			}
-			// Also check that it's a completion message
-			if !strings.Contains(output, "完了しました") {
-				t.Errorf("Expected completion message, got: %s", output)
+
+			// Should have exactly one TaskCompletionMessage
+			if len(taskCompletionEvents) != 1 {
+				t.Fatalf("Expected 1 TaskCompletionMessage, got %d", len(taskCompletionEvents))
+			}
+
+			// Compare the event (ignoring timestamp)
+			actual := taskCompletionEvents[0]
+			tt.expectedEvent.Timestamp = actual.Timestamp // Use actual timestamp for comparison
+
+			if diff := cmp.Diff(tt.expectedEvent, actual); diff != "" {
+				t.Errorf("TaskCompletionMessage mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -361,6 +398,24 @@ func TestHandler_NonTaskToolResult(t *testing.T) {
 type mockFormatterWithRecording struct {
 	processedEvents []Event
 	mu              sync.Mutex
+}
+
+// mockCentralHandlerWithLock is an extended version with mutex for thread safety
+type mockCentralHandlerWithLock struct {
+	capturedEvents []internalevent.Event
+	mu             sync.Mutex
+}
+
+func (m *mockCentralHandlerWithLock) SendEvent(event internalevent.Event) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.capturedEvents = append(m.capturedEvents, event)
+}
+
+func (m *mockCentralHandlerWithLock) getCapturedEvents() []internalevent.Event {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]internalevent.Event{}, m.capturedEvents...)
 }
 
 func (m *mockFormatterWithRecording) Format(event Event) (string, error) {

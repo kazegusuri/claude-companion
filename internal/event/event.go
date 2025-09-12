@@ -231,6 +231,25 @@ func (e *SummaryEvent) Type() Type {
 	return EventTypeSummary
 }
 
+// TaskInfo contains information about a Task tool execution
+type TaskInfo struct {
+	ToolUseID    string `json:"tool_use_id"`
+	Description  string `json:"description"`
+	SubagentType string `json:"subagent_type"`
+}
+
+// TaskCompletionMessage represents a task completion event
+type TaskCompletionMessage struct {
+	Session   Session           `json:"session"`
+	TaskInfo  TaskInfo          `json:"task_info"`
+	Timestamp time.Time         `json:"timestamp"`
+	Narration *NarrationMessage `json:"narration,omitempty"`
+}
+
+// Type returns the event type
+func (e *TaskCompletionMessage) Type() Type {
+	return EventTypeTaskComplete
+}
 
 // Printer is the interface for printing events
 type Printer interface {

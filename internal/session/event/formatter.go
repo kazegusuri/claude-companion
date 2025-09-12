@@ -39,8 +39,6 @@ func (f *Formatter) Format(event Event) (string, error) {
 	switch e := event.(type) {
 	case *AssistantMessage:
 		return f.formatAssistantMessage(e)
-	case *TaskCompletionMessage:
-		return f.formatTaskCompletionMessage(e)
 	case *BaseEvent:
 		return f.formatUnknownEvent(e)
 	default:
@@ -198,24 +196,6 @@ func (f *Formatter) formatUnknownEvent(event *BaseEvent) (string, error) {
 		message += fmt.Sprintf(" [UUID: %s]", event.UUID)
 	}
 	return message + "\n", nil
-}
-
-// formatTaskCompletionMessage formats a task completion message
-func (f *Formatter) formatTaskCompletionMessage(event *TaskCompletionMessage) (string, error) {
-	var output strings.Builder
-
-	// Use narrator to build and narrate the task completion message
-	narration, _ := f.narrator.NarrateTaskCompletion(
-		event.TaskInfo.Description,
-		event.TaskInfo.SubagentType,
-	)
-
-	// Format the output
-	output.WriteString(fmt.Sprintf("[%s] 💬 %s\n",
-		event.Timestamp.Format("15:04:05"),
-		narration))
-
-	return output.String(), nil
 }
 
 // timeNow is a helper function to get current time (for testing)

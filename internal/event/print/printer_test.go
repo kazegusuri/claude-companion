@@ -1232,6 +1232,83 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				description: "Summary event with narration",
 			},
 		},
+		"TaskCompletionMessage": {
+			{
+				name:      "task_completion_basic",
+				debugMode: false,
+				event: &event.TaskCompletionMessage{
+					Session: event.Session{
+						SessionID: "session-task-123",
+					},
+					TaskInfo: event.TaskInfo{
+						ToolUseID:    "toolu_task_123",
+						Description:  "データベース最適化",
+						SubagentType: "database-engineer",
+					},
+					Timestamp: fixedTime,
+				},
+				wantOutput: "[15:30:45] ✨ Task Completed: データベース最適化\n" +
+					"  Agent: database-engineer\n",
+				description: "Basic task completion with subagent type",
+			},
+			{
+				name:      "task_completion_with_narration",
+				debugMode: false,
+				event: &event.TaskCompletionMessage{
+					Session: event.Session{
+						SessionID: "session-task-456",
+					},
+					TaskInfo: event.TaskInfo{
+						ToolUseID:    "toolu_task_456",
+						Description:  "コード生成",
+						SubagentType: "code-generator",
+					},
+					Timestamp: fixedTime,
+					Narration: &event.NarrationMessage{
+						Text: "コード生成タスクが完了しました",
+					},
+				},
+				wantOutput: "[15:30:45] ✨ Task Completed: コード生成\n" +
+					"  Agent: code-generator\n" +
+					"  💬 コード生成タスクが完了しました\n",
+				description: "Task completion with narration",
+			},
+			{
+				name:      "task_completion_no_subagent",
+				debugMode: false,
+				event: &event.TaskCompletionMessage{
+					Session: event.Session{
+						SessionID: "session-task-789",
+					},
+					TaskInfo: event.TaskInfo{
+						ToolUseID:   "toolu_task_789",
+						Description: "ファイル検索",
+						// No SubagentType
+					},
+					Timestamp: fixedTime,
+				},
+				wantOutput:  "[15:30:45] ✨ Task Completed: ファイル検索\n",
+				description: "Task completion without subagent type",
+			},
+			{
+				name:      "task_completion_debug_mode",
+				debugMode: true,
+				event: &event.TaskCompletionMessage{
+					Session: event.Session{
+						SessionID: "session-task-debug",
+					},
+					TaskInfo: event.TaskInfo{
+						ToolUseID:    "toolu_task_debug",
+						Description:  "テストタスク",
+						SubagentType: "test-agent",
+					},
+					Timestamp: fixedTime,
+				},
+				wantOutput: "[15:30:45] ✨ Task Completed: テストタスク [Session: session-task-debug, ToolUse: toolu_task_debug]\n" +
+					"  Agent: test-agent\n",
+				description: "Task completion with debug mode showing session and tool use ID",
+			},
+		},
 		"UnsupportedEventType": {
 			{
 				name:        "unsupported_event_type",

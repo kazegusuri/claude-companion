@@ -1,6 +1,7 @@
 package event
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -115,6 +116,8 @@ func (h *Handler) processEvent(event Event) {
 		h.handleSummaryEvent(e)
 	case *UserMessage:
 		h.handleUserMessage(e)
+	case *TaskCompletionMessage:
+		h.handleTaskCompletionMessage(e)
 	default:
 		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
@@ -305,6 +308,44 @@ func (h *Handler) handleUserMessage(event *UserMessage) {
 	}
 }
 
+// handleTaskCompletionMessage processes task completion messages
+func (h *Handler) handleTaskCompletionMessage(event *TaskCompletionMessage) {
+	// Generate narration for task completion
+	meta := &narrator.EventMeta{
+		SessionID: event.Session.SessionID,
+		CWD:       "", // CWD is not available in TaskCompletionMessage
+		Timestamp: event.Timestamp,
+	}
+
+	// Generate narration based on the task description and agent type
+	var narrationText string
+	if event.TaskInfo.SubagentType != "" {
+		narrationText, _ = h.narrator.NarrateText(
+			fmt.Sprintf("%s agentがタスク「%s」を完了しました",
+				event.TaskInfo.SubagentType,
+				event.TaskInfo.Description),
+			false,
+			meta,
+		)
+	} else {
+		narrationText, _ = h.narrator.NarrateText(
+			fmt.Sprintf("タスク「%s」を完了しました", event.TaskInfo.Description),
+			false,
+			meta,
+		)
+	}
+
+	if narrationText != "" {
+		event.Narration = &NarrationMessage{
+			Text: narrationText,
+		}
+	}
+
+	// Print the task completion
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+}
 
 // notifySubscribers notifies all subscribers of an event type
 func (h *Handler) notifySubscribers(eventType Type, event Event) {
