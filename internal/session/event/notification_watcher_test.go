@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 )
 
 func TestProcessNotificationLine(t *testing.T) {
@@ -182,20 +183,20 @@ func TestProcessNotificationLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock event sender
-			mockSender := NewMockEventSender()
+			// Create mock central handler
+			mockHandler := NewMockCentralHandler()
 
 			// Create watcher
 			watcher := &NotificationWatcher{
-				filePath:    "/test/path",
-				eventSender: mockSender,
+				filePath:       "/test/path",
+				centralHandler: mockHandler,
 			}
 
 			// Process line
 			watcher.processNotificationLine(tt.line)
 
-			// Get events immediately (no need to wait since it's synchronous)
-			events := mockSender.GetEvents()
+			// Get events from central handler
+			events := mockHandler.GetEvents()
 
 			if tt.wantNoEvent {
 				if len(events) > 0 {
@@ -209,14 +210,26 @@ func TestProcessNotificationLine(t *testing.T) {
 				t.Fatalf("expected 1 event, got %d events", len(events))
 			}
 
-			// Check event type
-			notificationEvent, ok := events[0].(*NotificationEvent)
+			// Check event type (now it's internal/event.NotificationEvent)
+			notificationEvent, ok := events[0].(*internalevent.NotificationEvent)
 			if !ok {
-				t.Fatalf("expected NotificationEvent, got %T", events[0])
+				t.Fatalf("expected internalevent.NotificationEvent, got %T", events[0])
 			}
 
-			// Compare events
-			if diff := cmp.Diff(tt.wantEvent, notificationEvent); diff != "" {
+			// Compare events - convert wantEvent to internalevent.NotificationEvent for comparison
+			wantInternalEvent := &internalevent.NotificationEvent{
+				Session: internalevent.Session{
+					SessionID:      tt.wantEvent.SessionID,
+					TranscriptPath: tt.wantEvent.TranscriptPath,
+				},
+				HookEventName:      tt.wantEvent.HookEventName,
+				Message:            tt.wantEvent.Message,
+				Trigger:            tt.wantEvent.Trigger,
+				CustomInstructions: tt.wantEvent.CustomInstructions,
+				Source:             tt.wantEvent.Source,
+			}
+
+			if diff := cmp.Diff(wantInternalEvent, notificationEvent); diff != "" {
 				t.Errorf("NotificationEvent mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -279,11 +292,11 @@ func TestParseNotificationJSON(t *testing.T) {
 
 // TestNotificationWatcher tests the NotificationWatcher functionality
 func TestNotificationWatcher(t *testing.T) {
-	// Create a mock event sender
-	mockSender := NewMockEventSender()
+	// Create a mock central handler
+	mockHandler := NewMockCentralHandler()
 
 	// Create notification watcher
-	watcher := NewNotificationWatcher("/tmp/test-notification.log", mockSender)
+	watcher := NewNotificationWatcher("/tmp/test-notification.log", mockHandler)
 
 	// Test that watcher is created correctly
 	if watcher.filePath != "/tmp/test-notification.log" {
@@ -301,28 +314,28 @@ func TestNotificationWatcher(t *testing.T) {
 		watcher.processNotificationLine(line)
 	}
 
-	events := mockSender.GetEvents()
+	events := mockHandler.GetEvents()
 	if len(events) != 3 {
 		t.Errorf("expected 3 events, got %d", len(events))
 	}
 
-	// Verify first event
-	if event, ok := events[0].(*NotificationEvent); ok {
-		if event.SessionID != "test-1" || event.HookEventName != "SessionStart" {
+	// Verify first event (now internal/event.NotificationEvent)
+	if event, ok := events[0].(*internalevent.NotificationEvent); ok {
+		if event.Session.SessionID != "test-1" || event.HookEventName != "SessionStart" {
 			t.Errorf("unexpected first event: %+v", event)
 		}
 	}
 
 	// Verify second event
-	if event, ok := events[1].(*NotificationEvent); ok {
-		if event.SessionID != "test-2" || event.HookEventName != "PreCompact" {
+	if event, ok := events[1].(*internalevent.NotificationEvent); ok {
+		if event.Session.SessionID != "test-2" || event.HookEventName != "PreCompact" {
 			t.Errorf("unexpected second event: %+v", event)
 		}
 	}
 
 	// Verify third event
-	if event, ok := events[2].(*NotificationEvent); ok {
-		if event.SessionID != "test-3" || event.HookEventName != "Notification" {
+	if event, ok := events[2].(*internalevent.NotificationEvent); ok {
+		if event.Session.SessionID != "test-3" || event.HookEventName != "Notification" {
 			t.Errorf("unexpected third event: %+v", event)
 		}
 	}

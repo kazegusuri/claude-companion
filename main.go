@@ -208,7 +208,7 @@ func main() {
 
 	// Start notification watcher if configured
 	if hasNotificationInput {
-		notificationWatcher := event.NewNotificationWatcher(notificationLog, sessionEventHandler)
+		notificationWatcher := event.NewNotificationWatcher(notificationLog, centralEventHandler)
 		logger.LogInfo("Starting notification log watcher for: %s", notificationLog)
 		if err := notificationWatcher.Start(); err != nil {
 			logger.LogError("Error starting notification watcher: %v", err)

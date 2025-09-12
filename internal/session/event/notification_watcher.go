@@ -10,27 +10,28 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	internalevent "github.com/kazegusuri/claude-companion/internal/event"
 	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
 // NotificationWatcher watches the notification log file for new events
 type NotificationWatcher struct {
-	filePath      string
-	eventSender   EventSender
-	done          chan struct{}
-	dirWatcher    *fsnotify.Watcher
-	fileWatcher   *fsnotify.Watcher
-	watchingFile  bool
-	retryInterval time.Duration
+	filePath       string
+	centralHandler CentralEventHandler
+	done           chan struct{}
+	dirWatcher     *fsnotify.Watcher
+	fileWatcher    *fsnotify.Watcher
+	watchingFile   bool
+	retryInterval  time.Duration
 }
 
 // NewNotificationWatcher creates a new notification watcher
-func NewNotificationWatcher(filePath string, eventSender EventSender) *NotificationWatcher {
+func NewNotificationWatcher(filePath string, centralHandler CentralEventHandler) *NotificationWatcher {
 	return &NotificationWatcher{
-		filePath:      filePath,
-		eventSender:   eventSender,
-		done:          make(chan struct{}),
-		retryInterval: 5 * time.Second,
+		filePath:       filePath,
+		centralHandler: centralHandler,
+		done:           make(chan struct{}),
+		retryInterval:  5 * time.Second,
 	}
 }
 
@@ -257,6 +258,20 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 		return
 	}
 
-	// Send event to handler
-	w.eventSender.SendEvent(&notificationEvent)
+	// Convert to internal/event.NotificationEvent and send directly to central handler
+	centralEvent := &internalevent.NotificationEvent{
+		Session: internalevent.Session{
+			SessionID:      notificationEvent.SessionID,
+			TranscriptPath: notificationEvent.TranscriptPath,
+		},
+		HookEventName:      notificationEvent.HookEventName,
+		Message:            notificationEvent.Message,
+		Trigger:            notificationEvent.Trigger,
+		CustomInstructions: notificationEvent.CustomInstructions,
+		Source:             notificationEvent.Source,
+	}
+
+	if w.centralHandler != nil {
+		w.centralHandler.SendEvent(centralEvent)
+	}
 }

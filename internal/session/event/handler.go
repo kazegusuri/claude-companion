@@ -193,23 +193,6 @@ func (h *Handler) processEvent(event Event) {
 	}
 
 	switch e := event.(type) {
-	case *NotificationEvent:
-		// Convert to internal/event.NotificationEvent and forward to central handler
-		centralEvent := &internalevent.NotificationEvent{
-			Session: internalevent.Session{
-				SessionID:      e.SessionID,
-				TranscriptPath: e.TranscriptPath,
-			},
-			HookEventName:      e.HookEventName,
-			Message:            e.Message,
-			Trigger:            e.Trigger,
-			CustomInstructions: e.CustomInstructions,
-			Source:             e.Source,
-		}
-		if h.centralHandler != nil {
-			h.centralHandler.SendEvent(centralEvent)
-		}
-		// NotificationEvent display is now handled by central handler's printer
 	case *AssistantMessage:
 		// Track Task tool uses
 		h.trackTaskToolUses(e)

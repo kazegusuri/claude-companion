@@ -32,61 +32,6 @@ func TestCreateSessionFromEvents(t *testing.T) {
 		validate func(t *testing.T, h *Handler, event Event)
 	}{
 		{
-			name: "NotificationEvent is sent to central handler",
-			setup: func() (*Handler, Event) {
-				sessionManager := handler.NewSessionManager()
-				// Use mock central handler to verify event is sent
-				mockCentral := &mockCentralHandler{}
-				h := &Handler{
-					sessionManager: sessionManager,
-					centralHandler: mockCentral,
-					formatter:      &mockFormatter{},
-					buffers:        make(map[string]*BufferInfo),
-				}
-
-				event := &NotificationEvent{
-					SessionID:      "session-1",
-					CWD:            "/test/dir",
-					HookEventName:  "SessionStart",
-					TranscriptPath: "/test/transcript.jsonl",
-				}
-
-				return h, event
-			},
-			validate: func(t *testing.T, h *Handler, event Event) {
-				e := event.(*NotificationEvent)
-				// Process the event (this will send to central handler)
-				h.processEvent(event)
-
-				// Check that event was sent to central handler
-				mockCentral := h.centralHandler.(*mockCentralHandler)
-				if len(mockCentral.events) != 1 {
-					t.Errorf("Expected 1 event sent to central handler, got %d", len(mockCentral.events))
-					return
-				}
-
-				// Verify the sent event
-				sentEvent, ok := mockCentral.events[0].(*internalevent.NotificationEvent)
-				if !ok {
-					t.Errorf("Expected *internalevent.NotificationEvent, got %T", mockCentral.events[0])
-					return
-				}
-
-				if sentEvent.Session.SessionID != e.SessionID {
-					t.Errorf("SessionID mismatch: got %s, want %s", sentEvent.Session.SessionID, e.SessionID)
-				}
-				if sentEvent.Session.TranscriptPath != e.TranscriptPath {
-					t.Errorf("TranscriptPath mismatch: got %s, want %s", sentEvent.Session.TranscriptPath, e.TranscriptPath)
-				}
-				if sentEvent.HookEventName != e.HookEventName {
-					t.Errorf("HookEventName mismatch: got %s, want %s", sentEvent.HookEventName, e.HookEventName)
-				}
-				// NotificationEvent doesn't have TranscriptPath directly, it's in Session.TranscriptPath
-				// For session/event NotificationEvent, e.TranscriptPath is the field
-				// For internal/event NotificationEvent, it's in sentEvent.Session.TranscriptPath
-			},
-		},
-		{
 			name: "HookEvent with SessionStart creates session",
 			setup: func() (*Handler, Event) {
 				sessionManager := handler.NewSessionManager()
