@@ -115,26 +115,9 @@ func (f *Formatter) formatAssistantMessage(event *AssistantMessage) (string, err
 		content := &event.Message.Content[i]
 		hasContent = true
 		switch content.Type {
-		case "text":
-			// Create EventMeta for the assistant message
-			meta := &narrator.EventMeta{
-				EventID:   event.Message.ID,
-				SessionID: event.SessionID,
-				CWD:       event.CWD,
-				Timestamp: event.Timestamp,
-			}
-			formatted := f.FormatAssistantText(content.Text, false, meta)
-			output.WriteString(formatted)
-		case "thinking":
-			// Create EventMeta for the thinking content
-			meta := &narrator.EventMeta{
-				EventID:   event.Message.ID,
-				SessionID: event.SessionID,
-				CWD:       event.CWD,
-				Timestamp: event.Timestamp,
-			}
-			formatted := f.FormatAssistantText(content.Thinking, true, meta)
-			output.WriteString(formatted)
+		case "text", "thinking":
+			// Non-tool_use content should be handled by central handler
+			return "", fmt.Errorf("formatter cannot handle %s content type - must be processed through central handler", content.Type)
 		case "tool_use":
 			// Convert input to map[string]interface{} for formatter
 			inputMap := make(map[string]interface{})

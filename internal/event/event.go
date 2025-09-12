@@ -252,16 +252,206 @@ func (a *AssistantMessageContentText) isAssistantMessageContent() {}
 // isAssistantMessageContentItem implements AssistantMessageContentItem interface
 func (a *AssistantMessageContentText) isAssistantMessageContentItem() {}
 
+// AssistantMessageContentToolUseInput is the interface for tool-specific input
+type AssistantMessageContentToolUseInput interface {
+	isToolUseInput()
+}
+
 // AssistantMessageContentToolUse represents tool use content in an assistant message
 type AssistantMessageContentToolUse struct {
-	Type  string      `json:"type"` // "tool_use"
-	ID    string      `json:"id"`
-	Name  string      `json:"name"`
-	Input interface{} `json:"input"`
+	Type      string                              `json:"type"` // "tool_use"
+	ID        string                              `json:"id"`
+	Name      string                              `json:"name"`
+	Input     AssistantMessageContentToolUseInput `json:"input"`
+	Narration *NarrationMessage                   `json:"narration,omitempty"` // Narration for this tool use
 }
 
 // isAssistantMessageContentItem implements AssistantMessageContentItem interface
 func (a *AssistantMessageContentToolUse) isAssistantMessageContentItem() {}
+
+// ToolUseTodoWrite represents input for TodoWrite tool
+type ToolUseTodoWrite struct {
+	Todos []TodoItem `json:"todos"`
+}
+
+// TodoItem represents a single todo item
+type TodoItem struct {
+	Content    string `json:"content"`
+	Status     string `json:"status"` // "pending", "in_progress", "completed"
+	ActiveForm string `json:"activeForm,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseTodoWrite) isToolUseInput() {}
+
+// ToolUseBash represents input for Bash tool
+type ToolUseBash struct {
+	Command         string `json:"command"`
+	Description     string `json:"description,omitempty"`
+	RunInBackground bool   `json:"run_in_background,omitempty"`
+	Timeout         int    `json:"timeout,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseBash) isToolUseInput() {}
+
+// ToolUseRead represents input for Read tool
+type ToolUseRead struct {
+	FilePath string `json:"file_path"`
+	Limit    int    `json:"limit,omitempty"`
+	Offset   int    `json:"offset,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseRead) isToolUseInput() {}
+
+// ToolUseWrite represents input for Write tool
+type ToolUseWrite struct {
+	FilePath string `json:"file_path"`
+	Content  string `json:"content"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseWrite) isToolUseInput() {}
+
+// ToolUseEdit represents input for Edit tool
+type ToolUseEdit struct {
+	FilePath   string `json:"file_path"`
+	OldString  string `json:"old_string"`
+	NewString  string `json:"new_string"`
+	ReplaceAll bool   `json:"replace_all,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseEdit) isToolUseInput() {}
+
+// ToolUseMultiEdit represents input for MultiEdit tool
+type ToolUseMultiEdit struct {
+	FilePath string     `json:"file_path"`
+	Edits    []EditItem `json:"edits"`
+}
+
+// EditItem represents a single edit operation
+type EditItem struct {
+	OldString  string `json:"old_string"`
+	NewString  string `json:"new_string"`
+	ReplaceAll bool   `json:"replace_all,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseMultiEdit) isToolUseInput() {}
+
+// ToolUseGrep represents input for Grep tool
+type ToolUseGrep struct {
+	Pattern         string `json:"pattern"`
+	Path            string `json:"path,omitempty"`
+	Glob            string `json:"glob,omitempty"`
+	Type            string `json:"type,omitempty"`
+	OutputMode      string `json:"output_mode,omitempty"`
+	ContextAfter    int    `json:"-A,omitempty"`
+	ContextBefore   int    `json:"-B,omitempty"`
+	Context         int    `json:"-C,omitempty"`
+	CaseInsensitive bool   `json:"-i,omitempty"`
+	ShowLineNumbers bool   `json:"-n,omitempty"`
+	HeadLimit       int    `json:"head_limit,omitempty"`
+	Multiline       bool   `json:"multiline,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseGrep) isToolUseInput() {}
+
+// ToolUseGlob represents input for Glob tool
+type ToolUseGlob struct {
+	Pattern string `json:"pattern"`
+	Path    string `json:"path,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseGlob) isToolUseInput() {}
+
+// ToolUseTask represents input for Task tool
+type ToolUseTask struct {
+	Description  string `json:"description"`
+	Prompt       string `json:"prompt"`
+	SubagentType string `json:"subagent_type"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseTask) isToolUseInput() {}
+
+// ToolUseWebFetch represents input for WebFetch tool
+type ToolUseWebFetch struct {
+	URL    string `json:"url"`
+	Prompt string `json:"prompt"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseWebFetch) isToolUseInput() {}
+
+// ToolUseWebSearch represents input for WebSearch tool
+type ToolUseWebSearch struct {
+	Query          string   `json:"query"`
+	AllowedDomains []string `json:"allowed_domains,omitempty"`
+	BlockedDomains []string `json:"blocked_domains,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseWebSearch) isToolUseInput() {}
+
+// ToolUseNotebookEdit represents input for NotebookEdit tool
+type ToolUseNotebookEdit struct {
+	NotebookPath string `json:"notebook_path"`
+	CellID       string `json:"cell_id,omitempty"`
+	CellType     string `json:"cell_type,omitempty"`
+	EditMode     string `json:"edit_mode,omitempty"`
+	NewSource    string `json:"new_source"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseNotebookEdit) isToolUseInput() {}
+
+// ToolUseExitPlanMode represents input for ExitPlanMode tool
+type ToolUseExitPlanMode struct {
+	Plan string `json:"plan"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseExitPlanMode) isToolUseInput() {}
+
+// ToolUseBashOutput represents input for BashOutput tool
+type ToolUseBashOutput struct {
+	BashID string `json:"bash_id"`
+	Filter string `json:"filter,omitempty"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseBashOutput) isToolUseInput() {}
+
+// ToolUseKillBash represents input for KillBash tool
+type ToolUseKillBash struct {
+	ShellID string `json:"shell_id"`
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseKillBash) isToolUseInput() {}
+
+// ToolUseMCP represents input for MCP (Model Context Protocol) tools
+type ToolUseMCP struct {
+	Server string                 `json:"server,omitempty"` // MCP server name
+	Tool   string                 `json:"tool,omitempty"`   // MCP tool name
+	Data   map[string]interface{} `json:"-"`                // Captures all MCP-specific fields
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseMCP) isToolUseInput() {}
+
+// ToolUseGeneric represents generic tool input for unknown tools
+type ToolUseGeneric struct {
+	Data map[string]interface{} `json:"-"` // Captures all fields
+}
+
+// isToolUseInput implements AssistantMessageContentToolUseInput interface
+func (t *ToolUseGeneric) isToolUseInput() {}
 
 // AssistantMessageContentList represents a list of assistant message content items
 type AssistantMessageContentList struct {

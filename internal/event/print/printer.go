@@ -672,6 +672,98 @@ func (p *NotificationPrinter) formatAssistantMessage(msg *event.AssistantMessage
 	return output.String()
 }
 
+// formatAssistantToolUseContent formats tool use content from assistant message
+func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.AssistantMessageContentToolUse) string {
+	var output strings.Builder
+
+	// Display narration if available
+	if content.Narration != nil && content.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", content.Narration.Text))
+
+		// Special handling for TodoWrite - show details even when narrator is used
+		if content.Name == "TodoWrite" {
+			if todoInput, ok := content.Input.(*event.ToolUseTodoWrite); ok {
+				for i, todo := range todoInput.Todos {
+					emoji := ""
+					switch todo.Status {
+					case "completed":
+						emoji = "✅"
+					case "in_progress":
+						emoji = "🔄"
+					case "pending":
+						emoji = "⏳"
+					}
+					output.WriteString(fmt.Sprintf("    %d. %s %s\n", i+1, emoji, todo.Content))
+				}
+			}
+		}
+	} else {
+		// Fallback: display tool name and basic info
+		output.WriteString(fmt.Sprintf("  🛠️ Tool Use: %s\n", content.Name))
+
+		// Display tool-specific details based on type
+		switch toolInput := content.Input.(type) {
+		case *event.ToolUseTodoWrite:
+			for i, todo := range toolInput.Todos {
+				emoji := ""
+				switch todo.Status {
+				case "completed":
+					emoji = "✅"
+				case "in_progress":
+					emoji = "🔄"
+				case "pending":
+					emoji = "⏳"
+				}
+				output.WriteString(fmt.Sprintf("    %d. %s %s\n", i+1, emoji, todo.Content))
+			}
+		case *event.ToolUseBash:
+			output.WriteString(fmt.Sprintf("    Command: %s\n", toolInput.Command))
+			if toolInput.Description != "" {
+				output.WriteString(fmt.Sprintf("    Description: %s\n", toolInput.Description))
+			}
+		case *event.ToolUseRead:
+			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
+			if toolInput.Limit > 0 {
+				output.WriteString(fmt.Sprintf("    Limit: %d lines\n", toolInput.Limit))
+			}
+		case *event.ToolUseWrite:
+			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
+			lines := strings.Count(toolInput.Content, "\n") + 1
+			output.WriteString(fmt.Sprintf("    Content: %d lines\n", lines))
+		case *event.ToolUseEdit:
+			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
+			if toolInput.ReplaceAll {
+				output.WriteString("    Mode: Replace all occurrences\n")
+			}
+		case *event.ToolUseMultiEdit:
+			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
+			output.WriteString(fmt.Sprintf("    Edits: %d changes\n", len(toolInput.Edits)))
+		case *event.ToolUseGrep:
+			output.WriteString(fmt.Sprintf("    Pattern: %s\n", toolInput.Pattern))
+			if toolInput.Path != "" {
+				output.WriteString(fmt.Sprintf("    Path: %s\n", toolInput.Path))
+			}
+		case *event.ToolUseGlob:
+			output.WriteString(fmt.Sprintf("    Pattern: %s\n", toolInput.Pattern))
+			if toolInput.Path != "" {
+				output.WriteString(fmt.Sprintf("    Path: %s\n", toolInput.Path))
+			}
+		case *event.ToolUseTask:
+			output.WriteString(fmt.Sprintf("    Description: %s\n", toolInput.Description))
+			output.WriteString(fmt.Sprintf("    Agent: %s\n", toolInput.SubagentType))
+		case *event.ToolUseWebFetch:
+			output.WriteString(fmt.Sprintf("    URL: %s\n", toolInput.URL))
+		case *event.ToolUseWebSearch:
+			output.WriteString(fmt.Sprintf("    Query: %s\n", toolInput.Query))
+		case *event.ToolUseMCP:
+			output.WriteString(fmt.Sprintf("    Server: %s\n", toolInput.Server))
+			output.WriteString(fmt.Sprintf("    Tool: %s\n", toolInput.Tool))
+		}
+	}
+
+	return output.String()
+}
+
 // formatAssistantTextContent formats text content from assistant message
 func (p *NotificationPrinter) formatAssistantTextContent(content *event.AssistantMessageContentText) string {
 	var output strings.Builder
@@ -730,29 +822,6 @@ func (p *NotificationPrinter) formatAssistantTextContent(content *event.Assistan
 				output.WriteString(fmt.Sprintf("  ... (%d more lines)\n", len(lines)-maxLines))
 				break
 			}
-		}
-	}
-
-	return output.String()
-}
-
-// formatAssistantToolUseContent formats tool use content from assistant message
-func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.AssistantMessageContentToolUse) string {
-	var output strings.Builder
-
-	// Display tool use information
-	output.WriteString(fmt.Sprintf("  🛠️ Tool: %s\n", content.Name))
-
-	// Add debug info if enabled
-	if logger.IsDebugMode() {
-		output.WriteString(fmt.Sprintf("  [DEBUG] Tool ID: %s\n", content.ID))
-		if content.Input != nil {
-			// Try to show a preview of the input
-			inputStr := fmt.Sprintf("%v", content.Input)
-			if len(inputStr) > 100 {
-				inputStr = inputStr[:100] + "..."
-			}
-			output.WriteString(fmt.Sprintf("  [DEBUG] Input: %s\n", inputStr))
 		}
 	}
 

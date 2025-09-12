@@ -48,6 +48,33 @@ func (m *mockNarrator) NarrateAPIError(statusCode int, errorType string, message
 	return fmt.Sprintf("APIエラー %d: %s", statusCode, message), false
 }
 
+// MockCentralHandler is a mock implementation of CentralEventHandler for testing
+type MockCentralHandler struct {
+	mu     sync.Mutex
+	events []internalevent.Event
+}
+
+// NewMockCentralHandler creates a new mock central handler
+func NewMockCentralHandler() *MockCentralHandler {
+	return &MockCentralHandler{
+		events: make([]internalevent.Event, 0),
+	}
+}
+
+// SendEvent stores the event for later inspection
+func (m *MockCentralHandler) SendEvent(event internalevent.Event) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.events = append(m.events, event)
+}
+
+// GetEvents returns all stored events
+func (m *MockCentralHandler) GetEvents() []internalevent.Event {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]internalevent.Event(nil), m.events...)
+}
+
 // captureOutput captures printed output during test
 func captureOutput(t *testing.T, f func()) string {
 	// Create a pipe to capture output
@@ -619,9 +646,11 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 	mockFormatter := &mockFormatterWithRecording{}
 	sessionManager := handler.NewSessionManager()
+	centralHandler := NewMockCentralHandler()
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		formatter:      mockFormatter,
+		centralHandler: centralHandler,
 		eventChan:      make(chan Event, 100),
 		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
@@ -690,14 +719,17 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 			mockFormatter.getProcessedCount())
 	}
 
-	// New event should be processed normally
+	// Check central handler events before sending new event
+	centralEventsBefore := len(centralHandler.GetEvents())
+
+	// New event should be processed normally through central handler
 	parentUUID := "new-parent"
-	// Use AssistantMessage instead of UserMessage since UserMessage is now handled by central handler
-	event2 := &AssistantMessage{
+	// Use UserMessage which goes to central handler
+	event2 := &UserMessage{
 		BaseEvent: BaseEvent{
 			IsSidechain: false,
-			TypeString:  EventTypeAssistant,
-			UUID:        "assistant-2",
+			TypeString:  EventTypeUser,
+			UUID:        "user-2",
 			Timestamp:   time.Now(),
 			ParentUUID:  &parentUUID,
 			SessionID:   sessionName,
@@ -707,20 +739,20 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 				Session: sessionName,
 			},
 		},
-		Message: AssistantMessageContent{
-			Model: "test-model",
-			Content: []AssistantContent{
-				{Type: "tool_use", ID: "tool-456", Name: "test_tool", Input: map[string]interface{}{"param": "value"}},
-			},
+		Message: UserMessageContent{
+			Role:    "user",
+			Content: "test message after timeout",
 		},
 	}
 	handler.SendEvent(event2)
 
 	time.Sleep(100 * time.Millisecond)
 
-	if mockFormatter.getProcessedCount() != 1 {
-		t.Errorf("New event after timeout should be processed, got %d processed events",
-			mockFormatter.getProcessedCount())
+	// Check that the new event was processed through central handler
+	centralEventsAfter := len(centralHandler.GetEvents())
+	if centralEventsAfter != centralEventsBefore+1 {
+		t.Errorf("New event after timeout should be processed through central handler, got %d events (was %d)",
+			centralEventsAfter, centralEventsBefore)
 	}
 }
 

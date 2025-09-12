@@ -88,10 +88,12 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 							CodeBlocks:    []internalevent.CodeBlock{},
 						},
 						&internalevent.AssistantMessageContentToolUse{
-							Type:  "tool_use",
-							ID:    "tool-123",
-							Name:  "calculator",
-							Input: map[string]interface{}{"expression": "2+2"},
+							Type: "tool_use",
+							ID:   "tool-123",
+							Name: "calculator",
+							Input: &internalevent.ToolUseGeneric{
+								Data: map[string]interface{}{"expression": "2+2"},
+							},
 						},
 					},
 				},

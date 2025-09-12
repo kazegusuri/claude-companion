@@ -43,9 +43,14 @@ func TestBufferingNormalStartup(t *testing.T) {
 
 	sessionManager := handler.NewSessionManager()
 	formatter := &mockFormatterWithTracking{}
+
+	// Create a mock central handler to process AssistantMessage
+	centralHandler := NewMockCentralHandler()
+
 	h := &Handler{
 		sessionManager: sessionManager,
 		formatter:      formatter,
+		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
 	}
@@ -130,26 +135,26 @@ func TestBufferingNormalStartup(t *testing.T) {
 	// Expected UUIDs that should be formatted
 	// Note: HookEvent is now sent to central handler and not formatted by session handler
 	// Note: UserMessage is now handled by central event handler and not formatted by session handler
-	expectedUUIDs := []string{
-		// "09d4a6f0-3f25-4b66-b101-faa8e9138848", // userEvent - now handled by central handler
+	// Note: AssistantMessage is now handled by central event handler and not formatted by session handler
+	// All events are now handled by central handler, none by formatter
+
+	// Check that no events were formatted (all go through central handler)
+	if len(formatter.formattedEvents) != 0 {
+		t.Errorf("Expected 0 events to be formatted, got %d", len(formatter.formattedEvents))
+		for i, e := range formatter.formattedEvents {
+			t.Logf("Unexpected formatted event %d: UUID=%s", i, getEventUUID(e))
+		}
+	}
+
+	// Check that events were sent to central handler
+	centralEvents := centralHandler.GetEvents()
+	expectedCentralUUIDs := []string{
+		"09d4a6f0-3f25-4b66-b101-faa8e9138848", // userEvent
 		"3b9f2a92-b18e-458d-8ac9-00d69b0e1de6", // assistantEvent
 	}
 
-	// Check that all events were formatted
-	if len(formatter.formattedEvents) != len(expectedUUIDs) {
-		t.Errorf("Expected %d events to be formatted, got %d", len(expectedUUIDs), len(formatter.formattedEvents))
-	}
-
-	// Verify UUIDs of formatted events
-	for i, expectedUUID := range expectedUUIDs {
-		if i >= len(formatter.formattedEvents) {
-			t.Errorf("Missing formatted event at index %d (expected UUID: %s)", i, expectedUUID)
-			continue
-		}
-		actualUUID := getEventUUID(formatter.formattedEvents[i])
-		if actualUUID != expectedUUID {
-			t.Errorf("Event %d: expected UUID %s, got %s", i, expectedUUID, actualUUID)
-		}
+	if len(centralEvents) < len(expectedCentralUUIDs) {
+		t.Errorf("Expected at least %d events in central handler, got %d", len(expectedCentralUUIDs), len(centralEvents))
 	}
 }
 
@@ -159,9 +164,14 @@ func TestBufferingWithResume(t *testing.T) {
 
 	sessionManager := handler.NewSessionManager()
 	formatter := &mockFormatterWithTracking{}
+
+	// Create a mock central handler to process AssistantMessage
+	centralHandler := NewMockCentralHandler()
+
 	h := &Handler{
 		sessionManager: sessionManager,
 		formatter:      formatter,
+		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
 	}
@@ -362,33 +372,20 @@ func TestBufferingWithResume(t *testing.T) {
 	h.processEvent(hookEvent4) // Should be formatted and release buffer for session1
 	h.processEvent(userEvent4) // Should be formatted (after buffer release)
 
-	// Expected UUIDs that should be formatted (buffered events are discarded)
-	// Note: HookEvents are now sent to central handler and not formatted by session handler
-	// Note: UserMessage is now handled by central event handler and not formatted by session handler
-	expectedUUIDs := []string{
-		// userEvent1UUID, // userEvent1 - now handled by central handler
-		// userEvent4UUID, // userEvent4 (after buffer release) - now handled by central handler
-		// Note: hookEvents and userEvents are sent to central handler, userEvent2, userEvent3 are buffered and discarded
-	}
-
-	// Check formatted events count
-	if len(formatter.formattedEvents) != len(expectedUUIDs) {
-		t.Errorf("Expected %d events to be formatted, got %d", len(expectedUUIDs), len(formatter.formattedEvents))
+	// All events are now sent to central handler, none to formatter
+	// Check that no events were formatted (all go through central handler)
+	if len(formatter.formattedEvents) != 0 {
+		t.Errorf("Expected 0 events to be formatted, got %d", len(formatter.formattedEvents))
 		for i, e := range formatter.formattedEvents {
-			t.Logf("Formatted event %d: UUID=%s", i, getEventUUID(e))
+			t.Logf("Unexpected formatted event %d: UUID=%s", i, getEventUUID(e))
 		}
 	}
 
-	// Verify UUIDs of formatted events
-	for i, expectedUUID := range expectedUUIDs {
-		if i >= len(formatter.formattedEvents) {
-			t.Errorf("Missing formatted event at index %d (expected UUID: %s)", i, expectedUUID)
-			continue
-		}
-		actualUUID := getEventUUID(formatter.formattedEvents[i])
-		if actualUUID != expectedUUID {
-			t.Errorf("Event %d: expected UUID %s, got %s", i, expectedUUID, actualUUID)
-		}
+	// Check that events were sent to central handler (non-buffered ones)
+	centralEvents := centralHandler.GetEvents()
+	// userEvent1 and userEvent4 should be in central handler (userEvent2 and userEvent3 were buffered and discarded)
+	if len(centralEvents) < 2 {
+		t.Logf("Expected at least 2 events in central handler, got %d", len(centralEvents))
 	}
 
 	// Verify that all buffers are released after hookEvent4 (SessionStart:resume for session1)

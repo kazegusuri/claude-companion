@@ -397,16 +397,26 @@ func (h *Handler) handleAssistantMessage(event *AssistantMessage) {
 		}
 
 		for _, item := range content.Items {
-			if textItem, ok := item.(*AssistantMessageContentText); ok {
+			switch contentItem := item.(type) {
+			case *AssistantMessageContentText:
 				// Use ProcessedText if available, otherwise use Text
-				textToNarrate := textItem.ProcessedText
+				textToNarrate := contentItem.ProcessedText
 				if textToNarrate == "" {
-					textToNarrate = textItem.Text
+					textToNarrate = contentItem.Text
 				}
 
-				narrationText, _ := h.narrator.NarrateText(textToNarrate, textItem.IsThinking, meta)
+				narrationText, _ := h.narrator.NarrateText(textToNarrate, contentItem.IsThinking, meta)
 				if narrationText != "" {
-					textItem.Narration = &NarrationMessage{
+					contentItem.Narration = &NarrationMessage{
+						Text: narrationText,
+					}
+				}
+			case *AssistantMessageContentToolUse:
+				// Generate narration for tool use
+				inputMap := h.convertToolInputToMap(contentItem.Input)
+				narrationText, _ := h.narrator.NarrateToolUse(contentItem.Name, inputMap)
+				if narrationText != "" {
+					contentItem.Narration = &NarrationMessage{
 						Text: narrationText,
 					}
 				}
@@ -418,6 +428,170 @@ func (h *Handler) handleAssistantMessage(event *AssistantMessage) {
 	if h.printer != nil {
 		h.printer.Print(event)
 	}
+}
+
+// convertToolInputToMap converts tool input back to map for narrator
+func (h *Handler) convertToolInputToMap(input AssistantMessageContentToolUseInput) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	switch toolInput := input.(type) {
+	case *ToolUseTodoWrite:
+		todos := make([]map[string]interface{}, 0, len(toolInput.Todos))
+		for _, todo := range toolInput.Todos {
+			todoMap := map[string]interface{}{
+				"content": todo.Content,
+				"status":  todo.Status,
+			}
+			if todo.ActiveForm != "" {
+				todoMap["activeForm"] = todo.ActiveForm
+			}
+			todos = append(todos, todoMap)
+		}
+		result["todos"] = todos
+
+	case *ToolUseBash:
+		result["command"] = toolInput.Command
+		if toolInput.Description != "" {
+			result["description"] = toolInput.Description
+		}
+		if toolInput.RunInBackground {
+			result["run_in_background"] = toolInput.RunInBackground
+		}
+		if toolInput.Timeout > 0 {
+			result["timeout"] = toolInput.Timeout
+		}
+
+	case *ToolUseRead:
+		result["file_path"] = toolInput.FilePath
+		if toolInput.Limit > 0 {
+			result["limit"] = toolInput.Limit
+		}
+		if toolInput.Offset > 0 {
+			result["offset"] = toolInput.Offset
+		}
+
+	case *ToolUseWrite:
+		result["file_path"] = toolInput.FilePath
+		result["content"] = toolInput.Content
+
+	case *ToolUseEdit:
+		result["file_path"] = toolInput.FilePath
+		result["old_string"] = toolInput.OldString
+		result["new_string"] = toolInput.NewString
+		if toolInput.ReplaceAll {
+			result["replace_all"] = toolInput.ReplaceAll
+		}
+
+	case *ToolUseMultiEdit:
+		result["file_path"] = toolInput.FilePath
+		edits := make([]map[string]interface{}, 0, len(toolInput.Edits))
+		for _, edit := range toolInput.Edits {
+			editMap := map[string]interface{}{
+				"old_string": edit.OldString,
+				"new_string": edit.NewString,
+			}
+			if edit.ReplaceAll {
+				editMap["replace_all"] = edit.ReplaceAll
+			}
+			edits = append(edits, editMap)
+		}
+		result["edits"] = edits
+
+	case *ToolUseGrep:
+		result["pattern"] = toolInput.Pattern
+		if toolInput.Path != "" {
+			result["path"] = toolInput.Path
+		}
+		if toolInput.Glob != "" {
+			result["glob"] = toolInput.Glob
+		}
+		if toolInput.Type != "" {
+			result["type"] = toolInput.Type
+		}
+		if toolInput.OutputMode != "" {
+			result["output_mode"] = toolInput.OutputMode
+		}
+		if toolInput.ContextAfter > 0 {
+			result["-A"] = toolInput.ContextAfter
+		}
+		if toolInput.ContextBefore > 0 {
+			result["-B"] = toolInput.ContextBefore
+		}
+		if toolInput.Context > 0 {
+			result["-C"] = toolInput.Context
+		}
+		if toolInput.CaseInsensitive {
+			result["-i"] = toolInput.CaseInsensitive
+		}
+		if toolInput.ShowLineNumbers {
+			result["-n"] = toolInput.ShowLineNumbers
+		}
+		if toolInput.HeadLimit > 0 {
+			result["head_limit"] = toolInput.HeadLimit
+		}
+		if toolInput.Multiline {
+			result["multiline"] = toolInput.Multiline
+		}
+
+	case *ToolUseGlob:
+		result["pattern"] = toolInput.Pattern
+		if toolInput.Path != "" {
+			result["path"] = toolInput.Path
+		}
+
+	case *ToolUseTask:
+		result["description"] = toolInput.Description
+		result["prompt"] = toolInput.Prompt
+		result["subagent_type"] = toolInput.SubagentType
+
+	case *ToolUseWebFetch:
+		result["url"] = toolInput.URL
+		result["prompt"] = toolInput.Prompt
+
+	case *ToolUseWebSearch:
+		result["query"] = toolInput.Query
+		if len(toolInput.AllowedDomains) > 0 {
+			result["allowed_domains"] = toolInput.AllowedDomains
+		}
+		if len(toolInput.BlockedDomains) > 0 {
+			result["blocked_domains"] = toolInput.BlockedDomains
+		}
+
+	case *ToolUseNotebookEdit:
+		result["notebook_path"] = toolInput.NotebookPath
+		if toolInput.CellID != "" {
+			result["cell_id"] = toolInput.CellID
+		}
+		if toolInput.CellType != "" {
+			result["cell_type"] = toolInput.CellType
+		}
+		if toolInput.EditMode != "" {
+			result["edit_mode"] = toolInput.EditMode
+		}
+		result["new_source"] = toolInput.NewSource
+
+	case *ToolUseExitPlanMode:
+		result["plan"] = toolInput.Plan
+
+	case *ToolUseBashOutput:
+		result["bash_id"] = toolInput.BashID
+		if toolInput.Filter != "" {
+			result["filter"] = toolInput.Filter
+		}
+
+	case *ToolUseKillBash:
+		result["shell_id"] = toolInput.ShellID
+
+	case *ToolUseMCP:
+		// For MCP tools, return the data as-is
+		result = toolInput.Data
+
+	case *ToolUseGeneric:
+		// For generic tools, return the data as-is
+		result = toolInput.Data
+	}
+
+	return result
 }
 
 // notifySubscribers notifies all subscribers of an event type

@@ -217,85 +217,15 @@ func (h *Handler) processEvent(event Event) {
 
 		// Convert and send to central handler
 		if h.centralHandler != nil {
+			// Convert and send to central handler
+			// Central handler will handle all content types including tool_use
 			centralAssistant := h.convertAssistantMessage(e)
 			if centralAssistant != nil {
 				h.centralHandler.SendEvent(centralAssistant)
 			}
-
-			// For tool_use content, still use formatter for display
-			for _, content := range e.Message.Content {
-				if content.Type == "tool_use" {
-					// Format only tool_use content
-					toolUseMsg := &AssistantMessage{
-						BaseEvent: e.BaseEvent,
-						RequestID: e.RequestID,
-						Message: AssistantMessageContent{
-							ID:           e.Message.ID,
-							Type:         e.Message.Type,
-							Role:         e.Message.Role,
-							Model:        e.Message.Model,
-							Content:      []AssistantContent{content},
-							StopReason:   e.Message.StopReason,
-							StopSequence: e.Message.StopSequence,
-							Usage:        e.Message.Usage,
-						},
-						IsApiErrorMessage: false,
-					}
-
-					output, err := h.formatter.Format(toolUseMsg)
-					if err != nil {
-						logger.LogError("Error formatting tool_use: %v", err)
-						continue
-					}
-					if output != "" {
-						fmt.Print(output)
-					}
-				}
-			}
 		} else {
-			// Fallback to local formatting if no central handler
-			// Only format tool_use content types
-			hasNonToolUse := false
-			for _, content := range e.Message.Content {
-				if content.Type != "tool_use" {
-					hasNonToolUse = true
-					break
-				}
-			}
-
-			if hasNonToolUse {
-				logger.LogWarning("Cannot display non-tool_use content without central handler")
-			}
-
-			// Format tool_use content
-			for _, content := range e.Message.Content {
-				if content.Type == "tool_use" {
-					toolUseMsg := &AssistantMessage{
-						BaseEvent: e.BaseEvent,
-						RequestID: e.RequestID,
-						Message: AssistantMessageContent{
-							ID:           e.Message.ID,
-							Type:         e.Message.Type,
-							Role:         e.Message.Role,
-							Model:        e.Message.Model,
-							Content:      []AssistantContent{content},
-							StopReason:   e.Message.StopReason,
-							StopSequence: e.Message.StopSequence,
-							Usage:        e.Message.Usage,
-						},
-						IsApiErrorMessage: false,
-					}
-
-					output, err := h.formatter.Format(toolUseMsg)
-					if err != nil {
-						logger.LogError("Error formatting tool_use: %v", err)
-						continue
-					}
-					if output != "" {
-						fmt.Print(output)
-					}
-				}
-			}
+			// Fallback: cannot process AssistantMessage without central handler
+			logger.LogWarning("Cannot process AssistantMessage without central handler")
 		}
 	case *UserMessage:
 		// Check if this is a Task result and create TaskCompletionMessage

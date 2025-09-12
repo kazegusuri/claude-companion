@@ -10,6 +10,16 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/logger"
 )
 
+// printerTestCase represents a test case for the NotificationPrinter
+type printerTestCase struct {
+	name        string
+	debugMode   bool
+	event       interface{}
+	wantOutput  string
+	wantErr     bool
+	description string
+}
+
 func TestNotificationPrinter_Print(t *testing.T) {
 	// Save and restore debug mode
 	originalDebugMode := logger.IsDebugMode()
@@ -23,14 +33,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 	printer.timeFunc = func() time.Time { return fixedTime }
 
 	// Group test cases by event type
-	testGroups := map[string][]struct {
-		name        string
-		debugMode   bool
-		event       interface{}
-		wantOutput  string
-		wantErr     bool
-		description string
-	}{
+	testGroups := map[string][]printerTestCase{
 		"NotificationEvent": {
 			// PreCompact events
 			{
@@ -1309,243 +1312,8 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				description: "Task completion with debug mode showing session and tool use ID",
 			},
 		},
-		"AssistantMessage": {
-			{
-				name:      "assistant_message_api_error",
-				debugMode: false,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-api-error",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-api-error",
-					},
-					RequestID: "req-error-123",
-					Message: event.AssistantMessageData{
-						ID:    "msg-error-123",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.APIErrorMessageContent{
-							StatusCode: 429,
-							ErrorType:  "rate_limit_error",
-							Error: event.APIErrorDetail{
-								Type:    "rate_limit_error",
-								Message: "Rate limit exceeded. Please wait before trying again.",
-							},
-						},
-					},
-					IsApiErrorMessage: true,
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-					"  ❌ API Error 429: rate_limit_error - Rate limit exceeded. Please wait before trying again.\n",
-				description: "Assistant message with API error",
-			},
-			{
-				name:      "assistant_message_api_error_with_narration",
-				debugMode: false,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-api-error-narration",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-api-error-narration",
-					},
-					RequestID: "req-error-456",
-					Message: event.AssistantMessageData{
-						ID:    "msg-error-456",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.APIErrorMessageContent{
-							StatusCode: 500,
-							ErrorType:  "internal_server_error",
-							Error: event.APIErrorDetail{
-								Type:    "internal_server_error",
-								Message: "An internal server error occurred.",
-							},
-						},
-					},
-					IsApiErrorMessage: true,
-					Narration: &event.NarrationMessage{
-						Text: "サーバーエラーが発生しました",
-					},
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-					"  ❌ サーバーエラーが発生しました\n",
-				description: "Assistant message with API error and narration",
-			},
-			{
-				name:      "assistant_message_api_error_raw_text_fallback",
-				debugMode: false,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-api-error-raw",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-api-error-raw",
-					},
-					RequestID: "req-error-789",
-					Message: event.AssistantMessageData{
-						ID:    "msg-error-789",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.APIErrorMessageContent{
-							RawText: "Unexpected error occurred",
-						},
-					},
-					IsApiErrorMessage: true,
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-					"  ❌ Unexpected error occurred\n",
-				description: "Assistant message with raw text error fallback",
-			},
-			{
-				name:      "assistant_message_api_error_debug_mode",
-				debugMode: true,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-api-error-debug",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-api-error-debug",
-					},
-					RequestID: "req-error-debug",
-					Message: event.AssistantMessageData{
-						ID:    "msg-error-debug",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.APIErrorMessageContent{
-							StatusCode: 403,
-							ErrorType:  "permission_error",
-							Error: event.APIErrorDetail{
-								Type:    "permission_error",
-								Message: "Permission denied.",
-							},
-						},
-						StopReason: func(s string) *string { return &s }("max_tokens"),
-						Usage: &event.TokenUsage{
-							InputTokens:              1000,
-							OutputTokens:             500,
-							CacheReadInputTokens:     200,
-							CacheCreationInputTokens: 100,
-						},
-					},
-					IsApiErrorMessage: true,
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus): [ID: msg-error-debug, ReqID: req-error-debug] [Stop: max_tokens]\n" +
-					"  ❌ API Error 403: permission_error - Permission denied.\n",
-				description: "Assistant message with API error in debug mode showing token usage",
-			},
-			{
-				name:      "assistant_message_text_content",
-				debugMode: false,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-text",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-text",
-					},
-					RequestID: "req-text-123",
-					Message: event.AssistantMessageData{
-						ID:    "msg-text-123",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.AssistantMessageContentText{
-							Type: "text",
-							Text: "This is a simple text response.\nWith multiple lines.\nLine 3.\nLine 4.\nLine 5.\nLine 6.\nLine 7.",
-						},
-					},
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-					"  📝 This is a simple text response.\n" +
-					"  With multiple lines.\n" +
-					"  Line 3.\n" +
-					"  Line 4.\n" +
-					"  Line 5.\n" +
-					"  ... (2 more lines)\n",
-				description: "Assistant message with text content",
-			},
-			{
-				name:      "assistant_message_content_list",
-				debugMode: false,
-				event: &event.AssistantMessage{
-					SessionMessageBase: event.SessionMessageBase{
-						UUID:        "uuid-list",
-						Type:        event.MessageTypeAssistant,
-						IsSidechain: false,
-						CWD:         "/test/dir",
-						Timestamp:   fixedTime,
-						IsMeta:      false,
-					},
-					Session: event.Session{
-						SessionID: "session-list",
-					},
-					RequestID: "req-list-123",
-					Message: event.AssistantMessageData{
-						ID:    "msg-list-123",
-						Type:  "message",
-						Role:  "assistant",
-						Model: "claude-3-opus",
-						Content: &event.AssistantMessageContentList{
-							Items: []event.AssistantMessageContentItem{
-								&event.AssistantMessageContentText{
-									Type: "text",
-									Text: "First text block.",
-								},
-								&event.AssistantMessageContentText{
-									Type:       "thinking",
-									Text:       "Thinking about the problem...\nAnalyzing the requirements.\nConsidering solutions.",
-									IsThinking: true,
-								},
-								&event.AssistantMessageContentToolUse{
-									Type:  "tool_use",
-									ID:    "tool-123",
-									Name:  "calculator",
-									Input: map[string]interface{}{"expression": "2+2"},
-								},
-							},
-						},
-					},
-				},
-				wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-					"  📝 First text block.\n" +
-					"  🤔 Thinking about the problem...\n" +
-					"  Analyzing the requirements.\n" +
-					"  Considering solutions.\n" +
-					"  🛠️ Tool: calculator\n",
-				description: "Assistant message with content list",
-			},
-		},
+		"AssistantMessage":        assistantMessageTestCases,
+		"AssistantMessageToolUse": assistantMessageToolUseTestCases,
 		"UnsupportedEventType": {
 			{
 				name:        "unsupported_event_type",
