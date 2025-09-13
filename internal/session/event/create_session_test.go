@@ -29,11 +29,12 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				mockNarr := &mockNarrator{}
 				mockPrint := &mockPrinter{}
 				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-				h := &Handler{
-					sessionManager: sessionManager,
-					centralHandler: centralHandler,
-					buffers:        make(map[string]*BufferInfo),
+				sessionFile := &SessionFile{
+					SessionID:      "session-2",
+					TranscriptPath: "/test/transcript2.jsonl",
+					Project:        "test-project",
 				}
+				h := NewHandler(mockNarr, sessionManager, centralHandler, sessionFile)
 
 				parentUUID := "parent-hook-uuid"
 				event := &HookEvent{
@@ -44,7 +45,7 @@ func TestCreateSessionFromEvents(t *testing.T) {
 						TypeString: "hook",
 						ParentUUID: &parentUUID,
 						Session: &SessionFile{
-							Path: "/test/transcript2.jsonl",
+							TranscriptPath: "/test/transcript2.jsonl",
 						},
 					},
 					HookEventType: "SessionStart",
@@ -69,8 +70,8 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				if session.CWD != e.CWD {
 					t.Errorf("Session CWD mismatch: got %s, want %s", session.CWD, e.CWD)
 				}
-				if session.TranscriptPath != e.Session.Path {
-					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.Session.Path)
+				if session.TranscriptPath != e.Session.TranscriptPath {
+					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.Session.TranscriptPath)
 				}
 			},
 		},
@@ -81,11 +82,12 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				mockNarr := &mockNarrator{}
 				mockPrint := &mockPrinter{}
 				centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-				h := &Handler{
-					sessionManager: sessionManager,
-					centralHandler: centralHandler,
-					buffers:        make(map[string]*BufferInfo),
+				sessionFile := &SessionFile{
+					SessionID:      "session-3",
+					TranscriptPath: "/test/transcript3.jsonl",
+					Project:        "test-project",
 				}
+				h := NewHandler(mockNarr, sessionManager, centralHandler, sessionFile)
 
 				parentUUID := "parent-uuid"
 				event := &BaseEvent{
@@ -96,7 +98,7 @@ func TestCreateSessionFromEvents(t *testing.T) {
 					ParentUUID:  &parentUUID,
 					IsSidechain: false,
 					Session: &SessionFile{
-						Path: "/test/transcript3.jsonl",
+						TranscriptPath: "/test/transcript3.jsonl",
 					},
 				}
 
@@ -120,8 +122,8 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				if session.CWD != e.CWD {
 					t.Errorf("Session CWD mismatch: got %s, want %s", session.CWD, e.CWD)
 				}
-				if session.TranscriptPath != e.Session.Path {
-					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.Session.Path)
+				if session.TranscriptPath != e.Session.TranscriptPath {
+					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.Session.TranscriptPath)
 				}
 			},
 		},

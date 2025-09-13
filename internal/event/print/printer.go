@@ -46,6 +46,8 @@ func (p *NotificationPrinter) Print(e interface{}) {
 		output = p.formatTaskCompletionMessage(evt)
 	case *event.AssistantMessage:
 		output = p.formatAssistantMessage(evt)
+	case *event.ResumeEvent:
+		output = p.formatResumeEvent(evt)
 	default:
 		// Unknown event types are silently ignored
 		return
@@ -700,9 +702,6 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 		case "Bash":
 			// Show command after narration for Bash
 			if bashInput, ok := content.Input.(*event.ToolUseBash); ok {
-				if bashInput.Description != "" {
-					output.WriteString(fmt.Sprintf("  📝 %s\n", bashInput.Description))
-				}
 				output.WriteString(fmt.Sprintf("  $ %s\n", bashInput.Command))
 			}
 		default:
@@ -731,10 +730,10 @@ func (p *NotificationPrinter) formatAssistantToolUseContent(content *event.Assis
 				output.WriteString(fmt.Sprintf("    %d. %s %s\n", i+1, emoji, todo.Content))
 			}
 		case *event.ToolUseBash:
+			output.WriteString(fmt.Sprintf("    Command: %s\n", toolInput.Command))
 			if toolInput.Description != "" {
 				output.WriteString(fmt.Sprintf("    Description: %s\n", toolInput.Description))
 			}
-			output.WriteString(fmt.Sprintf("    Command: %s\n", toolInput.Command))
 		case *event.ToolUseRead:
 			output.WriteString(fmt.Sprintf("    File: %s\n", toolInput.FilePath))
 			if toolInput.Limit > 0 {
@@ -868,6 +867,46 @@ func (p *NotificationPrinter) formatAssistantTextContent(content *event.Assistan
 			}
 			output.WriteString("    ```\n")
 		}
+	}
+
+	return output.String()
+}
+
+// formatResumeEvent formats a resume event
+func (p *NotificationPrinter) formatResumeEvent(event *event.ResumeEvent) string {
+	var output strings.Builder
+
+	// Build header with timestamp
+	timestamp := event.Timestamp.Format("15:04:05")
+	header := fmt.Sprintf("[%s] 🔄 RESUME", timestamp)
+
+	// Add debug info if enabled
+	if logger.IsDebugMode() {
+		sessionPrefix := event.Session.SessionID
+		if len(sessionPrefix) > 8 {
+			sessionPrefix = sessionPrefix[:8]
+		}
+		header += fmt.Sprintf(" [Session: %s]", sessionPrefix)
+		if event.ResumedFromID != "" {
+			resumedPrefix := event.ResumedFromID
+			if len(resumedPrefix) > 8 {
+				resumedPrefix = resumedPrefix[:8]
+			}
+			header += fmt.Sprintf(" [From: %s]", resumedPrefix)
+		}
+	}
+	output.WriteString(header + "\n")
+
+	// Display buffered events count
+	if event.BufferedCount > 0 {
+		output.WriteString(fmt.Sprintf("  📦 Released %d buffered events\n", event.BufferedCount))
+	} else {
+		output.WriteString("  📦 Resume completed (no buffered events)\n")
+	}
+
+	// Display reason if available
+	if event.Reason != "" {
+		output.WriteString(fmt.Sprintf("  💭 Reason: %s\n", event.Reason))
 	}
 
 	return output.String()

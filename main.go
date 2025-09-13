@@ -197,14 +197,12 @@ func main() {
 	}
 	centralEventHandler := internalevent.NewHandler(sessionManager, n, printer, emitter)
 
-	// Create session event handler with central handler
-	sessionEventHandler := event.NewHandler(n, sessionManager, centralEventHandler)
+	// Create handler builder for creating session-specific handlers
+	handlerBuilder := event.NewHandlerBuilder(n, sessionManager, centralEventHandler)
 
-	// Start both handlers
+	// Start central handler
 	centralEventHandler.Start()
 	defer centralEventHandler.Stop()
-	sessionEventHandler.Start()
-	defer sessionEventHandler.Stop()
 
 	// Start notification watcher if configured
 	if hasNotificationInput {
@@ -219,7 +217,8 @@ func main() {
 
 	// Start session watcher if using direct file input
 	if hasDirectFileInput {
-		sessionWatcher := event.NewSessionWatcher(sessionFilePath, sessionEventHandler)
+		// Create session watcher with builder (it will create handler and parser internally)
+		sessionWatcher := event.NewSessionWatcher(sessionFilePath, handlerBuilder)
 
 		if headMode {
 			logger.LogInfo("Reading file: %s", sessionFilePath)
@@ -240,7 +239,7 @@ func main() {
 
 	// Start projects watcher if configured
 	if hasProjectsInput {
-		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, sessionEventHandler)
+		projectsWatcher, err := event.NewProjectsWatcher(projectsRoot, handlerBuilder)
 		if err != nil {
 			logger.LogError("Error creating projects watcher: %v", err)
 			os.Exit(1)

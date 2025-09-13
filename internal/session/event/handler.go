@@ -14,10 +14,11 @@ import (
 
 // BufferInfo holds information about buffered events for a session
 type BufferInfo struct {
-	events      []Event
-	timer       *time.Timer
-	sessionName string
-	startTime   time.Time
+	events        []Event
+	timer         *time.Timer
+	sessionName   string
+	startTime     time.Time
+	resumedFromID string // The sessionID that triggered the resume
 }
 
 // CentralEventHandler is the interface for central event handler
@@ -27,13 +28,13 @@ type CentralEventHandler interface {
 
 // Handler processes events from multiple sources
 type Handler struct {
-	narrator       narrator.Narrator
-	eventChan      chan Event
-	wg             sync.WaitGroup
-	done           chan struct{}
-	taskTracker    *TaskTracker
-	sessionManager *handler.SessionManager
-	centralHandler CentralEventHandler // Central event handler
+	narrator        narrator.Narrator
+	taskTracker     *TaskTracker
+	sessionManager  *handler.SessionManager
+	centralHandler  CentralEventHandler   // Central event handler
+	session         *SessionFile          // The session this handler is watching
+	internalSession internalevent.Session // Pre-converted internal session for reuse
+	isWarmup        bool                  // Whether we're in warmup mode
 
 	// Buffering support
 	bufferMutex sync.Mutex
@@ -41,103 +42,85 @@ type Handler struct {
 }
 
 // NewHandler creates a new event handler
-func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler CentralEventHandler) *Handler {
+func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler CentralEventHandler, session *SessionFile) *Handler {
 	taskTracker := NewTaskTracker()
 
+	// Convert SessionFile to internalevent.Session once at initialization
+	internalSession := internalevent.Session{
+		SessionID:      session.SessionID,
+		TranscriptPath: session.TranscriptPath,
+	}
+
 	return &Handler{
-		narrator:       narrator,
-		eventChan:      make(chan Event, 100),
-		done:           make(chan struct{}),
-		taskTracker:    taskTracker,
-		sessionManager: sessionManager,
-		centralHandler: centralHandler,
-		buffers:        make(map[string]*BufferInfo),
+		narrator:        narrator,
+		taskTracker:     taskTracker,
+		sessionManager:  sessionManager,
+		centralHandler:  centralHandler,
+		session:         session,
+		internalSession: internalSession,
+		buffers:         make(map[string]*BufferInfo),
 	}
 }
 
-// GetSessionManager returns the handler's session manager
-func (h *Handler) GetSessionManager() *handler.SessionManager {
-	return h.sessionManager
+// SetWarmupMode sets whether the handler is in warmup mode
+func (h *Handler) SetWarmupMode(isWarmup bool) {
+	h.isWarmup = isWarmup
 }
 
+// sendEventToCentral sends an event to the central handler if not in warmup mode
+func (h *Handler) sendEventToCentral(event internalevent.Event) {
+	// Don't send events to central handler during warmup
+	if h.isWarmup {
+		return
+	}
 
-// Start begins processing events
+	h.centralHandler.SendEvent(event)
+}
+
+// Start begins processing events (no-op for synchronous handler)
 func (h *Handler) Start() {
-	h.wg.Add(1)
-	go h.processEvents()
+	// No longer needed for synchronous processing
 }
 
 // Stop stops the event handler
 func (h *Handler) Stop() {
-	close(h.done)
-	// Don't close eventChan here to prevent panic on send
-	// The processEvents goroutine will exit when done is closed
-	h.wg.Wait()
-}
+	// Clean up any remaining buffered events
+	h.bufferMutex.Lock()
+	defer h.bufferMutex.Unlock()
 
-// SendEvent sends an event to be processed
-func (h *Handler) SendEvent(event Event) {
-	select {
-	case <-h.done:
-		// Handler is stopping, discard event
-		return
-	default:
-		// Try to send event
-		select {
-		case h.eventChan <- event:
-		case <-h.done:
-			// Handler stopped while sending, discard event
+	for _, buffer := range h.buffers {
+		if buffer.timer != nil {
+			buffer.timer.Stop()
 		}
 	}
+	h.buffers = make(map[string]*BufferInfo)
+}
+
+// SendEvent processes an event synchronously
+func (h *Handler) SendEvent(event Event) {
+	h.processEvent(event)
 }
 
 // HandleWarmupEvent processes warmup events to initialize session state
 func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
+	// Set warmup mode to prevent sending events to central handler
+	previousWarmupState := h.isWarmup
+	h.isWarmup = true
+	defer func() {
+		h.isWarmup = previousWarmupState
+	}()
+
 	// Extract session information from the base event
 	if event.ParentUUID != nil && !event.IsSidechain && event.SessionID != "" && h.sessionManager != nil {
 		// Get or create session
-		session, exists := h.sessionManager.GetSession(event.SessionID)
+		_, exists := h.sessionManager.GetSession(event.SessionID)
 		if !exists {
-			h.sessionManager.CreateSession(event.SessionID, event.UUID, event.CWD, event.Session.Path)
-			// If session doesn't exist during warmup, we might want to create it
-			// but for now, just log it
-			logger.DebugInfo("Warmup: Session %s not found for event type %s", event.SessionID, event.TypeString)
-		} else {
-			// Update session with warmup information if needed
-			logger.DebugInfo("Warmup: Processing event type %s for session %s (CWD: %s)", event.TypeString, event.SessionID, session.CWD)
+			h.sessionManager.CreateSession(event.SessionID, event.UUID, event.CWD, event.Session.TranscriptPath)
 		}
 	}
 
 	// For warmup, we don't process the event through the normal pipeline
 	// This is just to initialize state
-}
-
-// processEvents processes events from the channel
-func (h *Handler) processEvents() {
-	defer h.wg.Done()
-
-	for {
-		select {
-		case event, ok := <-h.eventChan:
-			if !ok {
-				return
-			}
-			h.processEvent(event)
-		case <-h.done:
-			// Drain remaining events
-			for {
-				select {
-				case event, ok := <-h.eventChan:
-					if !ok {
-						return
-					}
-					h.processEvent(event)
-				default:
-					return
-				}
-			}
-		}
-	}
 }
 
 // processEvent processes a single event based on its type
@@ -182,43 +165,25 @@ func (h *Handler) processEvent(event Event) {
 		h.trackTaskToolUses(e)
 
 		// Convert and send to central handler
-		if h.centralHandler != nil {
-			// Convert and send to central handler
-			// Central handler will handle all content types including tool_use
-			centralAssistant := h.convertAssistantMessage(e)
-			if centralAssistant != nil {
-				h.centralHandler.SendEvent(centralAssistant)
-			}
-		} else {
-			// Fallback: cannot process AssistantMessage without central handler
-			logger.LogWarning("Cannot process AssistantMessage without central handler")
+		// Central handler will handle all content types including tool_use
+		centralAssistant := h.convertAssistantMessage(e)
+		if centralAssistant != nil {
+			h.sendEventToCentral(centralAssistant)
 		}
 	case *UserMessage:
 		// Check if this is a Task result and create TaskCompletionMessage
 		if taskCompletion := h.checkTaskResultFromUser(e); taskCompletion != nil {
 			// Send TaskCompletionMessage to central handler
-			if h.centralHandler != nil {
-				// Get session info from the event
-				sessionID := ""
-				transcriptPath := ""
-				if e.SessionID != "" {
-					sessionID = e.SessionID
-				}
-
-				centralTaskCompletion := &internalevent.TaskCompletionMessage{
-					Session: internalevent.Session{
-						SessionID:      sessionID,
-						TranscriptPath: transcriptPath,
-					},
-					TaskInfo: internalevent.TaskInfo{
-						ToolUseID:    taskCompletion.TaskInfo.ToolUseID,
-						Description:  taskCompletion.TaskInfo.Description,
-						SubagentType: taskCompletion.TaskInfo.SubagentType,
-					},
-					Timestamp: taskCompletion.Timestamp,
-				}
-				h.centralHandler.SendEvent(centralTaskCompletion)
+			centralTaskCompletion := &internalevent.TaskCompletionMessage{
+				Session: h.internalSession,
+				TaskInfo: internalevent.TaskInfo{
+					ToolUseID:    taskCompletion.TaskInfo.ToolUseID,
+					Description:  taskCompletion.TaskInfo.Description,
+					SubagentType: taskCompletion.TaskInfo.SubagentType,
+				},
+				Timestamp: taskCompletion.Timestamp,
 			}
+			h.sendEventToCentral(centralTaskCompletion)
 		}
 
 		// Convert to internal/event.UserMessage and send to central handler
@@ -244,10 +209,7 @@ func (h *Handler) processEvent(event Event) {
 					Timestamp:   e.Timestamp,
 					IsMeta:      e.IsMeta,
 				},
-				Session: internalevent.Session{
-					SessionID:      e.SessionID,
-					TranscriptPath: "", // UserMessage doesn't have TranscriptPath
-				},
+				Session: h.internalSession,
 				Message: internalevent.UserMessageData{
 					Role:    "user",
 					Content: content,
@@ -255,9 +217,7 @@ func (h *Handler) processEvent(event Event) {
 				// Copy optional fields from the parsed event
 				ToolUseResult: e.ToolUseResult,
 			}
-			if h.centralHandler != nil {
-				h.centralHandler.SendEvent(centralEvent)
-			}
+			h.sendEventToCentral(centralEvent)
 		}
 
 		// UserMessage is now handled by central event handler
@@ -265,21 +225,11 @@ func (h *Handler) processEvent(event Event) {
 	case *HookEvent:
 		// Handle SessionStart event
 		if e.HookEventType == "SessionStart" {
-			// Use SessionFile.Path as TranscriptPath
-			transcriptPath := ""
-			if e.Session != nil {
-				transcriptPath = e.Session.Path
-			}
 			// Create a new session
-			h.sessionManager.CreateSession(e.SessionID, e.UUID, e.CWD, transcriptPath)
+			h.sessionManager.CreateSession(e.SessionID, e.UUID, e.CWD, h.session.TranscriptPath)
 		}
 
 		// Convert HookEvent to SystemMessage and send to central handler
-		transcriptPath := ""
-		if e.Session != nil {
-			transcriptPath = e.Session.Path
-		}
-
 		// Parse hook type and status from HookEventType (e.g., "SessionStart:resume" or "Stop")
 		hookName := e.HookEventType
 		hookType := ""
@@ -297,10 +247,7 @@ func (h *Handler) processEvent(event Event) {
 				Timestamp:   e.Timestamp,
 				IsMeta:      e.IsMeta,
 			},
-			Session: internalevent.Session{
-				SessionID:      e.SessionID,
-				TranscriptPath: transcriptPath,
-			},
+			Session:    h.internalSession,
 			RawContent: e.Content,
 			Content: &internalevent.HookSystemMessageContent{
 				HookName: hookName,
@@ -312,16 +259,9 @@ func (h *Handler) processEvent(event Event) {
 			Level: "info", // Default level for hook events
 		}
 
-		if h.centralHandler != nil {
-			h.centralHandler.SendEvent(centralEvent)
-		}
+		h.sendEventToCentral(centralEvent)
 	case *SystemMessage:
 		// Convert to internal/event.SystemMessage and forward to central handler
-		// Get transcript path from session if available
-		transcriptPath := ""
-		if e.Session != nil {
-			transcriptPath = e.Session.Path
-		}
 		centralEvent := &internalevent.SystemMessage{
 			SessionMessageBase: internalevent.SessionMessageBase{
 				UUID:        e.UUID,
@@ -331,38 +271,21 @@ func (h *Handler) processEvent(event Event) {
 				Timestamp:   e.Timestamp,
 				IsMeta:      e.IsMeta,
 			},
-			Session: internalevent.Session{
-				SessionID:      e.SessionID,
-				TranscriptPath: transcriptPath,
-			},
+			Session:    h.internalSession,
 			RawContent: e.Content,
 			Level:      e.Level,
 			ToolUseID:  e.ToolUseID,
 		}
-		if h.centralHandler != nil {
-			h.centralHandler.SendEvent(centralEvent)
-		}
+		h.sendEventToCentral(centralEvent)
 		// SystemMessage display is now handled by central handler's printer
 	case *SummaryEvent:
 		// Convert to internal/event.SummaryEvent and forward to central handler
-		// Get SessionID and TranscriptPath from Session if available
-		sessionID := ""
-		transcriptPath := ""
-		if e.Session != nil {
-			sessionID = e.Session.Session
-			transcriptPath = e.Session.Path
-		}
 		centralEvent := &internalevent.SummaryEvent{
-			Session: internalevent.Session{
-				SessionID:      sessionID,
-				TranscriptPath: transcriptPath,
-			},
+			Session:  h.internalSession,
 			LeafUUID: e.LeafUUID,
 			Summary:  e.Summary,
 		}
-		if h.centralHandler != nil {
-			h.centralHandler.SendEvent(centralEvent)
-		}
+		h.sendEventToCentral(centralEvent)
 		// SummaryEvent display is now handled by central handler's printer
 	default:
 		logger.DebugWarning("Unknown event type: %T", event)
@@ -436,10 +359,30 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 // Resume handling:
 // When the resume command is executed, past events from the resumed session are passed through,
 // so we need to ignore these historical events.
-// When an event with null ParentUUID is received mid-stream, it's identified as a resume event.
-// Events between the resume detection and the SessionStart event generated by the resume are ignored.
+//
+// Resume Start Detection:
+//   - Condition: parentUUID == null AND handler.sessionID != event.sessionID
+//   - Description: When reading from the beginning of a session file, if an event with null parentUUID
+//     appears and its sessionID differs from the handler's expected sessionID,
+//     this indicates events from a past session and marks the start of resume processing
+//   - Action: Start buffering events from this point onwards
+//
+// Resume End Detection:
+//   - Condition: HookEvent with SessionStart:resume AND handler.sessionID == event.sessionID
+//   - Description: When a SessionStart:resume HookEvent arrives with a sessionID matching
+//     the handler's sessionID, this indicates resume processing is complete
+//   - Action: Discard buffered events and resume normal processing from this event
+//
+// Timeout-based Auto-release:
+// - Condition: 1 second elapsed since resume start
+// - Description: Even if SessionStart:resume doesn't arrive, automatically release buffer after 1 second
+// - Action: Discard buffered events, send ResumeEvent, and return to normal processing
+//
+// Normal Session Start:
+// - Condition: parentUUID == null AND handler.sessionID == event.sessionID
+// - Description: When parentUUID is null but sessionID matches, this is a normal session start
+// - Action: Continue normal processing without buffering
 func (h *Handler) handleBuffering(event Event) bool {
-
 	// Extract BaseEvent from different event types
 	var baseEvent *BaseEvent
 
@@ -452,16 +395,20 @@ func (h *Handler) handleBuffering(event Event) bool {
 		baseEvent = &e.BaseEvent
 	case *HookEvent:
 		baseEvent = &e.BaseEvent
-		// Check if this is a SessionStart:resume event FIRST before buffering check
+		// Check for Resume End: Check SessionStart:resume event FIRST before buffering check
+		// This must be done before checking if event should be buffered
 		if e.HookEventType == "SessionStart:resume" && baseEvent.Session != nil {
-			sessionName := baseEvent.Session.Session
-			// Only release buffer if session name matches SessionID
-			if sessionName == baseEvent.SessionID {
-				h.releaseBuffer(sessionName, "SessionStart:resume received")
-				// Process this event normally after releasing buffer
+			sessionName := baseEvent.Session.SessionID
+			// Resume End Condition: SessionStart:resume AND handler.sessionID == event.sessionID
+			// When this condition is met, resume processing is complete and normal processing resumes
+			if baseEvent.SessionID == h.session.SessionID {
+				// Release buffer (buffered events are discarded)
+				h.releaseBuffer(sessionName, "SessionStart:resume received with matching SessionID")
+				// This SessionStart:resume event itself is processed normally
 				return false
 			}
-			// If session name doesn't match, continue to buffering check
+			// If SessionID doesn't match, this resume event belongs to another session,
+			// so continue to check if it should be buffered
 		}
 	case *BaseEvent:
 		baseEvent = e
@@ -481,42 +428,24 @@ func (h *Handler) handleBuffering(event Event) bool {
 	if baseEvent == nil || baseEvent.Session == nil {
 		return false
 	}
-	sessionName := baseEvent.Session.Session
+	sessionName := baseEvent.Session.SessionID
 
 	// Check if we need to buffer this event
 	if !baseEvent.IsSidechain && baseEvent.ParentUUID == nil {
-		// Check if this is a resume scenario using SessionManager
-		if h.sessionManager != nil {
-			session, exists := h.sessionManager.GetSession(baseEvent.SessionID)
-
-			// if !exists {
-			// 	// Case 1: No session exists - treat as completely new
-			// 	logger.DebugInfo("New session (not registered): %s", baseEvent.SessionID)
-			// 	return false // Process normally
-			// }
-			var sessionUUID string
-			if exists {
-				sessionUUID = session.UUID
-			}
-
-			if exists && sessionUUID == "" || sessionUUID == baseEvent.UUID {
-				// Case 2: Empty UUID or Same UUID - treat as new/normal start
-				if sessionUUID == "" {
-					logger.DebugInfo("Normal session start (empty UUID): %s", baseEvent.SessionID)
-				} else {
-					logger.DebugInfo("Normal session start (UUID match): %s", baseEvent.SessionID)
-				}
-				return false // Process normally
-			}
-
-			// Case 3: Different UUID - this is a resume scenario
-			logger.DebugInfo("Resume detected (UUID mismatch) for session: %s, stored UUID: %s, event UUID: %s",
-				baseEvent.SessionID, sessionUUID, baseEvent.UUID)
+		// This is a session start event (parentUUID is null)
+		// Check if the SessionID matches the one this handler is watching
+		if baseEvent.SessionID != h.session.SessionID {
+			// Resume Start Detected: parentUUID is null AND SessionID differs from handler's expected ID
+			// This indicates we're reading events from a past session that was resumed
+			// All events until SessionStart:resume with matching sessionID should be buffered (discarded)
+			logger.DebugInfo("Resume detected: Expected SessionID=%s, got SessionID=%s",
+				h.session.SessionID, baseEvent.SessionID)
 
 			h.bufferMutex.Lock()
 			defer h.bufferMutex.Unlock()
 
 			// Check if we already have a buffer for this session
+			// Multiple parentUUID=null events can appear during resume
 			if buffer, exists := h.buffers[sessionName]; exists {
 				// Add to existing buffer
 				buffer.events = append(buffer.events, event)
@@ -525,9 +454,12 @@ func (h *Handler) handleBuffering(event Event) bool {
 
 			// Create new buffer for this session
 			buffer := &BufferInfo{
-				events:      []Event{event},
-				sessionName: sessionName,
-				startTime:   time.Now(),
+				events:        []Event{event},
+				sessionName:   sessionName,
+				startTime:     time.Now(),
+				resumedFromID: baseEvent.SessionID, // Store the sessionID that triggered the resume
+				// Timeout: Auto-release buffer after 1 second if SessionStart:resume doesn't arrive
+				// This prevents indefinite buffering in case resume event is lost
 				timer: time.AfterFunc(1*time.Second, func() {
 					h.releaseBuffer(sessionName, "timeout")
 				}),
@@ -536,15 +468,18 @@ func (h *Handler) handleBuffering(event Event) bool {
 			return true
 		}
 
-		// Not a SessionStart event with ParentUUID=nil - might be an issue
-		logger.DebugInfo("Non-SessionStart event with ParentUUID=nil: %T", event)
-		return false // Process normally for backward compatibility
+		// Normal Session Start: parentUUID is null AND SessionID matches handler's expected ID
+		// This is a regular session start, not a resume scenario
+		logger.DebugInfo("Normal session start for SessionID: %s", baseEvent.SessionID)
+		return false // Process normally
 	}
 
 	// Check if this event is for a buffered session
+	// If a buffer exists for this session, continue buffering subsequent events
+	// until SessionStart:resume with matching sessionID arrives
 	h.bufferMutex.Lock()
 	if buffer, exists := h.buffers[sessionName]; exists {
-		// Add to buffer
+		// Add to buffer - this event is part of the resumed session's history
 		buffer.events = append(buffer.events, event)
 		h.bufferMutex.Unlock()
 		return true
@@ -571,6 +506,16 @@ func (h *Handler) releaseBuffer(sessionName string, reason string) {
 
 	logger.DebugInfo("Releasing buffer for session %s: %s (events: %d, duration: %v)",
 		sessionName, reason, len(buffer.events), time.Since(buffer.startTime))
+
+	// Send ResumeEvent to central handler
+	resumeEvent := &internalevent.ResumeEvent{
+		Session:       h.internalSession,
+		ResumedFromID: buffer.resumedFromID,
+		BufferedCount: len(buffer.events),
+		Timestamp:     time.Now(),
+		Reason:        reason,
+	}
+	h.sendEventToCentral(resumeEvent)
 
 	// Remove buffer and discard buffered events
 	delete(h.buffers, sessionName)

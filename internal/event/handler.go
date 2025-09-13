@@ -120,6 +120,8 @@ func (h *Handler) processEvent(event Event) {
 		h.handleTaskCompletionMessage(e)
 	case *AssistantMessage:
 		h.handleAssistantMessage(e)
+	case *ResumeEvent:
+		h.handleResumeEvent(e)
 	default:
 		logger.DebugWarning("Unknown event type in central handler: %T", event)
 	}
@@ -327,6 +329,14 @@ func (h *Handler) handleTaskCompletionMessage(event *TaskCompletionMessage) {
 	}
 
 	// Print the task completion
+	if h.printer != nil {
+		h.printer.Print(event)
+	}
+}
+
+// handleResumeEvent processes resume events
+func (h *Handler) handleResumeEvent(event *ResumeEvent) {
+	// Print the resume event directly without narration
 	if h.printer != nil {
 		h.printer.Print(event)
 	}

@@ -22,6 +22,7 @@ const (
 	EventTypeNotification = "notification"
 	EventTypeHook         = "hook"
 	EventTypeTaskComplete = "task_completion"
+	EventTypeResume       = "resume"
 )
 
 // MessageType constants for SessionMessageBase
@@ -545,6 +546,21 @@ type TaskCompletionMessage struct {
 // Type returns the event type
 func (e *TaskCompletionMessage) Type() Type {
 	return EventTypeTaskComplete
+}
+
+// ResumeEvent represents a resume event when buffered events are released
+type ResumeEvent struct {
+	Session       Session           `json:"session"`
+	ResumedFromID string            `json:"resumed_from_id"` // The sessionID that was being resumed from
+	BufferedCount int               `json:"buffered_count"`  // Number of events that were buffered
+	Timestamp     time.Time         `json:"timestamp"`
+	Reason        string            `json:"reason"` // Reason for release (e.g., "SessionStart:resume received")
+	Narration     *NarrationMessage `json:"narration,omitempty"`
+}
+
+// Type returns the event type
+func (e *ResumeEvent) Type() Type {
+	return EventTypeResume
 }
 
 // Printer is the interface for printing events

@@ -1,0 +1,3 @@
+{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"sys1","parentUuid":null,"sessionId":"different-session","cwd":"/test/dir","content":"System message","isMeta":false}
+{"type":"user","timestamp":"2025-01-26T15:30:46Z","uuid":"user1","parentUuid":"sys1","sessionId":"different-session","cwd":"/test/dir","message":{"role":"user","content":"User input"},"isMeta":false}
+{"type":"system","timestamp":"2025-01-26T15:30:47Z","uuid":"hook1","sessionId":"handler-session","cwd":"/test/dir","content":"\u001b[1mSessionStart:resume\u001b[22m [/test/hook.sh] completed successfully","isMeta":false,"toolUseID":"hook-tool","level":"info"}

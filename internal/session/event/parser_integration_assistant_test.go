@@ -21,7 +21,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-123",
 			Message: internalevent.AssistantMessageData{
@@ -64,7 +64,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-456",
 			Message: internalevent.AssistantMessageData{
@@ -121,7 +121,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-err",
 			Message: internalevent.AssistantMessageData{
@@ -162,7 +162,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-multi",
 			Message: internalevent.AssistantMessageData{
@@ -209,7 +209,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-no-lang",
 			Message: internalevent.AssistantMessageData{
@@ -252,7 +252,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-no-code",
 			Message: internalevent.AssistantMessageData{
@@ -290,7 +290,7 @@ var assistantMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RequestID: "req-array",
 			Message: internalevent.AssistantMessageData{

@@ -17,9 +17,9 @@ func TestSessionFileManager(t *testing.T) {
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
 	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	handlerBuilder := NewHandlerBuilder(mockNarr, sessionManager, centralHandler)
 
-	manager := NewSessionFileManager(handler)
+	manager := NewSessionFileManager(handlerBuilder)
 	manager.idleTimeout = 100 * time.Millisecond // Short timeout for testing
 	manager.checkInterval = 50 * time.Millisecond
 
@@ -62,10 +62,10 @@ func TestProjectsWatcherInitialization(t *testing.T) {
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
 	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	handlerBuilder := NewHandlerBuilder(mockNarr, sessionManager, centralHandler)
 
 	// Create projects watcher
-	watcher, err := NewProjectsWatcher(tmpDir, handler)
+	watcher, err := NewProjectsWatcher(tmpDir, handlerBuilder)
 	if err != nil {
 		t.Fatalf("Failed to create projects watcher: %v", err)
 	}
@@ -85,10 +85,10 @@ func TestProjectsWatcherHomeExpansion(t *testing.T) {
 	mockNarr := narrator.NewNoOpNarrator()
 	mockPrint := &mockPrinter{}
 	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	handlerBuilder := NewHandlerBuilder(mockNarr, sessionManager, centralHandler)
 
 	// Test home directory expansion
-	watcher, err := NewProjectsWatcher("~/test", handler)
+	watcher, err := NewProjectsWatcher("~/test", handlerBuilder)
 	if err != nil {
 		t.Fatalf("Failed to create projects watcher: %v", err)
 	}

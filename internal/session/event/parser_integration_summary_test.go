@@ -11,8 +11,8 @@ var summaryEventTestCases = []parserIntegrationTestCase{
 		expectEventSent: true,
 		wantEvent: &internalevent.SummaryEvent{
 			Session: internalevent.Session{
-				SessionID:      "",
-				TranscriptPath: "",
+				SessionID:      "test-session",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			LeafUUID: "leaf_123",
 			Summary:  "Summary text",
@@ -24,8 +24,8 @@ var summaryEventTestCases = []parserIntegrationTestCase{
 		expectEventSent: true,
 		wantEvent: &internalevent.SummaryEvent{
 			Session: internalevent.Session{
-				SessionID:      "",
-				TranscriptPath: "",
+				SessionID:      "test-session",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			LeafUUID: "leaf_xyz",
 			Summary:  "This is a longer summary text that contains multiple sentences. It describes what happened in the session.",

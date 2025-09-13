@@ -1,7 +1,9 @@
 package event
 
 import (
-	"encoding/json"
+	"bufio"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,8 +43,8 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 		t.Run(groupName, func(t *testing.T) {
 			for _, tt := range tests {
 				t.Run(tt.name, func(t *testing.T) {
-					// Create parser
-					parser := NewParser()
+					// Create parser with session info
+					parser := NewParserWithPath("/test/session.jsonl")
 
 					// Parse the event
 					event, err := parser.Parse(tt.input)
@@ -57,12 +59,12 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 					sessionManager := handler.NewSessionManager()
 
 					// Create handler with mock central handler
-					h := &Handler{
-						sessionManager: sessionManager,
-						centralHandler: mockCentral,
-						buffers:        make(map[string]*BufferInfo),
-						taskTracker:    NewTaskTracker(),
+					sessionFile := &SessionFile{
+						SessionID:      "test-session",
+						TranscriptPath: "/test/session.jsonl",
+						Project:        "test-project",
 					}
+					h := NewHandler(&mockNarrator{}, sessionManager, mockCentral, sessionFile)
 
 					// Process the event
 					h.processEvent(event)
@@ -100,39 +102,51 @@ func TestIntegration_ParseAndSendToCentral(t *testing.T) {
 	}
 }
 
-// parseJSON is a helper function to parse JSON into a map
-func parseJSON(input string) (map[string]json.RawMessage, error) {
-	var result map[string]json.RawMessage
-	err := json.Unmarshal([]byte(input), &result)
-	return result, err
-}
-
-// TestIntegration_Buffering tests session buffering and unbuffering
+// TestIntegration_Buffering tests parsing various JSONL files and verifying central events
 func TestIntegration_Buffering(t *testing.T) {
 	tests := []struct {
-		name       string
-		events     []string // JSON events to process in order
-		wantEvents int      // Expected number of events sent to central handler
+		name               string
+		filename           string
+		handlerSessionID   string
+		expectedEventTypes []string
+		description        string
 	}{
 		{
-			name: "buffer_until_user_message",
-			events: []string{
-				// System message should be buffered
-				`{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"sys1","sessionID":"test-session","cwd":"/test/dir","content":"System message","isMeta":false}`,
-				// User message should trigger unbuffering
-				`{"type":"user","timestamp":"2025-01-26T15:30:46Z","uuid":"user1","sessionID":"test-session","cwd":"/test/dir","content":"User input","isMeta":false}`,
+			name:             "double_resume",
+			filename:         "testdata/double_resume.jsonl",
+			handlerSessionID: "8b22a4cc-23bc-4910-adfc-f8f5c43ff5d3", // Session B
+			expectedEventTypes: []string{
+				"ResumeEvent",   // Line 10: SessionStart:resume (resume end)
+				"SystemMessage", // Additional SystemMessage event
+				"UserMessage",   // Line 11: Meta message (isMeta=true) - actually sent
+				"UserMessage",   // Line 12: Regular user message
+				"UserMessage",   // Line 13: Regular user message
+				"UserMessage",   // Line 14: Regular user message
+				"UserMessage",   // Line 15: Regular user message
+				"ResumeEvent",   // Line 27: SessionStart:resume (second resume end)
+				"SystemMessage", // Additional SystemMessage event
 			},
-			wantEvents: 2, // Both should be sent
+			description: "Session with double resume scenarios",
 		},
 		{
-			name: "no_buffering_after_user_message",
-			events: []string{
-				// User message first
-				`{"type":"user","timestamp":"2025-01-26T15:30:45Z","uuid":"user1","sessionID":"test-session","cwd":"/test/dir","content":"User input","isMeta":false}`,
-				// System message should not be buffered
-				`{"type":"system","timestamp":"2025-01-26T15:30:46Z","uuid":"sys1","sessionID":"test-session","cwd":"/test/dir","content":"System message","isMeta":false}`,
+			name:             "buffer_until_sessionstart_resume",
+			filename:         "testdata/buffer_until_sessionstart_resume.jsonl",
+			handlerSessionID: "handler-session",
+			expectedEventTypes: []string{
+				"ResumeEvent",   // SessionStart:resume hook event (resume end)
+				"SystemMessage", // System message sent to central handler
 			},
-			wantEvents: 2, // Both should be sent immediately
+			description: "Events buffered until SessionStart:resume (buffered events are discarded)",
+		},
+		{
+			name:             "normal_session_start_no_buffering",
+			filename:         "testdata/normal_session_start_no_buffering.jsonl",
+			handlerSessionID: "handler-session",
+			expectedEventTypes: []string{
+				"SystemMessage", // System message with matching sessionID
+				"UserMessage",   // User message should be sent normally
+			},
+			description: "Normal session start without buffering (both events sent immediately)",
 		},
 	}
 
@@ -145,191 +159,79 @@ func TestIntegration_Buffering(t *testing.T) {
 			sessionManager := handler.NewSessionManager()
 
 			// Create handler with mock central handler
-			h := &Handler{
-				sessionManager: sessionManager,
-				centralHandler: mockCentral,
-				buffers:        make(map[string]*BufferInfo),
-				taskTracker:    NewTaskTracker(),
+			sessionFile := &SessionFile{
+				SessionID:      tt.handlerSessionID,
+				TranscriptPath: tt.filename,
+				Project:        "test-project",
 			}
+			h := NewHandler(&mockNarrator{}, sessionManager, mockCentral, sessionFile)
 
-			// Create parser
-			parser := NewParser()
+			// Create parser with testdata file path
+			parser := NewParserWithPath(tt.filename)
 
-			// Process each event
-			for _, eventJSON := range tt.events {
-				event, err := parser.Parse(eventJSON)
+			// Read and parse the file line by line
+			file, err := os.Open(tt.filename)
+			if err != nil {
+				t.Fatalf("Failed to open test file %s: %v", tt.filename, err)
+			}
+			defer file.Close()
+
+			scanner := bufio.NewScanner(file)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if strings.TrimSpace(line) == "" {
+					continue // Skip empty lines
+				}
+
+				event, err := parser.Parse(line)
 				if err != nil {
 					t.Fatalf("Parse() error = %v", err)
 				}
 				h.processEvent(event)
 			}
 
-			// Check number of events sent
-			if len(mockCentral.events) != tt.wantEvents {
-				t.Errorf("Expected %d events sent to central handler, got %d", tt.wantEvents, len(mockCentral.events))
-			}
-		})
-	}
-}
-
-// TestIntegration_AssistantMessageFormatting tests formatting of assistant messages
-func TestIntegration_AssistantMessageFormatting(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		wantEvent interface{}
-	}{
-		{
-			name:  "assistant_with_content",
-			input: `{"type":"assistant","timestamp":"2025-01-26T15:30:45Z","uuid":"asst1","sessionID":"test-session","cwd":"/test/dir","content":"Here is my response","isMeta":false,"toolUsesMetadata":[],"role":"assistant"}`,
-			wantEvent: &internalevent.AssistantMessage{
-				SessionMessageBase: internalevent.SessionMessageBase{
-					UUID:        "asst1",
-					Type:        internalevent.MessageTypeAssistant,
-					IsSidechain: false,
-					CWD:         "/test/dir",
-					Timestamp:   mustParseTime("2025-01-26T15:30:45Z"),
-					IsMeta:      false,
-				},
-				Session: internalevent.Session{
-					SessionID:      "test-session",
-					TranscriptPath: "",
-				},
-				Message: internalevent.AssistantMessageData{
-					Content: &internalevent.AssistantMessageContentList{
-						Items: []internalevent.AssistantMessageContentItem{
-							&internalevent.AssistantMessageContentText{
-								Type: "text",
-								Text: "Here is my response",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create parser
-			parser := NewParser()
-
-			// Parse the event
-			event, err := parser.Parse(tt.input)
-			if err != nil {
-				t.Fatalf("Parse() error = %v", err)
+			if err := scanner.Err(); err != nil {
+				t.Fatalf("Error reading file %s: %v", tt.filename, err)
 			}
 
-			// Create mock central handler
-			mockCentral := &mockCentralHandler{}
-
-			// Create session manager
-			sessionManager := handler.NewSessionManager()
-
-			// Create handler with mock central handler
-			h := &Handler{
-				sessionManager: sessionManager,
-				centralHandler: mockCentral,
-				buffers:        make(map[string]*BufferInfo),
-				taskTracker:    NewTaskTracker(),
-			}
-
-			// Process the event
-			h.processEvent(event)
-
-			// Check event sent
-			if len(mockCentral.events) != 1 {
-				t.Errorf("Expected 1 event sent to central handler, got %d", len(mockCentral.events))
+			// Verify the number of events
+			if len(mockCentral.events) != len(tt.expectedEventTypes) {
+				t.Errorf("Expected %d events, got %d", len(tt.expectedEventTypes), len(mockCentral.events))
+				for i, event := range mockCentral.events {
+					t.Logf("Event %d: %T", i+1, event)
+				}
 				return
 			}
 
-			gotEvent := mockCentral.events[0]
+			// Verify event types
+			for i, expectedType := range tt.expectedEventTypes {
+				gotEvent := mockCentral.events[i]
+				gotType := getEventType(gotEvent)
 
-			// Compare using cmp.Diff
-			opts := []cmp.Option{
-				cmpopts.IgnoreFields(internalevent.AssistantMessage{}, "Narration"),
-			}
-
-			if diff := cmp.Diff(tt.wantEvent, gotEvent, opts...); diff != "" {
-				t.Errorf("AssistantMessage mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-// TestIntegration_JSON tests JSON parsing
-func TestIntegration_JSON(t *testing.T) {
-	// Test that the parser can handle various JSON formats
-	tests := []struct {
-		name      string
-		input     string
-		wantError bool
-	}{
-		{
-			name:      "valid_json",
-			input:     `{"type":"system","timestamp":"2025-01-26T15:30:45Z","uuid":"123","sessionID":"test","cwd":"/test","content":"test","isMeta":false}`,
-			wantError: false,
-		},
-		{
-			name:      "invalid_json",
-			input:     `{"type":}`,
-			wantError: true,
-		},
-		{
-			name:      "empty_string",
-			input:     ``,
-			wantError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			parser := NewParser()
-			_, err := parser.Parse(tt.input)
-			if (err != nil) != tt.wantError {
-				t.Errorf("Parse() error = %v, wantError %v", err, tt.wantError)
-			}
-		})
-	}
-}
-
-// TestParseJSON tests the parseJSON helper function
-func TestParseJSON(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    map[string]json.RawMessage
-		wantErr bool
-	}{
-		{
-			name:  "valid_json",
-			input: `{"type":"test","value":123}`,
-			want: map[string]json.RawMessage{
-				"type":  json.RawMessage(`"test"`),
-				"value": json.RawMessage(`123`),
-			},
-			wantErr: false,
-		},
-		{
-			name:    "invalid_json",
-			input:   `{"type":}`,
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseJSON(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseJSON() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				if diff := cmp.Diff(tt.want, got); diff != "" {
-					t.Errorf("parseJSON() mismatch (-want +got):\n%s", diff)
+				if gotType != expectedType {
+					t.Errorf("Event %d: expected type %s, got %s", i+1, expectedType, gotType)
 				}
 			}
 		})
+	}
+}
+
+// getEventType returns the string representation of the event type
+func getEventType(event interface{}) string {
+	switch event.(type) {
+	case *internalevent.ResumeEvent:
+		return "ResumeEvent"
+	case *internalevent.UserMessage:
+		return "UserMessage"
+	case *internalevent.AssistantMessage:
+		return "AssistantMessage"
+	case *internalevent.SystemMessage:
+		return "SystemMessage"
+	case *internalevent.SummaryEvent:
+		return "SummaryEvent"
+	case *internalevent.NotificationEvent:
+		return "NotificationEvent"
+	default:
+		return "Unknown"
 	}
 }

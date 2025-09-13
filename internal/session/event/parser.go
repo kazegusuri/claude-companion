@@ -11,17 +11,31 @@ type Parser struct {
 	session *SessionFile
 }
 
-// NewParser creates a new Parser instance
-func NewParser() *Parser {
-	return &Parser{}
-}
-
 // NewParserWithPath creates a new Parser instance with a log file path
 func NewParserWithPath(logPath string) *Parser {
 	return &Parser{
 		logPath: logPath,
 		session: extractSessionFromPath(logPath),
 	}
+}
+
+// NewParserWithPathAndSessionID creates a new Parser instance with a log file path and custom session ID
+// This is useful for testing where you want to override the session ID
+func NewParserWithPathAndSessionID(logPath string, sessionID string) *Parser {
+	session := extractSessionFromPath(logPath)
+	if session != nil && sessionID != "" {
+		// Override the session ID
+		session.SessionID = sessionID
+	}
+	return &Parser{
+		logPath: logPath,
+		session: session,
+	}
+}
+
+// GetSession returns the parser's session
+func (p *Parser) GetSession() *SessionFile {
+	return p.session
 }
 
 // ParseBaseEvent parses a JSON line and returns a BaseEvent

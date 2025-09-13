@@ -5,7 +5,7 @@ import (
 )
 
 func TestParser_Parse(t *testing.T) {
-	parser := NewParser()
+	parser := NewParserWithPath("/test/session.jsonl")
 
 	tests := []struct {
 		name        string
@@ -156,7 +156,7 @@ func TestParserWithPath(t *testing.T) {
 		t.Errorf("Session.Project = %v, want test-project", userMsg.Session.Project)
 	}
 
-	if userMsg.Session.Session != "test-session" {
-		t.Errorf("Session.Session = %v, want test-session", userMsg.Session.Session)
+	if userMsg.Session.SessionID != "test-session" {
+		t.Errorf("Session.SessionID = %v, want test-session", userMsg.Session.SessionID)
 	}
 }

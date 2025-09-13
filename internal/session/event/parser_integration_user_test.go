@@ -22,7 +22,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -47,7 +47,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -72,7 +72,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -97,7 +97,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -122,7 +122,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -147,7 +147,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -172,7 +172,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -197,7 +197,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -222,7 +222,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -251,7 +251,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -278,7 +278,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -309,7 +309,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -346,7 +346,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -375,7 +375,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -406,7 +406,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -437,7 +437,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -471,7 +471,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",
@@ -501,7 +501,7 @@ var userMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			Message: internalevent.UserMessageData{
 				Role: "user",

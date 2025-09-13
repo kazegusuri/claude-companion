@@ -22,7 +22,7 @@ type ProjectsWatcher struct {
 }
 
 // NewProjectsWatcher creates a new projects watcher
-func NewProjectsWatcher(rootPath string, handler *Handler) (*ProjectsWatcher, error) {
+func NewProjectsWatcher(rootPath string, handlerBuilder *HandlerBuilder) (*ProjectsWatcher, error) {
 	// Expand home directory if needed
 	if strings.HasPrefix(rootPath, "~/") {
 		home, err := os.UserHomeDir()
@@ -37,7 +37,7 @@ func NewProjectsWatcher(rootPath string, handler *Handler) (*ProjectsWatcher, er
 		return nil, err
 	}
 
-	sessionManager := NewSessionFileManager(handler)
+	sessionManager := NewSessionFileManager(handlerBuilder)
 
 	return &ProjectsWatcher{
 		rootPath:       rootPath,

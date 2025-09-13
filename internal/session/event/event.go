@@ -54,9 +54,9 @@ const (
 
 // SessionFile represents the project and session information extracted from the log file path
 type SessionFile struct {
-	Path    string `json:"path"` // Full path to the session file
-	Project string `json:"project"`
-	Session string `json:"session"`
+	TranscriptPath string `json:"transcript_path"` // Full path to the session file (transcript)
+	Project        string `json:"project"`
+	SessionID      string `json:"session_id"` // Session ID
 }
 
 // BaseEvent contains common fields for all event types
@@ -252,8 +252,8 @@ func extractSessionFromPath(path string) *SessionFile {
 
 	// Return session info from parent directory and filename
 	return &SessionFile{
-		Path:    cleanPath,
-		Project: projectDir,
-		Session: filename,
+		TranscriptPath: cleanPath,
+		Project:        projectDir,
+		SessionID:      filename,
 	}
 }

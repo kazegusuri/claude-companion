@@ -16,14 +16,18 @@ type SessionWatcher struct {
 	eventHandler *Handler
 	parser       *Parser
 	done         chan struct{}
+	lastPosition int64 // Track the last read position
 }
 
-// NewSessionWatcher creates a new session watcher
-func NewSessionWatcher(filePath string, eventHandler *Handler) *SessionWatcher {
+// NewSessionWatcher creates a new session watcher using a builder
+func NewSessionWatcher(filePath string, builder *HandlerBuilder) *SessionWatcher {
+	// Build handler and parser from the file path
+	handler, parser := builder.BuildFromPath(filePath)
+
 	return &SessionWatcher{
 		filePath:     filePath,
-		eventHandler: eventHandler,
-		parser:       NewParserWithPath(filePath),
+		eventHandler: handler,
+		parser:       parser,
 		done:         make(chan struct{}),
 	}
 }
@@ -41,17 +45,13 @@ func (w *SessionWatcher) Stop() {
 
 // watch monitors the session file
 func (w *SessionWatcher) watch() {
-	// Run warmup first
-	if err := w.warmup(); err != nil {
-		logger.LogError("Error during warmup: %v", err)
-	}
-
+	// Tail the file (includes warmup processing)
 	if err := w.tailFile(); err != nil {
 		logger.LogError("Error watching session file: %v", err)
 	}
 }
 
-// tailFile tails the session file
+// tailFile processes existing lines then tails the session file
 func (w *SessionWatcher) tailFile() error {
 	file, err := os.Open(w.filePath)
 	if err != nil {
@@ -59,12 +59,12 @@ func (w *SessionWatcher) tailFile() error {
 	}
 	defer file.Close()
 
-	// Move to end of file
-	_, err = file.Seek(0, io.SeekEnd)
-	if err != nil {
-		return fmt.Errorf("failed to seek to end: %w", err)
+	// First, process all existing lines (warmup)
+	if err := w.processExistingLines(file); err != nil {
+		return fmt.Errorf("failed to process existing lines: %w", err)
 	}
 
+	// Now continue tailing from the current position
 	reader := bufio.NewReader(file)
 
 	for {
@@ -134,13 +134,17 @@ func (w *SessionWatcher) ReadFullFile() error {
 	return nil
 }
 
-// warmup reads the first 10 lines of the file to initialize the session
-func (w *SessionWatcher) warmup() error {
-	file, err := os.Open(w.filePath)
+// processExistingLines reads all existing lines in the file to initialize the session
+func (w *SessionWatcher) processExistingLines(file *os.File) error {
+	// Set warmup mode
+	w.eventHandler.SetWarmupMode(true)
+	defer w.eventHandler.SetWarmupMode(false)
+
+	// Start from the beginning of the file
+	_, err := file.Seek(0, io.SeekStart)
 	if err != nil {
-		return fmt.Errorf("failed to open file for warmup: %w", err)
+		return fmt.Errorf("failed to seek to start: %w", err)
 	}
-	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	// Increase buffer size to handle very long JSON lines
@@ -149,9 +153,9 @@ func (w *SessionWatcher) warmup() error {
 	scanner.Buffer(buf, maxScanTokenSize)
 
 	lineCount := 0
-	maxLines := 10
 
-	for scanner.Scan() && lineCount < maxLines {
+	// Read all lines from the beginning to the current end
+	for scanner.Scan() {
 		lineCount++
 		line := scanner.Text()
 		if len(line) > 0 {
@@ -168,6 +172,16 @@ func (w *SessionWatcher) warmup() error {
 
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("error reading file during warmup: %w", err)
+	}
+
+	// Record the current position after processing existing lines
+	w.lastPosition, err = file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("failed to get current position: %w", err)
+	}
+
+	if logger.IsDebugMode() {
+		logger.LogInfo("Warmup completed: processed %d lines from %s, position: %d", lineCount, w.filePath, w.lastPosition)
 	}
 
 	return nil

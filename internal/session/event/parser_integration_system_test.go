@@ -20,7 +20,7 @@ var systemMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RawContent: "Tool execution completed",
 			Level:      "",
@@ -41,7 +41,7 @@ var systemMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RawContent: "Rate limit warning",
 			Level:      "warning",
@@ -62,7 +62,7 @@ var systemMessageTestCases = []parserIntegrationTestCase{
 			},
 			Session: internalevent.Session{
 				SessionID:      "test-session",
-				TranscriptPath: "",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RawContent: "API error occurred",
 			Level:      "error",
@@ -83,8 +83,8 @@ var systemMessageTestCases = []parserIntegrationTestCase{
 				IsMeta:      false,
 			},
 			Session: internalevent.Session{
-				SessionID:      "78f17a9d-d4da-4d94-ba71-18a48aac42a3",
-				TranscriptPath: "",
+				SessionID:      "test-session",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RawContent: "\u001b[1mStop\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
 			Content: &internalevent.HookSystemMessageContent{
@@ -112,8 +112,8 @@ var systemMessageTestCases = []parserIntegrationTestCase{
 				IsMeta:      false,
 			},
 			Session: internalevent.Session{
-				SessionID:      "d99240fe-3539-438d-85c6-c51f5eb51902",
-				TranscriptPath: "",
+				SessionID:      "test-session",
+				TranscriptPath: "/test/session.jsonl",
 			},
 			RawContent: "\u001b[1mSessionStart:resume\u001b[22m [/usr/local/bin/claude-notification.sh] completed successfully",
 			Content: &internalevent.HookSystemMessageContent{

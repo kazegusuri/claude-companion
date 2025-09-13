@@ -116,7 +116,12 @@ func TestHandler_IgnoreSidechainEvents(t *testing.T) {
 	mockNarr := &mockNarrator{}
 	mockPrint := &mockPrinter{}
 	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	sessionFile := &SessionFile{
+		SessionID:      "test-session",
+		TranscriptPath: "/test/transcript.jsonl",
+		Project:        "test-project",
+	}
+	handler := NewHandler(mockNarr, sessionManager, centralHandler, sessionFile)
 	handler.Start()
 	defer handler.Stop()
 
@@ -213,7 +218,12 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 	sessionManager := handler.NewSessionManager()
 	mockNarr := &mockNarrator{}
 	mockCentral := &mockCentralHandlerWithLock{}
-	handler := NewHandler(mockNarr, sessionManager, mockCentral)
+	sessionFile := &SessionFile{
+		SessionID:      "test-session",
+		TranscriptPath: "/test/transcript.jsonl",
+		Project:        "test-project",
+	}
+	handler := NewHandler(mockNarr, sessionManager, mockCentral, sessionFile)
 	handler.Start()
 	defer handler.Stop()
 
@@ -270,7 +280,7 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 			expectedEvent: &internalevent.TaskCompletionMessage{
 				Session: internalevent.Session{
 					SessionID:      "test-session",
-					TranscriptPath: "",
+					TranscriptPath: "/test/transcript.jsonl",
 				},
 				TaskInfo: internalevent.TaskInfo{
 					ToolUseID:    "task-id-123",
@@ -326,7 +336,7 @@ func TestHandler_TaskToolResultNarration(t *testing.T) {
 			expectedEvent: &internalevent.TaskCompletionMessage{
 				Session: internalevent.Session{
 					SessionID:      "test-session",
-					TranscriptPath: "",
+					TranscriptPath: "/test/transcript.jsonl",
 				},
 				TaskInfo: internalevent.TaskInfo{
 					ToolUseID:    "task-id-456",
@@ -384,7 +394,12 @@ func TestHandler_NonTaskToolResult(t *testing.T) {
 	mockNarr := &mockNarrator{}
 	mockPrint := &mockPrinter{}
 	centralHandler := internalevent.NewHandler(sessionManager, mockNarr, mockPrint, nil)
-	handler := NewHandler(mockNarr, sessionManager, centralHandler)
+	sessionFile := &SessionFile{
+		SessionID:      "test-session",
+		TranscriptPath: "/test/transcript.jsonl",
+		Project:        "test-project",
+	}
+	handler := NewHandler(mockNarr, sessionManager, centralHandler, sessionFile)
 	handler.Start()
 	defer handler.Stop()
 
@@ -450,9 +465,9 @@ func createTestUserMessage(sessionName string, parentUUID *string) *UserMessage 
 			ParentUUID:  parentUUID,
 			SessionID:   sessionName,
 			Session: &SessionFile{
-				Path:    "/test/path.jsonl",
-				Project: "test-project",
-				Session: sessionName,
+				TranscriptPath: "/test/path.jsonl",
+				Project:        "test-project",
+				SessionID:      sessionName,
 			},
 		},
 		Message: UserMessageContent{
@@ -471,9 +486,9 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 			Timestamp:   time.Now(),
 			SessionID:   sessionName,
 			Session: &SessionFile{
-				Path:    "/test/path.jsonl",
-				Project: "test-project",
-				Session: sessionName,
+				TranscriptPath: "/test/path.jsonl",
+				Project:        "test-project",
+				SessionID:      sessionName,
 			},
 		},
 		Content:       fmt.Sprintf("%s [/test/script.sh] completed successfully", hookEventType),
@@ -494,22 +509,24 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
-		eventChan:      make(chan Event, 100),
-		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
+		session: &SessionFile{
+			SessionID: "test-session", // Set the expected sessionID
+		},
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	sessionName := "test-session"
 
-	// Register the session with a different UUID to trigger resume scenario
-	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
-
-	// Send event with ParentUUID==nil
-	event1 := createTestUserMessage(sessionName, nil)
+	// Send event with ParentUUID==nil but different SessionID to trigger resume
+	event1 := createTestUserMessage("different-session", nil) // Different SessionID
+	event1.BaseEvent.Session = &SessionFile{
+		SessionID:      sessionName, // But same session name for buffering
+		TranscriptPath: "/test/path.jsonl",
+	}
 	handler.SendEvent(event1)
 
 	// Wait a bit to ensure processing
@@ -565,22 +582,24 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
-		eventChan:      make(chan Event, 100),
-		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
+		session: &SessionFile{
+			SessionID: "session-222", // Set the expected sessionID
+		},
 	}
 	handler.Start()
 	defer handler.Stop()
 
-	sessionName := "resume-test"
+	sessionName := "session-222"
 
-	// Register the session with a different UUID to trigger resume scenario
-	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
-
-	// Send event with ParentUUID==nil to trigger buffering
-	event1 := createTestUserMessage(sessionName, nil)
+	// Send event with ParentUUID==nil but different SessionID to trigger buffering
+	event1 := createTestUserMessage("different-session", nil)
+	event1.BaseEvent.Session = &SessionFile{
+		SessionID:      sessionName,
+		TranscriptPath: "/test/path.jsonl",
+	}
 	handler.SendEvent(event1)
 
 	time.Sleep(100 * time.Millisecond)
@@ -594,8 +613,9 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 		t.Error("Buffer should exist before SessionStart:resume")
 	}
 
-	// Send SessionStart:resume event
+	// Send SessionStart:resume event with correct sessionID
 	hookEvent := createTestHookEvent(sessionName, "SessionStart:resume")
+	hookEvent.BaseEvent.SessionID = "session-222" // Match handler's sessionID
 	handler.SendEvent(hookEvent)
 
 	time.Sleep(100 * time.Millisecond)
@@ -609,10 +629,28 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 		t.Error("Buffer should be released after SessionStart:resume")
 	}
 
-	// Check that HookEvent was sent to central handler
+	// Check that events were sent to central handler
 	events := centralHandler.GetEvents()
-	if len(events) == 0 {
-		t.Error("HookEvent should be sent to central handler")
+	if len(events) < 2 {
+		t.Errorf("Expected at least 2 events (ResumeEvent and HookEvent), got %d", len(events))
+	}
+
+	// Check for ResumeEvent
+	var foundResumeEvent bool
+	for _, e := range events {
+		if resumeEvent, ok := e.(*internalevent.ResumeEvent); ok {
+			foundResumeEvent = true
+			if resumeEvent.BufferedCount != 1 {
+				t.Errorf("Expected BufferedCount to be 1, got %d", resumeEvent.BufferedCount)
+			}
+			if resumeEvent.ResumedFromID != "different-session" {
+				t.Errorf("Expected ResumedFromID to be 'different-session', got %s", resumeEvent.ResumedFromID)
+			}
+		}
+	}
+
+	if !foundResumeEvent {
+		t.Error("ResumeEvent should be sent to central handler")
 	}
 }
 
@@ -623,21 +661,19 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
-		eventChan:      make(chan Event, 100),
-		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
+		session: &SessionFile{
+			SessionID: "timeout-test", // Set the expected sessionID
+		},
 	}
 	handler.Start()
 	defer handler.Stop()
 
 	sessionName := "timeout-test"
 
-	// Register the session with a different UUID to trigger resume scenario
-	sessionManager.CreateSession(sessionName, "existing-uuid", "/test/workspace", "/test/transcript.jsonl")
-
-	// Send event with ParentUUID==nil
+	// Send event with ParentUUID==nil and different sessionID to trigger buffering
 	// Use AssistantMessage instead of UserMessage since UserMessage is now handled by central handler
 	event1 := &AssistantMessage{
 		BaseEvent: BaseEvent{
@@ -646,11 +682,11 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 			UUID:        "assistant-1",
 			Timestamp:   time.Now(),
 			ParentUUID:  nil,
-			SessionID:   sessionName,
+			SessionID:   "different-session", // Different sessionID to trigger buffering
 			Session: &SessionFile{
-				Path:    "/test/path.jsonl",
-				Project: "test-project",
-				Session: sessionName,
+				TranscriptPath: "/test/path.jsonl",
+				Project:        "test-project",
+				SessionID:      sessionName,
 			},
 		},
 		Message: AssistantMessageContent{
@@ -703,9 +739,9 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 			ParentUUID:  &parentUUID,
 			SessionID:   sessionName,
 			Session: &SessionFile{
-				Path:    "/test/path.jsonl",
-				Project: "test-project",
-				Session: sessionName,
+				TranscriptPath: "/test/path.jsonl",
+				Project:        "test-project",
+				SessionID:      sessionName,
 			},
 		},
 		Message: UserMessageContent{
@@ -732,11 +768,12 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 	handler := &Handler{
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
-		eventChan:      make(chan Event, 100),
-		done:           make(chan struct{}),
 		taskTracker:    NewTaskTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
+		session: &SessionFile{
+			SessionID: "main-session", // Set the expected sessionID
+		},
 	}
 	handler.Start()
 	defer handler.Stop()
@@ -744,13 +781,12 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 	session1 := "session-1"
 	session2 := "session-2"
 
-	// Register both sessions with different UUIDs to trigger resume scenario
-	sessionManager.CreateSession(session1, "existing-uuid-1", "/test/workspace", "/test/transcript1.jsonl")
-	sessionManager.CreateSession(session2, "existing-uuid-2", "/test/workspace", "/test/transcript2.jsonl")
+	// Send ParentUUID==nil events with different sessionIDs to trigger buffering
+	event1 := createTestUserMessage("different-1", nil)
+	event1.BaseEvent.Session = &SessionFile{SessionID: session1, TranscriptPath: "/test/path1.jsonl"}
 
-	// Send ParentUUID==nil events for both sessions
-	event1 := createTestUserMessage(session1, nil)
-	event2 := createTestUserMessage(session2, nil)
+	event2 := createTestUserMessage("different-2", nil)
+	event2.BaseEvent.Session = &SessionFile{SessionID: session2, TranscriptPath: "/test/path2.jsonl"}
 
 	handler.SendEvent(event1)
 	handler.SendEvent(event2)
@@ -769,6 +805,8 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 
 	// Release buffer for session1 only
 	hookEvent := createTestHookEvent(session1, "SessionStart:resume")
+	hookEvent.BaseEvent.SessionID = "main-session" // Match handler's sessionID to trigger release
+	hookEvent.BaseEvent.Session = &SessionFile{SessionID: session1, TranscriptPath: "/test/path1.jsonl"}
 	handler.SendEvent(hookEvent)
 
 	time.Sleep(100 * time.Millisecond)
@@ -786,10 +824,21 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 		t.Error("Session2 buffer should still exist")
 	}
 
-	// Check that HookEvent was sent to central handler
-	// Only the HookEvent for session-1 should be sent (session-2 remains buffered)
+	// Check that events were sent to central handler
+	// ResumeEvent and HookEvent for session-1 should be sent (session-2 remains buffered)
 	events := centralHandler.GetEvents()
-	if len(events) != 1 {
-		t.Errorf("Expected 1 event to be sent to central handler (HookEvent for session-1), got %d", len(events))
+	if len(events) != 2 {
+		t.Errorf("Expected 2 events to be sent to central handler (ResumeEvent and HookEvent for session-1), got %d", len(events))
+	}
+
+	// Check for ResumeEvent
+	var foundResumeEvent bool
+	for _, e := range events {
+		if _, ok := e.(*internalevent.ResumeEvent); ok {
+			foundResumeEvent = true
+		}
+	}
+	if !foundResumeEvent {
+		t.Error("ResumeEvent should be sent when buffer is released")
 	}
 }

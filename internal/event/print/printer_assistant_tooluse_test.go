@@ -650,7 +650,8 @@ var assistantMessageToolUseTestCases = []printerTestCase{
 			},
 		},
 		wantOutput: "[15:30:45] 🤖 ASSISTANT (claude-3-opus):\n" +
-			"  💬 Creating GitHub issue\n",
+			"  💬 Creating GitHub issue\n" +
+			"  🔧 mcp__github__create_issue\n",
 		description: "Assistant message with MCP tool use",
 	},
 

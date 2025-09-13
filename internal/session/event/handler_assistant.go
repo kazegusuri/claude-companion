@@ -57,19 +57,10 @@ func (h *Handler) convertAssistantMessage(msg *AssistantMessage) *internalevent.
 		}
 	}
 
-	// Get transcript path from session if available
-	transcriptPath := ""
-	if msg.Session != nil {
-		transcriptPath = msg.Session.Path
-	}
-
 	return &internalevent.AssistantMessage{
 		SessionMessageBase: base,
-		Session: internalevent.Session{
-			SessionID:      msg.SessionID,
-			TranscriptPath: transcriptPath,
-		},
-		RequestID: msg.RequestID,
+		Session:            h.internalSession,
+		RequestID:          msg.RequestID,
 		Message: internalevent.AssistantMessageData{
 			ID:         msg.Message.ID,
 			Type:       msg.Message.Type,

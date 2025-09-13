@@ -1,6 +1,8 @@
 package event
 
 import (
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -9,9 +11,10 @@ import (
 
 // SessionFileManager manages multiple SessionWatcher instances
 type SessionFileManager struct {
-	watchers map[string]*ManagedWatcher
-	mu       sync.RWMutex
-	handler  *Handler
+	watchers       map[string]*ManagedWatcher
+	mu             sync.RWMutex
+	handlerBuilder *HandlerBuilder
+	handlers       map[string]*Handler // Map of file path to handler
 
 	// Configuration
 	idleTimeout   time.Duration
@@ -24,18 +27,20 @@ type SessionFileManager struct {
 // ManagedWatcher wraps a SessionWatcher with metadata
 type ManagedWatcher struct {
 	watcher      *SessionWatcher
+	handler      *Handler
 	lastActivity time.Time
 	filePath     string
 }
 
 // NewSessionFileManager creates a new session file manager
-func NewSessionFileManager(handler *Handler) *SessionFileManager {
+func NewSessionFileManager(handlerBuilder *HandlerBuilder) *SessionFileManager {
 	return &SessionFileManager{
-		watchers:      make(map[string]*ManagedWatcher),
-		handler:       handler,
-		idleTimeout:   1 * time.Hour,   // Remove watchers after 1 hour of inactivity
-		checkInterval: 1 * time.Minute, // Check for idle watchers every minute
-		done:          make(chan struct{}),
+		watchers:       make(map[string]*ManagedWatcher),
+		handlerBuilder: handlerBuilder,
+		handlers:       make(map[string]*Handler),
+		idleTimeout:    1 * time.Hour,   // Remove watchers after 1 hour of inactivity
+		checkInterval:  1 * time.Minute, // Check for idle watchers every minute
+		done:           make(chan struct{}),
 	}
 }
 
@@ -58,6 +63,7 @@ func (m *SessionFileManager) Stop() {
 		mw.watcher.Stop()
 	}
 	m.watchers = make(map[string]*ManagedWatcher)
+	m.handlers = make(map[string]*Handler)
 }
 
 // AddOrUpdateWatcher adds a new watcher or updates the activity time
@@ -74,14 +80,18 @@ func (m *SessionFileManager) AddOrUpdateWatcher(filePath string) error {
 		return nil
 	}
 
-	// Create new watcher
-	watcher := NewSessionWatcher(filePath, m.handler)
+	// Create new watcher with the builder (it will create handler and parser internally)
+	watcher := NewSessionWatcher(filePath, m.handlerBuilder)
+
+	// Store the handler for later reference
+	m.handlers[filePath] = watcher.eventHandler
 	if err := watcher.Start(); err != nil {
 		return err
 	}
 
 	m.watchers[filePath] = &ManagedWatcher{
 		watcher:      watcher,
+		handler:      watcher.eventHandler,
 		lastActivity: time.Now(),
 		filePath:     filePath,
 	}
@@ -127,6 +137,8 @@ func (m *SessionFileManager) cleanupIdleWatchers() {
 		if mw, exists := m.watchers[path]; exists {
 			mw.watcher.Stop()
 			delete(m.watchers, path)
+			// Also remove the handler
+			delete(m.handlers, path)
 			if logger.IsDebugMode() {
 				logger.LogInfo("Removed idle session watcher for: %s", path)
 			}
@@ -143,4 +155,14 @@ func (m *SessionFileManager) GetActiveWatcherCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.watchers)
+}
+
+// ExtractSessionIDFromPath extracts the session ID from a session file path
+// Example: /path/to/project/session-20240101-123456.jsonl -> session-20240101-123456
+func ExtractSessionIDFromPath(filePath string) string {
+	// Get the base filename without extension
+	base := filepath.Base(filePath)
+	// Remove the .jsonl extension
+	sessionID := strings.TrimSuffix(base, ".jsonl")
+	return sessionID
 }

@@ -1310,6 +1310,74 @@ func TestNotificationPrinter_Print(t *testing.T) {
 		},
 		"AssistantMessage":        assistantMessageTestCases,
 		"AssistantMessageToolUse": assistantMessageToolUseTestCases,
+		"ResumeEvent": {
+			{
+				name:      "resume_event_basic",
+				debugMode: false,
+				event: &event.ResumeEvent{
+					Session: event.Session{
+						SessionID: "session-123",
+					},
+					ResumedFromID: "session-456",
+					BufferedCount: 5,
+					Timestamp:     fixedTime,
+					Reason:        "SessionStart:resume received",
+				},
+				wantOutput: "[15:30:45] 🔄 RESUME\n" +
+					"  📦 Released 5 buffered events\n" +
+					"  💭 Reason: SessionStart:resume received\n",
+				description: "Resume event with buffered events and reason",
+			},
+			{
+				name:      "resume_event_no_buffered",
+				debugMode: false,
+				event: &event.ResumeEvent{
+					Session: event.Session{
+						SessionID: "session-123",
+					},
+					ResumedFromID: "session-456",
+					BufferedCount: 0,
+					Timestamp:     fixedTime,
+					Reason:        "Timeout auto-release",
+				},
+				wantOutput: "[15:30:45] 🔄 RESUME\n" +
+					"  📦 Resume completed (no buffered events)\n" +
+					"  💭 Reason: Timeout auto-release\n",
+				description: "Resume event without buffered events",
+			},
+			{
+				name:      "resume_event_debug_mode",
+				debugMode: true,
+				event: &event.ResumeEvent{
+					Session: event.Session{
+						SessionID: "session-123456789abc",
+					},
+					ResumedFromID: "session-456789012def",
+					BufferedCount: 3,
+					Timestamp:     fixedTime,
+					Reason:        "SessionStart:resume received",
+				},
+				wantOutput: "[15:30:45] 🔄 RESUME [Session: session-] [From: session-]\n" +
+					"  📦 Released 3 buffered events\n" +
+					"  💭 Reason: SessionStart:resume received\n",
+				description: "Resume event with debug mode showing session IDs",
+			},
+			{
+				name:      "resume_event_no_reason",
+				debugMode: false,
+				event: &event.ResumeEvent{
+					Session: event.Session{
+						SessionID: "session-123",
+					},
+					ResumedFromID: "session-456",
+					BufferedCount: 2,
+					Timestamp:     fixedTime,
+				},
+				wantOutput: "[15:30:45] 🔄 RESUME\n" +
+					"  📦 Released 2 buffered events\n",
+				description: "Resume event without reason",
+			},
+		},
 		"UnsupportedEventType": {
 			{
 				name:        "unsupported_event_type",
