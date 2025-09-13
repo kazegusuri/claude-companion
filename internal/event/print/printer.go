@@ -585,6 +585,12 @@ func (p *NotificationPrinter) formatTaskCompletionMessage(event *event.TaskCompl
 		output.WriteString(fmt.Sprintf("  Agent: %s\n", event.TaskInfo.SubagentType))
 	}
 
+	// Add subagent info if available
+	if event.SubagentTask != nil {
+		output.WriteString(fmt.Sprintf("  Subagent Events: %d (UUID: %s)\n",
+			event.SubagentTask.EventCount, event.SubagentTask.UUID))
+	}
+
 	// Add narration if available
 	if event.Narration != nil && event.Narration.Text != "" {
 		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))

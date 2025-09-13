@@ -535,12 +535,19 @@ type TaskInfo struct {
 	SubagentType string `json:"subagent_type"`
 }
 
+// SubagentTask contains information about a subagent execution
+type SubagentTask struct {
+	UUID       string `json:"uuid"`        // UUID of the first subagent event
+	EventCount int    `json:"event_count"` // Number of events in the subagent thread
+}
+
 // TaskCompletionMessage represents a task completion event
 type TaskCompletionMessage struct {
-	Session   Session           `json:"session"`
-	TaskInfo  TaskInfo          `json:"task_info"`
-	Timestamp time.Time         `json:"timestamp"`
-	Narration *NarrationMessage `json:"narration,omitempty"`
+	Session      Session           `json:"session"`
+	TaskInfo     TaskInfo          `json:"task_info"`
+	SubagentTask *SubagentTask     `json:"subagent_task,omitempty"` // Associated subagent execution (nil if no match)
+	Timestamp    time.Time         `json:"timestamp"`
+	Narration    *NarrationMessage `json:"narration,omitempty"`
 }
 
 // Type returns the event type

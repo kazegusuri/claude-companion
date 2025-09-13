@@ -11,6 +11,12 @@ type TaskInfo struct {
 	SubagentType string
 }
 
+// SubagentTask contains information about a subagent execution
+type SubagentTask struct {
+	UUID       string // UUID of the first subagent event
+	EventCount int    // Number of events in the subagent thread
+}
+
 // TaskTracker tracks Task tool executions by their tool_use_id
 type TaskTracker struct {
 	tasks map[string]TaskInfo
@@ -48,4 +54,17 @@ func (t *TaskTracker) RemoveTask(toolUseID string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.tasks, toolUseID)
+}
+
+// GetAllTasks returns a copy of all tracked tasks
+func (t *TaskTracker) GetAllTasks() map[string]TaskInfo {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	// Create a copy to avoid race conditions
+	tasksCopy := make(map[string]TaskInfo)
+	for k, v := range t.tasks {
+		tasksCopy[k] = v
+	}
+	return tasksCopy
 }

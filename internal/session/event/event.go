@@ -176,7 +176,8 @@ func (e *NotificationEvent) Type() Type {
 // TaskCompletionMessage represents the completion of a Task tool execution
 type TaskCompletionMessage struct {
 	BaseEvent
-	TaskInfo TaskInfo
+	TaskInfo     TaskInfo
+	SubagentTask *SubagentTask // Associated subagent execution (nil if no match)
 }
 
 // Type returns the event type

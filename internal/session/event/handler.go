@@ -21,6 +21,17 @@ type BufferInfo struct {
 	resumedFromID string // The sessionID that triggered the resume
 }
 
+// SubagentBufferInfo holds information about buffered events for a subagent
+type SubagentBufferInfo struct {
+	events       []Event
+	taskInfo     TaskInfo
+	startTime    time.Time
+	uuid         string // UUID of the first subagent event
+	parentTaskID string // ID of the parent task tool use
+	lastMessage  string // Last text message from the subagent
+	isCompleted  bool   // Whether this subagent has been matched to a task completion
+}
+
 // CentralEventHandler is the interface for central event handler
 type CentralEventHandler interface {
 	SendEvent(event internalevent.Event)
@@ -39,6 +50,10 @@ type Handler struct {
 	// Buffering support
 	bufferMutex sync.Mutex
 	buffers     map[string]*BufferInfo // key: session name
+
+	// Subagent buffering support
+	subagentMutex   sync.Mutex
+	subagentBuffers map[string]*SubagentBufferInfo // key: subagent UUID
 }
 
 // NewHandler creates a new event handler
@@ -59,6 +74,7 @@ func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManag
 		session:         session,
 		internalSession: internalSession,
 		buffers:         make(map[string]*BufferInfo),
+		subagentBuffers: make(map[string]*SubagentBufferInfo),
 	}
 }
 
@@ -94,6 +110,11 @@ func (h *Handler) Stop() {
 		}
 	}
 	h.buffers = make(map[string]*BufferInfo)
+
+	// Clean up subagent buffers
+	h.subagentMutex.Lock()
+	defer h.subagentMutex.Unlock()
+	h.subagentBuffers = make(map[string]*SubagentBufferInfo)
 }
 
 // SendEvent processes an event synchronously
@@ -130,33 +151,9 @@ func (h *Handler) processEvent(event Event) {
 		return // Event was buffered or handled
 	}
 
-	// Check if the event should be ignored (sidechain events)
-	switch e := event.(type) {
-	case *UserMessage:
-		if e.IsSidechain {
-			logger.DebugInfo("Ignoring sidechain UserMessage")
-			return
-		}
-	case *AssistantMessage:
-		if e.IsSidechain {
-			logger.DebugInfo("Ignoring sidechain AssistantMessage")
-			return
-		}
-	case *SystemMessage:
-		if e.IsSidechain {
-			logger.DebugInfo("Ignoring sidechain SystemMessage")
-			return
-		}
-	case *HookEvent:
-		if e.IsSidechain {
-			logger.DebugInfo("Ignoring sidechain HookEvent")
-			return
-		}
-	case *BaseEvent:
-		if e.IsSidechain {
-			logger.DebugInfo("Ignoring sidechain BaseEvent")
-			return
-		}
+	// Handle subagent events (sidechain events)
+	if h.handleSubagentEvent(event) {
+		return // Event was handled by subagent buffering
 	}
 
 	switch e := event.(type) {
@@ -181,7 +178,16 @@ func (h *Handler) processEvent(event Event) {
 					Description:  taskCompletion.TaskInfo.Description,
 					SubagentType: taskCompletion.TaskInfo.SubagentType,
 				},
-				Timestamp: taskCompletion.Timestamp,
+				SubagentTask: nil,
+				Timestamp:    taskCompletion.Timestamp,
+			}
+
+			// Convert SubagentTask if present
+			if taskCompletion.SubagentTask != nil {
+				centralTaskCompletion.SubagentTask = &internalevent.SubagentTask{
+					UUID:       taskCompletion.SubagentTask.UUID,
+					EventCount: taskCompletion.SubagentTask.EventCount,
+				}
 			}
 			h.sendEventToCentral(centralTaskCompletion)
 		}
@@ -337,12 +343,38 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 
 						// Create TaskCompletionMessage
 						taskCompletion := &TaskCompletionMessage{
-							BaseEvent: msg.BaseEvent, // Use BaseEvent from UserMessage
-							TaskInfo:  taskInfo,
+							BaseEvent:    msg.BaseEvent, // Use BaseEvent from UserMessage
+							TaskInfo:     taskInfo,
+							SubagentTask: nil, // Will be set below if we find a matching subagent
 						}
 
-						logger.DebugInfo("Task completed: ID=%s, Description=%s, Agent=%s",
-							toolUseID, taskInfo.Description, taskInfo.SubagentType)
+						// Try to match with a subagent based on the result content
+						if msg.ToolUseResult != nil {
+							if resultMap, ok := msg.ToolUseResult.(map[string]interface{}); ok {
+								if content, ok := resultMap["content"].([]interface{}); ok && len(content) > 0 {
+									if firstContent, ok := content[0].(map[string]interface{}); ok {
+										if contentType, ok := firstContent["type"].(string); ok && contentType == "text" {
+											if text, ok := firstContent["text"].(string); ok && text != "" {
+												// Find matching subagent by last message
+												subagentTask, matchedUUID := h.matchSubagentByMessage(text)
+												if subagentTask != nil {
+													taskCompletion.SubagentTask = subagentTask
+													logger.DebugInfo("Matched subagent with task: ToolUseID=%s, SubagentUUID=%s, EventCount=%d",
+														toolUseID, matchedUUID, subagentTask.EventCount)
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+
+						eventCount := 0
+						if taskCompletion.SubagentTask != nil {
+							eventCount = taskCompletion.SubagentTask.EventCount
+						}
+						logger.DebugInfo("Task completed: ID=%s, Description=%s, Agent=%s, SubagentEvents=%d",
+							toolUseID, taskInfo.Description, taskInfo.SubagentType, eventCount)
 
 						return taskCompletion
 					}
@@ -351,6 +383,36 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 		}
 	}
 	return nil
+}
+
+// matchSubagentByMessage finds a subagent buffer by its last message and marks it as completed
+func (h *Handler) matchSubagentByMessage(message string) (*SubagentTask, string) {
+	h.subagentMutex.Lock()
+	defer h.subagentMutex.Unlock()
+
+	for uuid, buffer := range h.subagentBuffers {
+		// Skip already completed subagents
+		if buffer.isCompleted {
+			continue
+		}
+
+		// Check if the last message matches
+		if buffer.lastMessage == message {
+			// Mark as completed
+			buffer.isCompleted = true
+			eventCount := len(buffer.events)
+
+			logger.DebugInfo("Matched subagent by message: UUID=%s, EventCount=%d, Message=%s",
+				uuid, eventCount, message)
+
+			return &SubagentTask{
+				UUID:       buffer.uuid,
+				EventCount: eventCount,
+			}, uuid
+		}
+	}
+
+	return nil, ""
 }
 
 // handleBuffering checks if an event should be buffered or if it releases buffered events
@@ -521,6 +583,185 @@ func (h *Handler) releaseBuffer(sessionName string, reason string) {
 	delete(h.buffers, sessionName)
 
 	// Buffered events are discarded (not re-enqueued)
+}
+
+// handleSubagentEvent handles subagent (sidechain) events
+// Returns true if the event was handled as a subagent event
+func (h *Handler) handleSubagentEvent(event Event) bool {
+	// Extract BaseEvent to check IsSidechain
+	var baseEvent *BaseEvent
+
+	switch e := event.(type) {
+	case *UserMessage:
+		baseEvent = &e.BaseEvent
+	case *AssistantMessage:
+		baseEvent = &e.BaseEvent
+	case *SystemMessage:
+		baseEvent = &e.BaseEvent
+	case *HookEvent:
+		baseEvent = &e.BaseEvent
+	case *BaseEvent:
+		baseEvent = e
+	case *TaskCompletionMessage:
+		baseEvent = &e.BaseEvent
+	default:
+		return false
+	}
+
+	// Only handle sidechain events
+	if !baseEvent.IsSidechain {
+		return false
+	}
+
+	h.subagentMutex.Lock()
+	defer h.subagentMutex.Unlock()
+
+	// Check if this is the start of a new subagent thread (parentUUID == null && IsSidechain == true)
+	if baseEvent.ParentUUID == nil {
+		// This is the start of a new subagent thread
+		logger.DebugInfo("Subagent thread started: UUID=%s", baseEvent.UUID)
+
+		// Get task info from the tracker using the current tracked tasks
+		// We need to find which task this subagent belongs to
+		var taskInfo TaskInfo
+		var parentTaskID string
+
+		// Try to find the most recent Task tool use that hasn't been completed yet
+		for id, info := range h.taskTracker.GetAllTasks() {
+			// Use the most recent task (this is a simplification - in production you might want better matching)
+			taskInfo = info
+			parentTaskID = id
+			break
+		}
+
+		// Create new subagent buffer
+		buffer := &SubagentBufferInfo{
+			events:       []Event{event},
+			taskInfo:     taskInfo,
+			startTime:    baseEvent.Timestamp,
+			uuid:         baseEvent.UUID,
+			parentTaskID: parentTaskID,
+		}
+
+		h.subagentBuffers[baseEvent.UUID] = buffer
+		return true
+	}
+
+	// Check if this event belongs to an existing subagent buffer
+	// We need to find which buffer this event belongs to by checking parent chain
+	for uuid, buffer := range h.subagentBuffers {
+		// Skip completed subagents
+		if buffer.isCompleted {
+			continue
+		}
+
+		// Check if this event is part of this subagent's chain
+		if h.isEventInSubagentChain(event, uuid) {
+			// Add event to buffer
+			buffer.events = append(buffer.events, event)
+
+			// Check if this is an assistant message with text content
+			if assistantMsg, ok := event.(*AssistantMessage); ok {
+				if assistantMsg.Message.Type == "message" && len(assistantMsg.Message.Content) > 0 {
+					// Check if the first content is text
+					firstContent := assistantMsg.Message.Content[0]
+					if firstContent.Type == "text" && firstContent.Text != "" {
+						buffer.lastMessage = firstContent.Text
+						logger.DebugInfo("Updated subagent last message: UUID=%s, Message=%s",
+							uuid, buffer.lastMessage)
+					}
+				}
+			}
+
+			logger.DebugInfo("Buffered subagent event: UUID=%s, BufferSize=%d",
+				baseEvent.UUID, len(buffer.events))
+			return true
+		}
+	}
+
+	// This sidechain event doesn't belong to any tracked subagent
+	logger.DebugInfo("Untracked sidechain event: UUID=%s", baseEvent.UUID)
+	return true
+}
+
+// isEventInSubagentChain checks if an event belongs to a specific subagent chain
+func (h *Handler) isEventInSubagentChain(event Event, subagentUUID string) bool {
+	var baseEvent *BaseEvent
+
+	switch e := event.(type) {
+	case *UserMessage:
+		baseEvent = &e.BaseEvent
+	case *AssistantMessage:
+		baseEvent = &e.BaseEvent
+	case *SystemMessage:
+		baseEvent = &e.BaseEvent
+	case *HookEvent:
+		baseEvent = &e.BaseEvent
+	case *BaseEvent:
+		baseEvent = e
+	case *TaskCompletionMessage:
+		baseEvent = &e.BaseEvent
+	default:
+		return false
+	}
+
+	// Check if this event's parent UUID matches any event in the buffer
+	if baseEvent.ParentUUID == nil {
+		return false
+	}
+
+	// Check if parent UUID matches the subagent's initial UUID
+	if *baseEvent.ParentUUID == subagentUUID {
+		return true
+	}
+
+	// Check if parent UUID matches any event in the buffer
+	buffer := h.subagentBuffers[subagentUUID]
+	if buffer != nil {
+		for _, bufEvent := range buffer.events {
+			var bufBase *BaseEvent
+			switch e := bufEvent.(type) {
+			case *UserMessage:
+				bufBase = &e.BaseEvent
+			case *AssistantMessage:
+				bufBase = &e.BaseEvent
+			case *SystemMessage:
+				bufBase = &e.BaseEvent
+			case *HookEvent:
+				bufBase = &e.BaseEvent
+			case *BaseEvent:
+				bufBase = e
+			case *TaskCompletionMessage:
+				bufBase = &e.BaseEvent
+			}
+			if bufBase != nil && bufBase.UUID == *baseEvent.ParentUUID {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// GetSubagentBuffers returns a snapshot of current subagent buffers for debugging
+func (h *Handler) GetSubagentBuffers() map[string]*SubagentBufferInfo {
+	h.subagentMutex.Lock()
+	defer h.subagentMutex.Unlock()
+
+	// Create a copy to avoid race conditions
+	buffersCopy := make(map[string]*SubagentBufferInfo)
+	for k, v := range h.subagentBuffers {
+		buffersCopy[k] = &SubagentBufferInfo{
+			events:       v.events, // Note: this is a shallow copy
+			taskInfo:     v.taskInfo,
+			startTime:    v.startTime,
+			uuid:         v.uuid,
+			parentTaskID: v.parentTaskID,
+			lastMessage:  v.lastMessage,
+			isCompleted:  v.isCompleted,
+		}
+	}
+	return buffersCopy
 }
 
 // parseUserMessageContentArray parses array content and returns UserMessageContentList
