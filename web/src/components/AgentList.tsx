@@ -140,7 +140,7 @@ export const AgentList: React.FC<AgentListProps> = ({
       return { color: "green", label: "完了" };
     }
     if (tool.status === "created") {
-      return { color: "gray", label: "作成済み" };
+      return { color: "blue", label: "実行中" };
     }
     return { color: "gray", label: tool.status };
   };
