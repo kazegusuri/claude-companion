@@ -335,3 +335,241 @@ func TestToolTracker_ConcurrentAccess(t *testing.T) {
 		<-done
 	}
 }
+
+func TestToolTracker_BackgroundTask(t *testing.T) {
+	tracker := NewToolTracker()
+
+	// Create a tool first
+	tracker.TrackToolCreated("tool-1", "Bash")
+
+	// Track a background task
+	tracker.TrackBackgroundTask("bg-123", "tool-1", "cd web && bun run dev --port 3001")
+
+	// Verify background task was created
+	task, exists := tracker.GetBackgroundTask("bg-123")
+	if !exists {
+		t.Fatal("Background task should exist")
+	}
+
+	if task.BackgroundTaskID != "bg-123" {
+		t.Errorf("Expected background task ID 'bg-123', got '%s'", task.BackgroundTaskID)
+	}
+	if task.ToolUseID != "tool-1" {
+		t.Errorf("Expected tool ID 'tool-1', got '%s'", task.ToolUseID)
+	}
+	if task.Command != "cd web && bun run dev --port 3001" {
+		t.Errorf("Expected command 'cd web && bun run dev --port 3001', got '%s'", task.Command)
+	}
+	if task.IsTerminated {
+		t.Error("IsTerminated should be false initially")
+	}
+	if task.TerminatedAt != nil {
+		t.Error("TerminatedAt should be nil initially")
+	}
+
+	// Verify tool has background task ID
+	tool, _ := tracker.GetTool("tool-1")
+	if tool.BackgroundTaskID != "bg-123" {
+		t.Errorf("Expected tool to have background task ID 'bg-123', got '%s'", tool.BackgroundTaskID)
+	}
+}
+
+func TestToolTracker_TerminateBackgroundTask(t *testing.T) {
+	tracker := NewToolTracker()
+	tracker.TrackToolCreated("tool-1", "Bash")
+	tracker.TrackBackgroundTask("bg-456", "tool-1", "watch -n 1 ls")
+
+	// Verify task is active initially
+	task, _ := tracker.GetBackgroundTask("bg-456")
+	if task.IsTerminated {
+		t.Error("Task should not be terminated initially")
+	}
+
+	// Terminate the task
+	if !tracker.TerminateBackgroundTask("bg-456") {
+		t.Error("Should be able to terminate the background task")
+	}
+
+	// Verify task is now terminated
+	task, exists := tracker.GetBackgroundTask("bg-456")
+	if !exists {
+		t.Fatal("Background task should still exist")
+	}
+	if !task.IsTerminated {
+		t.Error("Task should be terminated")
+	}
+	if task.TerminatedAt == nil {
+		t.Error("TerminatedAt should not be nil")
+	}
+
+	// Try to terminate again (should still return true)
+	if !tracker.TerminateBackgroundTask("bg-456") {
+		t.Error("Should still return true when terminating already terminated task")
+	}
+
+	// Try to terminate non-existent task
+	if tracker.TerminateBackgroundTask("non-existent") {
+		t.Error("Should return false for non-existent task")
+	}
+}
+
+func TestToolTracker_GetActiveBackgroundTasks(t *testing.T) {
+	tracker := NewToolTracker()
+
+	// No active tasks initially
+	activeTasks := tracker.GetActiveBackgroundTasks()
+	if len(activeTasks) != 0 {
+		t.Error("Should have no active tasks initially")
+	}
+
+	// Add some background tasks
+	tracker.TrackToolCreated("tool-1", "Bash")
+	tracker.TrackToolCreated("tool-2", "Bash")
+	tracker.TrackToolCreated("tool-3", "Bash")
+
+	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1")
+	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2")
+	tracker.TrackBackgroundTask("bg-3", "tool-3", "command3")
+
+	// All should be active
+	activeTasks = tracker.GetActiveBackgroundTasks()
+	if len(activeTasks) != 3 {
+		t.Errorf("Expected 3 active tasks, got %d", len(activeTasks))
+	}
+
+	// Terminate one task
+	tracker.TerminateBackgroundTask("bg-2")
+
+	// Should have 2 active tasks
+	activeTasks = tracker.GetActiveBackgroundTasks()
+	if len(activeTasks) != 2 {
+		t.Errorf("Expected 2 active tasks, got %d", len(activeTasks))
+	}
+
+	// Verify correct tasks are active
+	if _, exists := activeTasks["bg-1"]; !exists {
+		t.Error("bg-1 should be active")
+	}
+	if _, exists := activeTasks["bg-2"]; exists {
+		t.Error("bg-2 should not be active")
+	}
+	if _, exists := activeTasks["bg-3"]; !exists {
+		t.Error("bg-3 should be active")
+	}
+}
+
+func TestToolTracker_GetAllBackgroundTasks(t *testing.T) {
+	tracker := NewToolTracker()
+
+	// Add some background tasks
+	tracker.TrackToolCreated("tool-1", "Bash")
+	tracker.TrackToolCreated("tool-2", "Bash")
+
+	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1")
+	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2")
+
+	// Terminate one task
+	tracker.TerminateBackgroundTask("bg-1")
+
+	// Get all tasks (both active and terminated)
+	allTasks := tracker.GetAllBackgroundTasks()
+	if len(allTasks) != 2 {
+		t.Errorf("Expected 2 tasks total, got %d", len(allTasks))
+	}
+
+	// Verify both tasks exist
+	if _, exists := allTasks["bg-1"]; !exists {
+		t.Error("bg-1 should exist")
+	}
+	if _, exists := allTasks["bg-2"]; !exists {
+		t.Error("bg-2 should exist")
+	}
+
+	// Verify termination status
+	if !allTasks["bg-1"].IsTerminated {
+		t.Error("bg-1 should be terminated")
+	}
+	if allTasks["bg-2"].IsTerminated {
+		t.Error("bg-2 should not be terminated")
+	}
+}
+
+func TestToolTracker_RemoveBackgroundTask(t *testing.T) {
+	tracker := NewToolTracker()
+	tracker.TrackToolCreated("tool-1", "Bash")
+	tracker.TrackBackgroundTask("bg-remove", "tool-1", "test command")
+
+	// Verify task exists
+	_, exists := tracker.GetBackgroundTask("bg-remove")
+	if !exists {
+		t.Fatal("Background task should exist")
+	}
+
+	// Verify tool has background task ID
+	tool, _ := tracker.GetTool("tool-1")
+	if tool.BackgroundTaskID != "bg-remove" {
+		t.Error("Tool should have background task ID")
+	}
+
+	// Remove the task
+	tracker.RemoveBackgroundTask("bg-remove")
+
+	// Verify task no longer exists
+	_, exists = tracker.GetBackgroundTask("bg-remove")
+	if exists {
+		t.Error("Background task should not exist after removal")
+	}
+
+	// Verify tool's background task ID was cleared
+	tool, _ = tracker.GetTool("tool-1")
+	if tool.BackgroundTaskID != "" {
+		t.Error("Tool's background task ID should be cleared")
+	}
+}
+
+func TestToolTracker_BackgroundTaskConcurrentAccess(t *testing.T) {
+	tracker := NewToolTracker()
+	done := make(chan bool)
+
+	// Create some tools first
+	for i := 0; i < 10; i++ {
+		tracker.TrackToolCreated(string(rune('a'+i)), "Bash")
+	}
+
+	// Goroutine 1: Track background tasks
+	go func() {
+		for i := 0; i < 10; i++ {
+			tracker.TrackBackgroundTask(string(rune('1'+i)), string(rune('a'+i)), "command")
+		}
+		done <- true
+	}()
+
+	// Goroutine 2: Terminate background tasks
+	go func() {
+		for i := 0; i < 10; i++ {
+			tracker.TerminateBackgroundTask(string(rune('1' + i)))
+		}
+		done <- true
+	}()
+
+	// Goroutine 3: Get active tasks
+	go func() {
+		for i := 0; i < 50; i++ {
+			tracker.GetActiveBackgroundTasks()
+		}
+		done <- true
+	}()
+
+	// Goroutine 4: Get all tasks
+	go func() {
+		for i := 0; i < 50; i++ {
+			tracker.GetAllBackgroundTasks()
+		}
+		done <- true
+	}()
+
+	// Wait for all goroutines
+	for i := 0; i < 4; i++ {
+		<-done
+	}
+}

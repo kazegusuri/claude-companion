@@ -15,27 +15,40 @@ const (
 	ToolStatusFinished        ToolStatus = "finished"         // 完了（成功/失敗/拒否）
 )
 
+// BackgroundTaskInfo stores information about a background task
+type BackgroundTaskInfo struct {
+	BackgroundTaskID string // backgroundTaskId from tool_result
+	ToolUseID        string // Associated tool_use_id
+	Command          string // The command being executed
+	IsTerminated     bool   // Whether the task has been terminated
+	CreatedAt        time.Time
+	TerminatedAt     *time.Time
+}
+
 // ToolInfo stores information about a tool execution
 type ToolInfo struct {
-	ToolUseID  string
-	ToolName   string // Bash, Edit, etc.
-	Status     ToolStatus
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	IsError    bool // エラーで終了したか
-	IsRejected bool // ユーザーに拒否されたか
+	ToolUseID        string
+	ToolName         string // Bash, Edit, etc.
+	Status           ToolStatus
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	IsError          bool   // エラーで終了したか
+	IsRejected       bool   // ユーザーに拒否されたか
+	BackgroundTaskID string // backgroundTaskId if this is a background task
 }
 
 // ToolTracker tracks tool executions by their tool_use_id
 type ToolTracker struct {
-	tools map[string]*ToolInfo
-	mu    sync.RWMutex
+	tools           map[string]*ToolInfo
+	backgroundTasks map[string]*BackgroundTaskInfo // key: backgroundTaskID
+	mu              sync.RWMutex
 }
 
 // NewToolTracker creates a new ToolTracker
 func NewToolTracker() *ToolTracker {
 	return &ToolTracker{
-		tools: make(map[string]*ToolInfo),
+		tools:           make(map[string]*ToolInfo),
+		backgroundTasks: make(map[string]*BackgroundTaskInfo),
 	}
 }
 
@@ -46,13 +59,14 @@ func (t *ToolTracker) TrackToolCreated(toolUseID, toolName string) {
 
 	now := time.Now()
 	t.tools[toolUseID] = &ToolInfo{
-		ToolUseID:  toolUseID,
-		ToolName:   toolName,
-		Status:     ToolStatusCreated,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		IsError:    false,
-		IsRejected: false,
+		ToolUseID:        toolUseID,
+		ToolName:         toolName,
+		Status:           ToolStatusCreated,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		IsError:          false,
+		IsRejected:       false,
+		BackgroundTaskID: "",
 	}
 }
 
@@ -170,4 +184,113 @@ func (t *ToolTracker) GetAllTools() map[string]ToolInfo {
 		toolsCopy[k] = *v
 	}
 	return toolsCopy
+}
+
+// TrackBackgroundTask tracks a new background task
+func (t *ToolTracker) TrackBackgroundTask(backgroundTaskID, toolUseID, command string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	now := time.Now()
+	t.backgroundTasks[backgroundTaskID] = &BackgroundTaskInfo{
+		BackgroundTaskID: backgroundTaskID,
+		ToolUseID:        toolUseID,
+		Command:          command,
+		IsTerminated:     false,
+		CreatedAt:        now,
+		TerminatedAt:     nil,
+	}
+
+	// Update associated tool with background task ID
+	if tool, exists := t.tools[toolUseID]; exists {
+		tool.BackgroundTaskID = backgroundTaskID
+	}
+}
+
+// TerminateBackgroundTask marks a background task as terminated
+func (t *ToolTracker) TerminateBackgroundTask(backgroundTaskID string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	task, exists := t.backgroundTasks[backgroundTaskID]
+	if !exists {
+		return false
+	}
+
+	if !task.IsTerminated {
+		now := time.Now()
+		task.IsTerminated = true
+		task.TerminatedAt = &now
+	}
+	return true
+}
+
+// GetBackgroundTask retrieves background task information by ID
+func (t *ToolTracker) GetBackgroundTask(backgroundTaskID string) (*BackgroundTaskInfo, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	task, exists := t.backgroundTasks[backgroundTaskID]
+	if !exists {
+		return nil, false
+	}
+
+	// Return a copy to avoid race conditions
+	taskCopy := *task
+	if task.TerminatedAt != nil {
+		terminatedTime := *task.TerminatedAt
+		taskCopy.TerminatedAt = &terminatedTime
+	}
+	return &taskCopy, true
+}
+
+// GetActiveBackgroundTasks returns all active (non-terminated) background tasks
+func (t *ToolTracker) GetActiveBackgroundTasks() map[string]BackgroundTaskInfo {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	activeTasks := make(map[string]BackgroundTaskInfo)
+	for id, task := range t.backgroundTasks {
+		if !task.IsTerminated {
+			taskCopy := *task
+			if task.TerminatedAt != nil {
+				terminatedTime := *task.TerminatedAt
+				taskCopy.TerminatedAt = &terminatedTime
+			}
+			activeTasks[id] = taskCopy
+		}
+	}
+	return activeTasks
+}
+
+// GetAllBackgroundTasks returns a copy of all background tasks
+func (t *ToolTracker) GetAllBackgroundTasks() map[string]BackgroundTaskInfo {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	tasksCopy := make(map[string]BackgroundTaskInfo)
+	for id, task := range t.backgroundTasks {
+		taskCopy := *task
+		if task.TerminatedAt != nil {
+			terminatedTime := *task.TerminatedAt
+			taskCopy.TerminatedAt = &terminatedTime
+		}
+		tasksCopy[id] = taskCopy
+	}
+	return tasksCopy
+}
+
+// RemoveBackgroundTask removes a background task from tracking
+func (t *ToolTracker) RemoveBackgroundTask(backgroundTaskID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Clear background task ID from associated tool
+	if task, exists := t.backgroundTasks[backgroundTaskID]; exists {
+		if tool, toolExists := t.tools[task.ToolUseID]; toolExists {
+			tool.BackgroundTaskID = ""
+		}
+	}
+
+	delete(t.backgroundTasks, backgroundTaskID)
 }

@@ -514,3 +514,287 @@ func TestIntegration_ToolTracking_StateTransitionOrder(t *testing.T) {
 		t.Errorf("Tool should still be waiting_approval, got '%s'", tool.Status)
 	}
 }
+
+func TestIntegration_BackgroundTaskFlow(t *testing.T) {
+	// Test the complete background task flow: Bash(run_in_background) -> BashOutput -> KillShell
+	parser := &Parser{}
+	centralHandler := NewMockCentralHandler()
+	sessionManager := handler.NewSessionManager()
+
+	sessionID := "test-session-123"
+	sessionFile := &SessionFile{
+		SessionID:      sessionID,
+		TranscriptPath: "/test/transcript.jsonl",
+		Project:        "test-project",
+	}
+
+	h := NewHandler(nil, sessionManager, centralHandler, sessionFile)
+
+	// Line 1: Assistant proposes Bash tool with run_in_background: true
+	line1 := `{"parentUuid":"parent-uuid-001","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","message":{"id":"msg_test_bg_001","type":"message","role":"assistant","model":"claude-3","content":[{"type":"tool_use","id":"toolu_bg_001","name":"Bash","input":{"command":"npm run dev","description":"Start development server","run_in_background":true}}],"stop_reason":null,"stop_sequence":null},"requestId":"req_test_bg_001","type":"assistant","uuid":"assistant-uuid-001","timestamp":"2025-01-01T10:00:00.000Z"}`
+
+	event1, err := parser.Parse(line1)
+	if err != nil {
+		t.Fatalf("Failed to parse line 1: %v", err)
+	}
+	event1.(*AssistantMessage).Session = sessionFile
+	h.processEvent(event1)
+
+	// Check tool status after creation
+	activeTool, exists := h.toolTracker.GetActiveTool()
+	if !exists {
+		t.Fatal("Tool should be tracked after AssistantMessage with tool_use")
+	}
+	if activeTool.Status != ToolStatusCreated {
+		t.Errorf("Tool status should be 'created', got '%s'", activeTool.Status)
+	}
+	if activeTool.ToolName != "Bash" {
+		t.Errorf("Tool name should be 'Bash', got '%s'", activeTool.ToolName)
+	}
+
+	// Line 2: PreToolUse hook completed
+	line2 := `{"parentUuid":"assistant-uuid-001","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"system","subtype":"informational","content":"\u001b[1mPreToolUse:Bash\u001b[22m [/test/bin/hook.sh] completed successfully","isMeta":false,"timestamp":"2025-01-01T10:00:01.000Z","uuid":"system-uuid-001","toolUseID":"toolu_bg_001","level":"info"}`
+
+	event2, err := parser.Parse(line2)
+	if err != nil {
+		t.Fatalf("Failed to parse line 2: %v", err)
+	}
+
+	// Handle as HookEvent if parsed as such
+	if hookEvent, ok := event2.(*HookEvent); ok {
+		hookEvent.Session = sessionFile
+		h.processEvent(hookEvent)
+	} else if sysMsg, ok := event2.(*SystemMessage); ok {
+		sysMsg.Session = sessionFile
+		h.processEvent(sysMsg)
+	}
+
+	// Check tool status after PreToolUse
+	activeTool, _ = h.toolTracker.GetActiveTool()
+	if activeTool.Status != ToolStatusWaitingApproval {
+		t.Errorf("Tool status should be 'waiting_approval' after PreToolUse, got '%s'", activeTool.Status)
+	}
+
+	// Line 3: Tool result with backgroundTaskId
+	line3 := `{"parentUuid":"system-uuid-001","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_bg_001","type":"tool_result","content":"Command running in background with ID: bg-task-123","is_error":false}]},"uuid":"user-uuid-001","timestamp":"2025-01-01T10:00:02.000Z","toolUseResult":{"stdout":"","stderr":"","interrupted":false,"isImage":false,"backgroundTaskId":"bg-task-123"}}`
+
+	event3, err := parser.Parse(line3)
+	if err != nil {
+		t.Fatalf("Failed to parse line 3: %v", err)
+	}
+	event3.(*UserMessage).Session = sessionFile
+
+	// Track background task when tool result is received
+	userMsg := event3.(*UserMessage)
+	if userMsg.ToolUseResult == nil {
+		t.Fatal("ToolUseResult should not be nil")
+	}
+
+	// Parse ToolUseResult as a map
+	resultMap, ok := userMsg.ToolUseResult.(map[string]interface{})
+	if !ok {
+		t.Fatal("ToolUseResult should be a map")
+	}
+
+	bgTaskID, ok := resultMap["backgroundTaskId"].(string)
+	if !ok || bgTaskID == "" {
+		t.Fatal("backgroundTaskId should exist and not be empty")
+	}
+
+	// Find the tool_use_id from the message content
+	var toolUseID string
+	contents, ok := userMsg.Message.Content.([]interface{})
+	if !ok {
+		t.Fatal("Message content should be an array")
+	}
+
+	for _, content := range contents {
+		contentMap, ok := content.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if contentMap["type"] == "tool_result" {
+			if id, ok := contentMap["tool_use_id"].(string); ok {
+				toolUseID = id
+				break
+			}
+		}
+	}
+
+	if toolUseID == "" {
+		t.Fatal("tool_use_id not found in message content")
+	}
+
+	// Track the background task
+	h.toolTracker.TrackBackgroundTask(
+		bgTaskID,
+		toolUseID,
+		"npm run dev",
+	)
+
+	h.processEvent(event3)
+
+	// Check tool status after approval
+	activeTool, _ = h.toolTracker.GetActiveTool()
+	if activeTool.Status != ToolStatusRunning {
+		t.Errorf("Tool status should be 'running' after tool result, got '%s'", activeTool.Status)
+	}
+
+	// Check background task was tracked
+	backgroundTask, exists := h.toolTracker.GetBackgroundTask("bg-task-123")
+	if !exists {
+		t.Fatal("Background task should be tracked")
+	}
+	if backgroundTask.BackgroundTaskID != "bg-task-123" {
+		t.Errorf("Background task ID should be 'bg-task-123', got '%s'", backgroundTask.BackgroundTaskID)
+	}
+	if backgroundTask.IsTerminated {
+		t.Error("Background task should not be terminated yet")
+	}
+
+	// Check active background tasks
+	activeTasks := h.toolTracker.GetActiveBackgroundTasks()
+	if len(activeTasks) != 1 {
+		t.Errorf("Should have 1 active background task, got %d", len(activeTasks))
+	}
+
+	// Line 4: PostToolUse Running
+	line4 := `{"parentUuid":"user-uuid-001","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"system","subtype":"informational","content":"Running \u001b[1mPostToolUse:Bash\u001b[22m...","isMeta":false,"timestamp":"2025-01-01T10:00:03.000Z","uuid":"system-uuid-002","toolUseID":"toolu_bg_001","level":"info"}`
+
+	event4, err := parser.Parse(line4)
+	if err != nil {
+		t.Fatalf("Failed to parse line 4: %v", err)
+	}
+
+	if hookEvent, ok := event4.(*HookEvent); ok {
+		hookEvent.Session = sessionFile
+		h.processEvent(hookEvent)
+	} else if sysMsg, ok := event4.(*SystemMessage); ok {
+		sysMsg.Session = sessionFile
+		h.processEvent(sysMsg)
+	}
+
+	// Line 5: PostToolUse Completed
+	line5 := `{"parentUuid":"system-uuid-002","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"system","subtype":"informational","content":"\u001b[1mPostToolUse:Bash\u001b[22m [/test/bin/hook.sh] completed successfully","isMeta":false,"timestamp":"2025-01-01T10:00:04.000Z","uuid":"system-uuid-003","toolUseID":"toolu_bg_001","level":"info"}`
+
+	event5, err := parser.Parse(line5)
+	if err != nil {
+		t.Fatalf("Failed to parse line 5: %v", err)
+	}
+
+	if hookEvent, ok := event5.(*HookEvent); ok {
+		hookEvent.Session = sessionFile
+		h.processEvent(hookEvent)
+	} else if sysMsg, ok := event5.(*SystemMessage); ok {
+		sysMsg.Session = sessionFile
+		h.processEvent(sysMsg)
+	}
+
+	// Check tool is finished
+	tool, exists := h.toolTracker.GetTool("toolu_bg_001")
+	if !exists {
+		t.Fatal("Tool should still exist")
+	}
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Tool status should be 'finished', got '%s'", tool.Status)
+	}
+
+	// Background task should still be active after tool finishes
+	backgroundTask, _ = h.toolTracker.GetBackgroundTask("bg-task-123")
+	if backgroundTask.IsTerminated {
+		t.Error("Background task should still be active after tool finishes")
+	}
+
+	// Line 6: BashOutput checking status
+	line6 := `{"parentUuid":"system-uuid-003","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","message":{"id":"msg_test_bg_002","type":"message","role":"assistant","model":"claude-3","content":[{"type":"tool_use","id":"toolu_output_001","name":"BashOutput","input":{"bash_id":"bg-task-123"}}],"stop_reason":null,"stop_sequence":null},"requestId":"req_test_bg_002","type":"assistant","uuid":"assistant-uuid-002","timestamp":"2025-01-01T10:00:10.000Z"}`
+
+	event6, err := parser.Parse(line6)
+	if err != nil {
+		t.Fatalf("Failed to parse line 6: %v", err)
+	}
+	event6.(*AssistantMessage).Session = sessionFile
+	h.processEvent(event6)
+
+	// Line 7: BashOutput result
+	line7 := `{"parentUuid":"assistant-uuid-002","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_output_001","type":"tool_result","content":"<status>running</status>\n\n<stdout>\n  Server started on port 3000\n  Ready for connections\n</stdout>\n\n<stderr>\n$ npm run dev\n</stderr>\n\n<timestamp>2025-01-01T10:00:11.000Z</timestamp>"}]},"uuid":"user-uuid-002","timestamp":"2025-01-01T10:00:11.000Z","toolUseResult":{"shellId":"bg-task-123","command":"npm run dev","status":"running","exitCode":null,"stdout":"  Server started on port 3000\n  Ready for connections","stderr":"$ npm run dev","stdoutLines":2,"stderrLines":1,"timestamp":"2025-01-01T10:00:11.000Z"}}`
+
+	event7, err := parser.Parse(line7)
+	if err != nil {
+		t.Fatalf("Failed to parse line 7: %v", err)
+	}
+	event7.(*UserMessage).Session = sessionFile
+	h.processEvent(event7)
+
+	// Background task should still be active after BashOutput
+	backgroundTask, _ = h.toolTracker.GetBackgroundTask("bg-task-123")
+	if backgroundTask.IsTerminated {
+		t.Error("Background task should still be active after BashOutput")
+	}
+
+	// Line 8: KillShell to terminate the background task
+	line8 := `{"parentUuid":"user-uuid-002","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","message":{"id":"msg_test_bg_003","type":"message","role":"assistant","model":"claude-3","content":[{"type":"tool_use","id":"toolu_kill_001","name":"KillShell","input":{"shell_id":"bg-task-123"}}],"stop_reason":null,"stop_sequence":null},"requestId":"req_test_bg_003","type":"assistant","uuid":"assistant-uuid-003","timestamp":"2025-01-01T10:00:20.000Z"}`
+
+	event8, err := parser.Parse(line8)
+	if err != nil {
+		t.Fatalf("Failed to parse line 8: %v", err)
+	}
+	event8.(*AssistantMessage).Session = sessionFile
+	h.processEvent(event8)
+
+	// Line 9: KillShell result
+	line9 := `{"parentUuid":"assistant-uuid-003","isSidechain":false,"userType":"external","cwd":"/test/workspace","sessionId":"test-session-123","version":"1.0.0","gitBranch":"main","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_kill_001","type":"tool_result","content":"{\"message\":\"Successfully killed shell: bg-task-123 (npm run dev)\",\"shell_id\":\"bg-task-123\"}"}]},"uuid":"user-uuid-003","timestamp":"2025-01-01T10:00:21.000Z","toolUseResult":{"message":"Successfully killed shell: bg-task-123 (npm run dev)","shell_id":"bg-task-123"}}`
+
+	event9, err := parser.Parse(line9)
+	if err != nil {
+		t.Fatalf("Failed to parse line 9: %v", err)
+	}
+	event9.(*UserMessage).Session = sessionFile
+
+	// Terminate the background task when KillShell result is received
+	killMsg := event9.(*UserMessage)
+	if killMsg.ToolUseResult == nil {
+		t.Fatal("KillShell ToolUseResult should not be nil")
+	}
+
+	// Parse the result to get shell_id
+	killResultMap, ok := killMsg.ToolUseResult.(map[string]interface{})
+	if !ok {
+		t.Fatal("KillShell ToolUseResult should be a map")
+	}
+
+	shellID, ok := killResultMap["shell_id"].(string)
+	if !ok || shellID == "" {
+		t.Fatal("shell_id should exist and not be empty in KillShell result")
+	}
+
+	// Terminate the background task
+	if !h.toolTracker.TerminateBackgroundTask(shellID) {
+		t.Fatal("Failed to terminate background task")
+	}
+
+	h.processEvent(event9)
+
+	// Check background task is now terminated
+	backgroundTask, exists = h.toolTracker.GetBackgroundTask("bg-task-123")
+	if !exists {
+		t.Fatal("Background task should still exist after termination")
+	}
+	if !backgroundTask.IsTerminated {
+		t.Error("Background task should be terminated after KillShell")
+	}
+	if backgroundTask.TerminatedAt == nil {
+		t.Error("Background task should have TerminatedAt timestamp")
+	}
+
+	// Check no active background tasks remain
+	activeTasks = h.toolTracker.GetActiveBackgroundTasks()
+	if len(activeTasks) != 0 {
+		t.Errorf("Should have 0 active background tasks after termination, got %d", len(activeTasks))
+	}
+
+	// Check all background tasks (including terminated)
+	allTasks := h.toolTracker.GetAllBackgroundTasks()
+	if len(allTasks) != 1 {
+		t.Errorf("Should have 1 total background task, got %d", len(allTasks))
+	}
+}
