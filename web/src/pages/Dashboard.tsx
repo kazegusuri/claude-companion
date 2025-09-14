@@ -314,6 +314,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
               }
             }}
             selectedAgentPID={selectedAgent?.pid ?? null}
+            wsClient={wsClient}
           />
         }
         scheduleComponent={null}

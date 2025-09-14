@@ -10,7 +10,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { IconCheck, IconSend, IconVolume, IconVolumeOff, IconX } from "@tabler/icons-react";
+import { IconSend, IconVolume, IconVolumeOff } from "@tabler/icons-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messageRouter } from "../services/MessageRouter";
@@ -58,7 +58,6 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
 }) => {
   const [messages, setMessages] = useState<MessageHistory[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [respondedPermissions, setRespondedPermissions] = useState<Set<string>>(new Set());
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const wsClient = externalWsClient; // Always use external client
@@ -128,13 +127,11 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       // Clear messages when switching to agent mode
       setMessages([]);
       setCurrentSessionId(null);
-      setRespondedPermissions(new Set());
     } else {
       wsClient.clearAgentMode();
       // Clear messages when switching to timeline mode
       setMessages([]);
       setCurrentSessionId(null);
-      setRespondedPermissions(new Set());
     }
   }, [agentPID, wsClient]);
 
@@ -164,26 +161,6 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
       event.preventDefault();
       handleSendMessage();
     }
-  };
-
-  const handlePermissionResponse = (
-    messageId: string,
-    action: "permit" | "deny",
-    sessionId?: string,
-  ) => {
-    if (!wsClient) return;
-
-    // Use sessionId from the message metadata if available, otherwise use currentSessionId
-    const targetSessionId = sessionId || currentSessionId;
-    if (!targetSessionId) {
-      return;
-    }
-
-    // Send confirmation response with the appropriate sessionId
-    wsClient.sendConfirmResponse(action, messageId, targetSessionId);
-
-    // Mark this permission as responded
-    setRespondedPermissions((prev) => new Set(prev).add(messageId));
   };
 
   const formatTime = (date: Date) => {
@@ -417,11 +394,6 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
                       {message.metadata.eventType}
                     </Badge>
                   )}
-                  {message.metadata?.toolName && (
-                    <Badge size="xs" variant="light" color="blue">
-                      🔧 {message.metadata.toolName}
-                    </Badge>
-                  )}
                 </Group>
                 {message.id === currentPlayingMessageId && (
                   <Badge
@@ -448,33 +420,6 @@ export const ChatDisplay: React.FC<ChatDisplayProps> = ({
               >
                 {message.text}
               </Text>
-
-              {/* Permission buttons for tool_permission events */}
-              {message.metadata?.eventType === "tool_permission" &&
-                !respondedPermissions.has(message.id) && (
-                  <Group gap="xs" mt="sm">
-                    <Button
-                      size="xs"
-                      color="green"
-                      leftSection={<IconCheck size={16} />}
-                      onClick={() =>
-                        handlePermissionResponse(message.id, "permit", message.metadata?.sessionId)
-                      }
-                    >
-                      許可
-                    </Button>
-                    <Button
-                      size="xs"
-                      color="red"
-                      leftSection={<IconX size={16} />}
-                      onClick={() =>
-                        handlePermissionResponse(message.id, "deny", message.metadata?.sessionId)
-                      }
-                    >
-                      拒否
-                    </Button>
-                  </Group>
-                )}
             </Paper>
           ))}
         </Stack>

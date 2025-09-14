@@ -1,21 +1,122 @@
-import { Badge, Box, Card, Group, ScrollArea, Stack, Text, Title } from "@mantine/core";
-import { IconClock, IconFolder, IconHash, IconRefresh, IconRobot } from "@tabler/icons-react";
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  Collapse,
+  Group,
+  ScrollArea,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import {
+  IconCheck,
+  IconClock,
+  IconFolder,
+  IconHash,
+  IconRefresh,
+  IconRobot,
+  IconShieldCheck,
+  IconX,
+} from "@tabler/icons-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Agent } from "../services/AgentService";
 import { AgentService } from "../services/AgentService";
+import type { ChatMessage, WebSocketAudioClient } from "../services/WebSocketClient";
+
+interface PermissionRequest {
+  id: string;
+  messageId: string;
+  sessionId: string;
+  toolName: string;
+  text: string;
+  timestamp: Date;
+}
 
 interface AgentListProps {
   onAgentClick?: (agent: Agent) => void;
   selectedAgentPID?: number | null;
+  wsClient?: WebSocketAudioClient | null;
 }
 
-export const AgentList: React.FC<AgentListProps> = ({ onAgentClick, selectedAgentPID }) => {
+export const AgentList: React.FC<AgentListProps> = ({
+  onAgentClick,
+  selectedAgentPID,
+  wsClient,
+}) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [permissionsByPID, setPermissionsByPID] = useState<Map<number, PermissionRequest[]>>(
+    new Map(),
+  );
+  const [respondedPermissions, setRespondedPermissions] = useState<Set<string>>(new Set());
 
   const agentService = new AgentService();
+
+  // WebSocketメッセージハンドラー
+  const handleWebSocketMessage = useCallback((message: ChatMessage) => {
+    // tool_permissionイベントのみ処理
+    if (message.metadata?.eventType === "tool_permission" && message.metadata?.agentId) {
+      const newRequest: PermissionRequest = {
+        id: `${message.id}-${Date.now()}`,
+        messageId: message.id,
+        sessionId: message.metadata.sessionId || "",
+        toolName: message.metadata.toolName || "Unknown Tool",
+        text: message.text,
+        timestamp: new Date(message.timestamp),
+      };
+
+      setPermissionsByPID((prev) => {
+        const newMap = new Map(prev);
+        const pid = message.metadata?.agentId || 0;
+        const existing = newMap.get(pid) || [];
+        newMap.set(pid, [...existing, newRequest]);
+        return newMap;
+      });
+    }
+  }, []);
+
+  // WebSocketメッセージリスナーの登録
+  useEffect(() => {
+    if (!wsClient) return;
+
+    const cleanup = wsClient.addMessageListener(handleWebSocketMessage);
+    return cleanup;
+  }, [wsClient, handleWebSocketMessage]);
+
+  // 許可/拒否の処理
+  const handlePermissionResponse = (
+    pid: number,
+    request: PermissionRequest,
+    action: "permit" | "deny",
+  ) => {
+    if (!wsClient) return;
+
+    // Send confirmation response
+    wsClient.sendConfirmResponse(action, request.messageId, request.sessionId);
+
+    // Mark as responded
+    setRespondedPermissions((prev) => new Set(prev).add(request.id));
+
+    // Remove from pending permissions after a short delay
+    setTimeout(() => {
+      setPermissionsByPID((prev) => {
+        const newMap = new Map(prev);
+        const existing = newMap.get(pid) || [];
+        newMap.set(
+          pid,
+          existing.filter((p) => p.id !== request.id),
+        );
+        if (newMap.get(pid)?.length === 0) {
+          newMap.delete(pid);
+        }
+        return newMap;
+      });
+    }, 300);
+  };
 
   // エージェント一覧を取得
   const fetchAgents = async () => {
@@ -90,52 +191,136 @@ export const AgentList: React.FC<AgentListProps> = ({ onAgentClick, selectedAgen
               </Text>
             </Card>
           ) : (
-            agents.map((agent) => (
-              <Card
-                key={agent.pid}
-                padding="sm"
-                radius="md"
-                withBorder
-                style={{
-                  cursor: onAgentClick ? "pointer" : "default",
-                  backgroundColor:
-                    selectedAgentPID === agent.pid ? "var(--mantine-color-blue-9)" : undefined,
-                  transition: "background-color 0.2s",
-                }}
-                onClick={() => onAgentClick?.(agent)}
-              >
-                <Stack gap="xs">
-                  {/* プロジェクト名 */}
-                  <Group gap="xs">
-                    <IconFolder size={16} stroke={1.5} />
-                    <Text fw={600} size="sm">
-                      {agent.projectName}
-                    </Text>
-                  </Group>
+            agents.map((agent) => {
+              const permissions = permissionsByPID.get(agent.pid) || [];
+              const hasPermissions = permissions.length > 0;
 
-                  {/* セッションID */}
-                  <Group gap="xs">
-                    <IconHash size={14} stroke={1.5} style={{ opacity: 0.6 }} />
-                    <Text size="xs" c="dimmed" style={{ fontFamily: "monospace" }}>
-                      {agent.sessionId}
-                    </Text>
-                  </Group>
+              return (
+                <Box key={agent.pid}>
+                  <Card
+                    padding="sm"
+                    radius="md"
+                    withBorder
+                    style={{
+                      cursor: onAgentClick ? "pointer" : "default",
+                      backgroundColor:
+                        selectedAgentPID === agent.pid ? "var(--mantine-color-blue-9)" : undefined,
+                      transition: "background-color 0.2s",
+                      borderBottomLeftRadius: hasPermissions ? 0 : undefined,
+                      borderBottomRightRadius: hasPermissions ? 0 : undefined,
+                    }}
+                    onClick={() => onAgentClick?.(agent)}
+                  >
+                    <Stack gap="xs">
+                      {/* プロジェクト名 */}
+                      <Group gap="xs" justify="space-between">
+                        <Group gap="xs">
+                          <IconFolder size={16} stroke={1.5} />
+                          <Text fw={600} size="sm">
+                            {agent.projectName}
+                          </Text>
+                        </Group>
+                        {hasPermissions && (
+                          <Badge color="yellow" variant="filled" size="xs">
+                            <IconShieldCheck size={12} /> 許可待ち
+                          </Badge>
+                        )}
+                      </Group>
 
-                  {/* PIDと更新時刻 */}
-                  <Group justify="space-between">
-                    <Badge variant="outline" size="sm">
-                      PID: {agent.pid}
-                    </Badge>
-                    <Group gap={4}>
-                      <IconClock size={12} stroke={1.5} style={{ opacity: 0.6 }} />
-                      <Text size="xs" c="dimmed">
-                        {getRelativeTime(agent.updatedAt)}
-                      </Text>
-                    </Group>
-                  </Group>
-                </Stack>
-              </Card>
-            ))
+                      {/* セッションID */}
+                      <Group gap="xs">
+                        <IconHash size={14} stroke={1.5} style={{ opacity: 0.6 }} />
+                        <Text size="xs" c="dimmed" style={{ fontFamily: "monospace" }}>
+                          {agent.sessionId}
+                        </Text>
+                      </Group>
+
+                      {/* PIDと更新時刻 */}
+                      <Group justify="space-between">
+                        <Badge variant="outline" size="sm">
+                          PID: {agent.pid}
+                        </Badge>
+                        <Group gap={4}>
+                          <IconClock size={12} stroke={1.5} style={{ opacity: 0.6 }} />
+                          <Text size="xs" c="dimmed">
+                            {getRelativeTime(agent.updatedAt)}
+                          </Text>
+                        </Group>
+                      </Group>
+                    </Stack>
+                  </Card>
+
+                  {/* 許可待ちパネル */}
+                  <Collapse in={hasPermissions}>
+                    <Card
+                      padding="sm"
+                      radius="md"
+                      withBorder
+                      style={{
+                        borderTop: "none",
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: 0,
+                        backgroundColor: "rgba(255, 200, 0, 0.1)",
+                        borderColor: "rgba(255, 200, 0, 0.3)",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Stack gap="xs">
+                        {permissions.map((request) => (
+                          <Box key={request.id}>
+                            <Group gap="xs" mb="xs">
+                              <Badge color="orange" variant="light" size="xs">
+                                🔧 {request.toolName}
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                {request.timestamp.toLocaleTimeString("ja-JP", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                })}
+                              </Text>
+                            </Group>
+                            <Text size="xs" c="white" lineClamp={2} mb="xs">
+                              {request.text}
+                            </Text>
+                            <Group gap="xs">
+                              <Button
+                                size="xs"
+                                color="green"
+                                variant="light"
+                                leftSection={<IconCheck size={14} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePermissionResponse(agent.pid, request, "permit");
+                                }}
+                                disabled={respondedPermissions.has(request.id)}
+                                style={{ flex: 1 }}
+                              >
+                                許可
+                              </Button>
+                              <Button
+                                size="xs"
+                                color="red"
+                                variant="light"
+                                leftSection={<IconX size={14} />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePermissionResponse(agent.pid, request, "deny");
+                                }}
+                                disabled={respondedPermissions.has(request.id)}
+                                style={{ flex: 1 }}
+                              >
+                                拒否
+                              </Button>
+                            </Group>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Card>
+                  </Collapse>
+                </Box>
+              );
+            })
           )}
         </Stack>
       </ScrollArea>
