@@ -66,6 +66,11 @@ model ToolInfo {
    * Whether the tool was rejected
    */
   isRejected: boolean;
+
+  /**
+   * Whether the tool is waiting for approval
+   */
+  isWaitingApproval: boolean;
 }
 
 /**

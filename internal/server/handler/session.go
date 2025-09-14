@@ -9,13 +9,14 @@ import (
 
 // ToolInfo represents information about a tool
 type ToolInfo struct {
-	ToolUseID  string    `json:"toolUseId"`
-	ToolName   string    `json:"toolName"`
-	Status     string    `json:"status"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
-	IsError    bool      `json:"isError"`
-	IsRejected bool      `json:"isRejected"`
+	ToolUseID         string    `json:"toolUseId"`
+	ToolName          string    `json:"toolName"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
+	IsError           bool      `json:"isError"`
+	IsRejected        bool      `json:"isRejected"`
+	IsWaitingApproval bool      `json:"isWaitingApproval"`
 }
 
 // BackgroundTaskInfo represents information about a background task

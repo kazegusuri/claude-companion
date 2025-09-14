@@ -265,6 +265,8 @@ export interface components {
             isError: boolean;
             /** @description Whether the tool was rejected */
             isRejected: boolean;
+            /** @description Whether the tool is waiting for approval */
+            isWaitingApproval: boolean;
         };
         /**
          * @description Tool execution status

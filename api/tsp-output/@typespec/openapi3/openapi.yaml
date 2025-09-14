@@ -366,6 +366,7 @@ components:
         - updatedAt
         - isError
         - isRejected
+        - isWaitingApproval
       properties:
         toolUseId:
           type: string
@@ -391,6 +392,9 @@ components:
         isRejected:
           type: boolean
           description: Whether the tool was rejected
+        isWaitingApproval:
+          type: boolean
+          description: Whether the tool is waiting for approval
       description: Tool information
     ToolStatus:
       type: string

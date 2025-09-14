@@ -18,13 +18,14 @@ func (h *Handler) syncToolInfoToSession() {
 	// Sync active tool
 	if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
 		toolInfo := &handler.ToolInfo{
-			ToolUseID:  activeTool.ToolUseID,
-			ToolName:   activeTool.ToolName,
-			Status:     string(activeTool.Status),
-			CreatedAt:  activeTool.CreatedAt,
-			UpdatedAt:  activeTool.UpdatedAt,
-			IsError:    activeTool.IsError,
-			IsRejected: activeTool.IsRejected,
+			ToolUseID:         activeTool.ToolUseID,
+			ToolName:          activeTool.ToolName,
+			Status:            string(activeTool.Status),
+			CreatedAt:         activeTool.CreatedAt,
+			UpdatedAt:         activeTool.UpdatedAt,
+			IsError:           activeTool.IsError,
+			IsRejected:        activeTool.IsRejected,
+			IsWaitingApproval: activeTool.IsWaitingApproval(),
 		}
 		session.UpdateActiveTool(toolInfo)
 	} else {

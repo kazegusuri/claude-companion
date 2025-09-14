@@ -38,6 +38,22 @@ type ToolInfo struct {
 	BackgroundTaskID string // backgroundTaskId if this is a background task
 }
 
+// IsWaitingApproval returns true if the tool is waiting for approval
+func (t *ToolInfo) IsWaitingApproval() bool {
+	// If status is waiting_approval, always return true
+	if t.Status == ToolStatusWaitingApproval {
+		return true
+	}
+
+	// If status is created, check if more than 3 seconds have passed since creation
+	if t.Status == ToolStatusCreated {
+		return time.Since(t.CreatedAt) > 3*time.Second
+	}
+
+	// For other statuses (running, finished), return false
+	return false
+}
+
 // ToolTracker tracks tool executions by their tool_use_id
 type ToolTracker struct {
 	tools            map[string]*ToolInfo

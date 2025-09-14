@@ -70,6 +70,9 @@ type BackgroundTaskInfo struct {
 	// CreatedAt Timestamp when the task was created
 	CreatedAt time.Time `json:"createdAt"`
 
+	// Description Description of the task
+	Description string `json:"description"`
+
 	// IsTerminated Whether the task has been terminated
 	IsTerminated bool `json:"isTerminated"`
 
@@ -120,6 +123,9 @@ type ToolInfo struct {
 
 	// IsRejected Whether the tool was rejected
 	IsRejected bool `json:"isRejected"`
+
+	// IsWaitingApproval Whether the tool is waiting for approval
+	IsWaitingApproval bool `json:"isWaitingApproval"`
 
 	// Status Tool status
 	Status ToolStatus `json:"status"`

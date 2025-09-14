@@ -126,5 +126,5 @@ generate:
 	@echo "Generating TypeScript types..."
 	@cd web && bun run tsp:types
 	@echo "Generating Go code..."
-	@cd internal/server/api && oapi-codegen -package api -generate strict-server,types -o generated.go ../../../api/tsp-output/@typespec/openapi3/openapi.yaml
+	@make generate-go
 	@echo "✅ All code generation complete"

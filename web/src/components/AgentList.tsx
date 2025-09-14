@@ -29,15 +29,6 @@ import type { Agent } from "../services/AgentService";
 import { AgentService } from "../services/AgentService";
 import type { ChatMessage, WebSocketAudioClient } from "../services/WebSocketClient";
 
-interface PermissionRequest {
-  id: string;
-  messageId: string;
-  sessionId: string;
-  toolName: string;
-  text: string;
-  timestamp: Date;
-}
-
 interface AgentListProps {
   onAgentClick?: ((agent: Agent) => void) | undefined;
   selectedAgentPID?: number | null | undefined;
@@ -51,84 +42,28 @@ export const AgentList: React.FC<AgentListProps> = ({
 }) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [permissionsByPID, setPermissionsByPID] = useState<Map<number, PermissionRequest[]>>(
-    new Map(),
-  );
-  const [unknownSessionPermissions, setUnknownSessionPermissions] = useState<PermissionRequest[]>(
-    [],
-  );
-  const [respondedPermissions, setRespondedPermissions] = useState<Set<string>>(new Set());
 
   const agentService = new AgentService();
 
+  // エージェント一覧を取得
+  const fetchAgents = async () => {
+    setLoading(true);
+    try {
+      const fetchedAgents = await agentService.getAgents();
+      setAgents(fetchedAgents);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // WebSocketメッセージハンドラー
-  const handleWebSocketMessage = useCallback(
-    (message: ChatMessage) => {
-      // tool_permissionイベントのみ処理
-      if (message.metadata?.eventType === "tool_permission") {
-        console.log("Tool permission received:", message.metadata);
-
-        const newRequest: PermissionRequest = {
-          id: `${message.id}-${Date.now()}`,
-          messageId: message.id,
-          sessionId: message.metadata.sessionId || "",
-          toolName: message.metadata.toolName || "Unknown Tool",
-          text: message.text,
-          timestamp: new Date(message.timestamp),
-        };
-
-        // Check if agentId is provided in the metadata
-        const agentId = message.metadata.agentId;
-        if (agentId) {
-          // Find agent with matching PID
-          const matchingAgent = agents.find((agent) => agent.pid === agentId);
-          console.log("Matching agent for agentId", agentId, ":", matchingAgent);
-          console.log("Current agents:", agents);
-
-          if (matchingAgent) {
-            setPermissionsByPID((prev) => {
-              const newMap = new Map(prev);
-              const pid = agentId;
-              const existing = newMap.get(pid) || [];
-              newMap.set(pid, [...existing, newRequest]);
-              console.log("Added permission request to PID", pid);
-              return newMap;
-            });
-          } else {
-            // Add to unknown session permissions
-            console.warn("No matching agent found for agentId:", agentId, "Adding to unknown list");
-            setUnknownSessionPermissions((prev) => [...prev, newRequest]);
-          }
-        } else {
-          // Fallback to sessionId matching if agentId is not available
-          const sessionId = message.metadata.sessionId;
-          if (sessionId) {
-            const matchingAgent = agents.find((agent) => agent.sessionId === sessionId);
-            console.log("Fallback: Matching agent for sessionId", sessionId, ":", matchingAgent);
-
-            if (matchingAgent) {
-              setPermissionsByPID((prev) => {
-                const newMap = new Map(prev);
-                const pid = matchingAgent.pid;
-                const existing = newMap.get(pid) || [];
-                newMap.set(pid, [...existing, newRequest]);
-                console.log("Added permission request to PID", pid);
-                return newMap;
-              });
-            } else {
-              console.warn(
-                "No matching agent found for sessionId:",
-                sessionId,
-                "Adding to unknown list",
-              );
-              setUnknownSessionPermissions((prev) => [...prev, newRequest]);
-            }
-          }
-        }
-      }
-    },
-    [agents],
-  );
+  const handleWebSocketMessage = useCallback((message: ChatMessage) => {
+    // tool_permissionイベントを受け取ったら、エージェント情報を再取得
+    if (message.metadata?.eventType === "tool_permission") {
+      console.log("Tool permission event received, refetching agents...");
+      fetchAgents();
+    }
+  }, []);
 
   // WebSocketメッセージリスナーの登録
   useEffect(() => {
@@ -139,70 +74,19 @@ export const AgentList: React.FC<AgentListProps> = ({
   }, [wsClient, handleWebSocketMessage]);
 
   // 許可/拒否の処理
-  const handlePermissionResponse = (
-    pid: number,
-    request: PermissionRequest,
-    action: "permit" | "deny",
-  ) => {
-    if (!wsClient) return;
+  const handlePermissionResponse = (agent: Agent, action: "permit" | "deny") => {
+    if (!wsClient || !agent.session?.activeTool) return;
 
     // Send confirmation response
-    wsClient.sendConfirmResponse(action, request.messageId, request.sessionId);
+    // tool_permissionイベントのmessageIdを使う必要があるが、現在のAPIではmessageIdがない
+    // そのため、sessionIdとtoolUseIdから作成する
+    const messageId = agent.session.activeTool.toolUseId;
+    wsClient.sendConfirmResponse(action, messageId, agent.sessionId);
 
-    // Mark as responded
-    setRespondedPermissions((prev) => new Set(prev).add(request.id));
-
-    // Remove from pending permissions after a short delay
+    // エージェント情報を再取得して状態を更新
     setTimeout(() => {
-      setPermissionsByPID((prev) => {
-        const newMap = new Map(prev);
-        const existing = newMap.get(pid) || [];
-        newMap.set(
-          pid,
-          existing.filter((p) => p.id !== request.id),
-        );
-        if (newMap.get(pid)?.length === 0) {
-          newMap.delete(pid);
-        }
-        return newMap;
-      });
-
-      // Also remove from unknown session permissions if it exists
-      setUnknownSessionPermissions((prev) => prev.filter((p) => p.id !== request.id));
+      fetchAgents();
     }, 300);
-  };
-
-  // エージェント一覧を取得
-  const fetchAgents = async () => {
-    setLoading(true);
-    try {
-      const fetchedAgents = await agentService.getAgents();
-      setAgents(fetchedAgents);
-
-      // Check if any unknown session permissions now match fetched agents
-      setUnknownSessionPermissions((prev) => {
-        const remaining: PermissionRequest[] = [];
-        prev.forEach((request) => {
-          const matchingAgent = fetchedAgents.find(
-            (agent) => agent.sessionId === request.sessionId,
-          );
-          if (matchingAgent) {
-            // Move to the correct agent's permission list
-            setPermissionsByPID((pidMap) => {
-              const newMap = new Map(pidMap);
-              const existing = newMap.get(matchingAgent.pid) || [];
-              newMap.set(matchingAgent.pid, [...existing, request]);
-              return newMap;
-            });
-          } else {
-            remaining.push(request);
-          }
-        });
-        return remaining;
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   // 初回読み込みと定期更新
@@ -305,8 +189,7 @@ export const AgentList: React.FC<AgentListProps> = ({
             </Card>
           ) : (
             agents.map((agent) => {
-              const permissions = permissionsByPID.get(agent.pid) || [];
-              const hasPermissions = permissions.length > 0;
+              const hasPermissions = agent.session?.activeTool?.isWaitingApproval === true;
 
               return (
                 <Box key={agent.pid}>
@@ -435,135 +318,59 @@ export const AgentList: React.FC<AgentListProps> = ({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Stack gap="xs">
-                        {permissions.map((request) => (
-                          <Box key={request.id}>
-                            <Group gap="xs" mb="xs">
-                              <Badge color="orange" variant="light" size="xs">
-                                🔧 {request.toolName}
-                              </Badge>
-                              <Text size="xs" c="dimmed">
-                                {request.timestamp.toLocaleTimeString("ja-JP", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                })}
-                              </Text>
-                            </Group>
-                            <Text size="xs" c="white" lineClamp={2} mb="xs">
-                              {request.text}
+                        <Box>
+                          <Group gap="xs" mb="xs">
+                            <Badge color="orange" variant="light" size="xs">
+                              🔧 {agent.session?.activeTool?.toolName || "Unknown Tool"}
+                            </Badge>
+                            <Text size="xs" c="dimmed">
+                              {new Date(
+                                agent.session?.activeTool?.createdAt || "",
+                              ).toLocaleTimeString("ja-JP", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                              })}
                             </Text>
-                            <Group gap="xs">
-                              <Button
-                                size="xs"
-                                color="green"
-                                variant="light"
-                                leftSection={<IconCheck size={14} />}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePermissionResponse(agent.pid, request, "permit");
-                                }}
-                                disabled={respondedPermissions.has(request.id)}
-                                style={{ flex: 1 }}
-                              >
-                                許可
-                              </Button>
-                              <Button
-                                size="xs"
-                                color="red"
-                                variant="light"
-                                leftSection={<IconX size={14} />}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePermissionResponse(agent.pid, request, "deny");
-                                }}
-                                disabled={respondedPermissions.has(request.id)}
-                                style={{ flex: 1 }}
-                              >
-                                拒否
-                              </Button>
-                            </Group>
-                          </Box>
-                        ))}
+                          </Group>
+                          <Text size="xs" c="white" mb="xs">
+                            ツールの実行許可が必要です
+                          </Text>
+                          <Group gap="xs">
+                            <Button
+                              size="xs"
+                              color="green"
+                              variant="light"
+                              leftSection={<IconCheck size={14} />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePermissionResponse(agent, "permit");
+                              }}
+                              style={{ flex: 1 }}
+                            >
+                              許可
+                            </Button>
+                            <Button
+                              size="xs"
+                              color="red"
+                              variant="light"
+                              leftSection={<IconX size={14} />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePermissionResponse(agent, "deny");
+                              }}
+                              style={{ flex: 1 }}
+                            >
+                              拒否
+                            </Button>
+                          </Group>
+                        </Box>
                       </Stack>
                     </Card>
                   </Collapse>
                 </Box>
               );
             })
-          )}
-
-          {/* Unknown session permissions */}
-          {unknownSessionPermissions.length > 0 && (
-            <Card
-              padding="sm"
-              radius="md"
-              withBorder
-              style={{
-                backgroundColor: "rgba(255, 200, 0, 0.1)",
-                borderColor: "rgba(255, 200, 0, 0.3)",
-              }}
-            >
-              <Stack gap="xs">
-                <Group gap="xs" justify="space-between">
-                  <Text fw={600} size="sm">
-                    Unknown Agent
-                  </Text>
-                  <Badge color="yellow" variant="filled" size="xs">
-                    <IconShieldCheck size={12} /> 許可待ち
-                  </Badge>
-                </Group>
-                <Text size="xs" c="dimmed">
-                  Session: {unknownSessionPermissions[0]?.sessionId || "N/A"}
-                </Text>
-                {unknownSessionPermissions.map((request) => (
-                  <Box key={request.id}>
-                    <Group gap="xs" mb="xs">
-                      <Badge color="orange" variant="light" size="xs">
-                        🔧 {request.toolName}
-                      </Badge>
-                      <Text size="xs" c="dimmed">
-                        {request.timestamp.toLocaleTimeString("ja-JP", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="white" lineClamp={2} mb="xs">
-                      {request.text}
-                    </Text>
-                    <Group gap="xs">
-                      <Button
-                        size="xs"
-                        color="green"
-                        variant="light"
-                        leftSection={<IconCheck size={14} />}
-                        onClick={() => {
-                          handlePermissionResponse(0, request, "permit");
-                        }}
-                        disabled={respondedPermissions.has(request.id)}
-                        style={{ flex: 1 }}
-                      >
-                        許可
-                      </Button>
-                      <Button
-                        size="xs"
-                        color="red"
-                        variant="light"
-                        leftSection={<IconX size={14} />}
-                        onClick={() => {
-                          handlePermissionResponse(0, request, "deny");
-                        }}
-                        disabled={respondedPermissions.has(request.id)}
-                        style={{ flex: 1 }}
-                      >
-                        拒否
-                      </Button>
-                    </Group>
-                  </Box>
-                ))}
-              </Stack>
-            </Card>
           )}
         </Stack>
       </ScrollArea>

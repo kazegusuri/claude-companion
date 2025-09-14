@@ -124,13 +124,14 @@ func (h *APIHandler) convertSessionToAPI(sessionID string) *Session {
 	var activeTool *ToolInfo
 	if tool := session.GetActiveTool(); tool != nil {
 		activeTool = &ToolInfo{
-			ToolUseId:  tool.ToolUseID,
-			ToolName:   tool.ToolName,
-			Status:     ToolStatus(tool.Status),
-			CreatedAt:  tool.CreatedAt,
-			UpdatedAt:  tool.UpdatedAt,
-			IsError:    tool.IsError,
-			IsRejected: tool.IsRejected,
+			ToolUseId:         tool.ToolUseID,
+			ToolName:          tool.ToolName,
+			Status:            ToolStatus(tool.Status),
+			CreatedAt:         tool.CreatedAt,
+			UpdatedAt:         tool.UpdatedAt,
+			IsError:           tool.IsError,
+			IsRejected:        tool.IsRejected,
+			IsWaitingApproval: tool.IsWaitingApproval,
 		}
 	}
 
@@ -141,6 +142,7 @@ func (h *APIHandler) convertSessionToAPI(sessionID string) *Session {
 			BackgroundTaskId: bgTask.BackgroundTaskID,
 			ToolUseId:        bgTask.ToolUseID,
 			Command:          bgTask.Command,
+			Description:      bgTask.Description,
 			IsTerminated:     bgTask.IsTerminated,
 			CreatedAt:        bgTask.CreatedAt,
 		}
