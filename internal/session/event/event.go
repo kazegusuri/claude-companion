@@ -54,9 +54,10 @@ const (
 
 // SessionFile represents the project and session information extracted from the log file path
 type SessionFile struct {
-	TranscriptPath string `json:"transcript_path"` // Full path to the session file (transcript)
-	Project        string `json:"project"`
-	SessionID      string `json:"session_id"` // Session ID
+	TranscriptPath string    `json:"transcript_path"` // Full path to the session file (transcript)
+	Project        string    `json:"project"`
+	SessionID      string    `json:"session_id"`                // Session ID
+	ActiveToolUse  *ToolInfo `json:"active_tool_use,omitempty"` // Currently active tool (not finished)
 }
 
 // BaseEvent contains common fields for all event types

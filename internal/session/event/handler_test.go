@@ -510,6 +510,7 @@ func TestHandler_BufferingWithParentUUIDNil(t *testing.T) {
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
 		session: &SessionFile{
@@ -583,6 +584,7 @@ func TestHandler_ReleaseBufferOnSessionStartResume(t *testing.T) {
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
 		session: &SessionFile{
@@ -662,6 +664,7 @@ func TestHandler_ReleaseBufferOnTimeout(t *testing.T) {
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
 		session: &SessionFile{
@@ -769,6 +772,7 @@ func TestHandler_MultipleSessionBuffering(t *testing.T) {
 		narrator:       &mockNarrator{},
 		centralHandler: centralHandler,
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		buffers:        make(map[string]*BufferInfo),
 		sessionManager: sessionManager,
 		session: &SessionFile{

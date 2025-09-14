@@ -49,6 +49,7 @@ func TestBufferingNormalStartup(t *testing.T) {
 		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		session: &SessionFile{
 			SessionID: sessionID, // Set expected sessionID for normal session start
 		},
@@ -202,6 +203,7 @@ func TestBufferingWithResume(t *testing.T) {
 		centralHandler: centralHandler,
 		buffers:        make(map[string]*BufferInfo),
 		taskTracker:    NewTaskTracker(),
+		toolTracker:    NewToolTracker(),
 		session: &SessionFile{
 			SessionID: sessionID1, // Handler expects sessionID1 for this session file
 		},

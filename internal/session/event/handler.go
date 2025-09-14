@@ -54,6 +54,7 @@ type CentralEventHandler interface {
 type Handler struct {
 	narrator        narrator.Narrator
 	taskTracker     *TaskTracker
+	toolTracker     *ToolTracker
 	sessionManager  *handler.SessionManager
 	centralHandler  CentralEventHandler   // Central event handler
 	session         *SessionFile          // The session this handler is watching
@@ -72,6 +73,7 @@ type Handler struct {
 // NewHandler creates a new event handler
 func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManager, centralHandler CentralEventHandler, session *SessionFile) *Handler {
 	taskTracker := NewTaskTracker()
+	toolTracker := NewToolTracker()
 
 	// Convert SessionFile to internalevent.Session once at initialization
 	internalSession := internalevent.Session{
@@ -82,6 +84,7 @@ func NewHandler(narrator narrator.Narrator, sessionManager *handler.SessionManag
 	return &Handler{
 		narrator:        narrator,
 		taskTracker:     taskTracker,
+		toolTracker:     toolTracker,
 		sessionManager:  sessionManager,
 		centralHandler:  centralHandler,
 		session:         session,
@@ -181,6 +184,9 @@ func (h *Handler) processEvent(event Event) {
 			h.sendEventToCentral(centralAssistant)
 		}
 	case *UserMessage:
+		// Check for tool results and update tool status
+		h.checkToolResultFromUser(e)
+
 		// Check if this is a Task result and create TaskCompletionMessage
 		if taskCompletion := h.checkTaskResultFromUser(e); taskCompletion != nil {
 			// Send TaskCompletionMessage to central handler
@@ -246,6 +252,32 @@ func (h *Handler) processEvent(event Event) {
 		if e.HookEventType == "SessionStart" {
 			// Create a new session
 			h.sessionManager.CreateSession(e.SessionID, e.UUID, e.CWD, h.session.TranscriptPath)
+		}
+
+		// Handle tool-related hooks
+		if e.ToolUseID != "" {
+			if strings.HasPrefix(e.HookEventType, "PreToolUse") {
+				// PreToolUse completed - move to waiting approval
+				h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusWaitingApproval)
+				logger.DebugInfo("Tool status updated: ID=%s, Status=waiting_approval", e.ToolUseID)
+			} else if strings.HasPrefix(e.HookEventType, "PostToolUse") {
+				if e.HookStatus == "started" {
+					// PostToolUse:Running - move to running
+					h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusRunning)
+					logger.DebugInfo("Tool status updated: ID=%s, Status=running", e.ToolUseID)
+				} else if e.HookStatus == "finished" {
+					// PostToolUse completed - finish the tool
+					h.toolTracker.FinishTool(e.ToolUseID, false, false)
+					logger.DebugInfo("Tool finished: ID=%s", e.ToolUseID)
+				}
+			}
+
+			// Update session's active tool
+			if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
+				h.session.ActiveToolUse = activeTool
+			} else {
+				h.session.ActiveToolUse = nil
+			}
 		}
 
 		// Convert HookEvent to SystemMessage and send to central handler
@@ -315,24 +347,91 @@ func (h *Handler) processEvent(event Event) {
 // trackTaskToolUses tracks Task tool uses from AssistantMessage
 func (h *Handler) trackTaskToolUses(msg *AssistantMessage) {
 	for _, content := range msg.Message.Content {
-		if content.Type == "tool_use" && content.Name == "Task" {
-			// Extract Task parameters from input
-			if inputMap, ok := content.Input.(map[string]interface{}); ok {
-				description := ""
-				subagentType := ""
+		if content.Type == "tool_use" {
+			// Track all tools
+			h.toolTracker.TrackToolCreated(content.ID, content.Name)
 
-				if desc, ok := inputMap["description"].(string); ok {
-					description = desc
+			// Update session's active tool
+			if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
+				h.session.ActiveToolUse = activeTool
+			}
+
+			// Special handling for Task tool
+			if content.Name == "Task" {
+				// Extract Task parameters from input
+				if inputMap, ok := content.Input.(map[string]interface{}); ok {
+					description := ""
+					subagentType := ""
+
+					if desc, ok := inputMap["description"].(string); ok {
+						description = desc
+					}
+					if agent, ok := inputMap["subagent_type"].(string); ok {
+						subagentType = agent
+					}
+
+					// Track the Task execution
+					h.taskTracker.TrackTask(content.ID, description, subagentType)
+
+					logger.DebugInfo("Tracking Task: ID=%s, Description=%s, Agent=%s",
+						content.ID, description, subagentType)
 				}
-				if agent, ok := inputMap["subagent_type"].(string); ok {
-					subagentType = agent
+			}
+
+			logger.DebugInfo("Tracking Tool: ID=%s, Name=%s, Status=created",
+				content.ID, content.Name)
+		}
+	}
+}
+
+// checkToolResultFromUser checks if a UserMessage contains tool results and updates tool status
+func (h *Handler) checkToolResultFromUser(msg *UserMessage) {
+	// Check if content is an array (tool results are in array format)
+	contentArray, ok := msg.Message.Content.([]interface{})
+	if !ok {
+		return
+	}
+
+	// Look for tool_result items
+	for _, item := range contentArray {
+		if contentMap, ok := item.(map[string]interface{}); ok {
+			if contentType, ok := contentMap["type"].(string); ok && contentType == "tool_result" {
+				if toolUseID, ok := contentMap["tool_use_id"].(string); ok {
+					// Check if this is an error/rejection
+					isError := false
+					isRejected := false
+
+					if errFlag, ok := contentMap["is_error"].(bool); ok && errFlag {
+						isError = true
+						// Check if it's a user rejection
+						if content, ok := contentMap["content"].(string); ok {
+							if strings.Contains(content, "The user doesn't want to proceed") {
+								isRejected = true
+							}
+						}
+					}
+
+					if isRejected {
+						// User rejected - finish immediately
+						h.toolTracker.FinishTool(toolUseID, true, true)
+						logger.DebugInfo("Tool rejected by user: ID=%s", toolUseID)
+					} else if !isError {
+						// Tool executed successfully - move to running (waiting for PostToolUse)
+						h.toolTracker.UpdateToolStatus(toolUseID, ToolStatusRunning)
+						logger.DebugInfo("Tool executed: ID=%s, Status=running", toolUseID)
+					} else {
+						// Other error - finish with error
+						h.toolTracker.FinishTool(toolUseID, true, false)
+						logger.DebugInfo("Tool error: ID=%s", toolUseID)
+					}
+
+					// Update session's active tool
+					if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
+						h.session.ActiveToolUse = activeTool
+					} else {
+						h.session.ActiveToolUse = nil
+					}
 				}
-
-				// Track the Task execution
-				h.taskTracker.TrackTask(content.ID, description, subagentType)
-
-				logger.DebugInfo("Tracking Task: ID=%s, Description=%s, Agent=%s",
-					content.ID, description, subagentType)
 			}
 		}
 	}
