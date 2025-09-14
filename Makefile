@@ -20,6 +20,9 @@ CMD_BINARIES := claude-code-send \
 # All binaries
 ALL_BINARIES := $(MAIN_BINARY) $(CMD_BINARIES)
 
+# Build targets for each binary
+BINARY_TARGETS := $(addprefix $(BIN_DIR)/,$(ALL_BINARIES))
+
 # Default target
 all: build
 
@@ -45,19 +48,22 @@ help:
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 
-# Build all binaries
-build: $(BIN_DIR)
-	@echo "Building all binaries..."
-	@echo "  Building $(MAIN_BINARY)..."
-	@go build -o $(BIN_DIR)/$(MAIN_BINARY) .
-	@for binary in $(CMD_BINARIES); do \
-		echo "  Building $$binary..."; \
-		go build -o $(BIN_DIR)/$$binary ./cmd/$$binary || exit 1; \
-	done
+# Build all binaries (with parallel support)
+build: $(BINARY_TARGETS)
 	@echo "✅ All binaries built successfully in $(BIN_DIR)/"
 	@echo "Built binaries: $(ALL_BINARIES)"
 
-# Pattern rule for building individual binaries
+# Build the main binary
+$(BIN_DIR)/$(MAIN_BINARY): $(GO_FILES) | $(BIN_DIR)
+	@echo "Building $(MAIN_BINARY)..."
+	@go build -o $@ .
+
+# Pattern rule for command binaries
+$(BIN_DIR)/%: $(GO_FILES) | $(BIN_DIR)
+	@echo "Building $*..."
+	@go build -o $@ ./cmd/$*
+
+# Pattern rule for building individual binaries (for backward compatibility)
 build-%: $(BIN_DIR)
 	@if [ "$*" = "$(MAIN_BINARY)" ]; then \
 		echo "Building $*..."; \
