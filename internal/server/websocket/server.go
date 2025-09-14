@@ -86,10 +86,13 @@ func (s *Server) Run() {
 				currentSessionID := client.currentSessionID
 				client.mu.Unlock()
 
-				if state != nil && state.Mode == "agent" && state.AgentPID != nil {
-					// Only send messages from the current session
-					if message.Metadata.SessionID != currentSessionID {
-						continue
+				// Skip filtering for notification messages - they should always be delivered
+				if message.Type != handler.MessageTypeNotification {
+					if state != nil && state.Mode == "agent" && state.AgentPID != nil {
+						// Only send messages from the current session
+						if message.Metadata.SessionID != currentSessionID {
+							continue
+						}
 					}
 				}
 
@@ -141,6 +144,7 @@ func (s *Server) BroadcastChat(message *handler.ChatMessage) {
 
 	// WORKAROUND: Resolve agent ID from session ID here
 	// TODO: Move this logic to event/handler for better separation of concerns
+	// Always resolve agent ID for proper routing, even for notifications
 	if s.database != nil && message.Metadata.SessionID != "" {
 		agentPID, err := s.database.GetAgentPIDBySessionID(message.Metadata.SessionID)
 		if err == nil && agentPID != nil {

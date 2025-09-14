@@ -9,9 +9,10 @@ type MessageType string
 
 const (
 	// Core message types for chat
-	MessageTypeSystem    MessageType = "system"
-	MessageTypeUser      MessageType = "user"
-	MessageTypeAssistant MessageType = "assistant"
+	MessageTypeSystem       MessageType = "system"
+	MessageTypeUser         MessageType = "user"
+	MessageTypeAssistant    MessageType = "assistant"
+	MessageTypeNotification MessageType = "notification" // Notification messages (always delivered regardless of mode)
 
 	// WebSocket control messages
 	MessageTypePing            MessageType = "ping"

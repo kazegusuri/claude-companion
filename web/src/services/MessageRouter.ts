@@ -32,8 +32,8 @@ export class MessageRouter {
    * Check if a message should be accepted based on current routing rules
    */
   shouldAcceptMessage(message: ChatMessage): boolean {
-    // Always accept system messages
-    if (message.type === "system") {
+    // Always accept system and notification messages
+    if (message.type === "system" || message.type === "notification") {
       return true;
     }
 

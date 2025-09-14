@@ -90,6 +90,7 @@ enum MessageType {
   user: "user",
   assistant: "assistant",
   system: "system",
+  notification: "notification",
   audio: "audio",
   text: "text",
   ping: "ping",

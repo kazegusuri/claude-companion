@@ -270,6 +270,7 @@ components:
         - user
         - assistant
         - system
+        - notification
         - audio
         - text
         - ping

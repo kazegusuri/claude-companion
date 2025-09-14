@@ -197,7 +197,7 @@ export interface components {
          * @description WebSocket message types
          * @enum {string}
          */
-        MessageType: "user" | "assistant" | "system" | "audio" | "text" | "ping" | "pong" | "user_message" | "confirm_response" | "update_state" | "tool_use" | "tool_result" | "content_block" | "error";
+        MessageType: "user" | "assistant" | "system" | "notification" | "audio" | "text" | "ping" | "pong" | "user_message" | "confirm_response" | "update_state" | "tool_use" | "tool_result" | "content_block" | "error";
         /** @description WebSocket connection state */
         WebSocketConnectionState: {
             /**

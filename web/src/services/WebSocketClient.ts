@@ -89,6 +89,7 @@ export class WebSocketAudioClient {
           case "audio":
           case "text":
           case "system":
+          case "notification":
           case "user":
           case "assistant":
             // Notify all message listeners
