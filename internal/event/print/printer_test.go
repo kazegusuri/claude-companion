@@ -502,7 +502,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					Content: &event.HookSystemMessageContent{
 						HookName: "PreCompact",
 						Command:  "/usr/local/bin/hook.sh",
-						Status:   "completed",
+						Status:   event.HookStatusFinished,
 						Type:     "PreCompact",
 					},
 					RawContent: "Hook executed successfully",
@@ -511,7 +511,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 				},
 				wantOutput: "[15:30:45] 🪝 HOOK [PreCompact] [UUID: hook-123, Tool: tool-456]\n" +
 					"  📟 Command: /usr/local/bin/hook.sh\n" +
-					"  ✅ Status: completed\n" +
+					"  ✅ Status: finished\n" +
 					"  💬 Message: Hook executed successfully\n" +
 					"  🏷️  Level: info\n" +
 					"  📂 CWD: /test/workspace\n",

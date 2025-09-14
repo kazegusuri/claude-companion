@@ -205,15 +205,39 @@ func (h *HookEvent) ParseHookContent() error {
 	// Remove ANSI escape codes
 	cleanContent := stripANSI(h.Content)
 
-	// Pattern 1: "SessionStart:resume [/usr/local/bin/claude-notification.sh] completed successfully"
-	// Pattern 2: "Stop [/usr/local/bin/claude-notification.sh] completed successfully"
-	pattern := regexp.MustCompile(`^(\w+(?::\w+)?)\s+\[([^\]]+)\]\s+(.+)$`)
-	matches := pattern.FindStringSubmatch(cleanContent)
+	// Pattern 1: "Running PostToolUse:Bash..."
+	// Pattern 2: "PostToolUse:Bash [/test/bin/hook.sh] completed successfully"
+	// Pattern 3: "SessionStart:resume [/test/bin/hook.sh] completed successfully"
+	// Pattern 4: "Stop [/test/bin/hook.sh] completed successfully"
 
-	if len(matches) == 4 {
+	// Check for "Running" pattern first
+	runningPattern := regexp.MustCompile(`^Running\s+(\w+(?::\w+)?)\.\.\.$`)
+	if matches := runningPattern.FindStringSubmatch(cleanContent); len(matches) == 2 {
+		h.HookEventType = matches[1]
+		h.HookStatus = "started" // Status for running hooks
+		// No command path available in running message
+		h.HookCommand = ""
+		h.HookName = ""
+		return nil
+	}
+
+	// Check for completion pattern
+	completedPattern := regexp.MustCompile(`^(\w+(?::\w+)?)\s+\[([^\]]+)\]\s+(.+)$`)
+	if matches := completedPattern.FindStringSubmatch(cleanContent); len(matches) == 4 {
 		h.HookEventType = matches[1]
 		h.HookCommand = matches[2]
-		h.HookStatus = matches[3]
+		// Parse the status text - anything with "completed" is considered finished
+		statusText := matches[3]
+		if strings.Contains(statusText, "completed") || strings.Contains(statusText, "finished") {
+			h.HookStatus = "finished"
+		} else if strings.Contains(statusText, "failed") || strings.Contains(statusText, "error") {
+			h.HookStatus = "finished" // Even failed hooks are finished
+		} else if strings.Contains(statusText, "started") || strings.Contains(statusText, "starting") {
+			h.HookStatus = "started"
+		} else {
+			// Default to finished for any other status text
+			h.HookStatus = "finished"
+		}
 
 		// Extract hook name from command path
 		parts := strings.Split(h.HookCommand, "/")

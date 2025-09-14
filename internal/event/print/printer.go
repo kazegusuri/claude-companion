@@ -265,7 +265,12 @@ func (p *NotificationPrinter) formatHookSystemMessage(msg *event.SystemMessage, 
 		output.WriteString(fmt.Sprintf("  📟 Command: %s\n", hookContent.Command))
 	}
 	if hookContent.Status != "" {
-		output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", hookContent.Status))
+		// Choose emoji based on status
+		statusEmoji := "✅"
+		if hookContent.Status == event.HookStatusStarted {
+			statusEmoji = "🔄"
+		}
+		output.WriteString(fmt.Sprintf("  %s Status: %s\n", statusEmoji, hookContent.Status))
 	}
 	if msg.RawContent != "" {
 		output.WriteString(fmt.Sprintf("  💬 Message: %s\n", msg.RawContent))

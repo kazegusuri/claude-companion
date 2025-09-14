@@ -107,13 +107,21 @@ type DefaultSystemMessageContent struct {
 // isSystemMessageContent implements SystemMessageContent interface
 func (d *DefaultSystemMessageContent) isSystemMessageContent() {}
 
+// HookStatus represents the status of a hook execution
+type HookStatus string
+
+const (
+	HookStatusStarted  HookStatus = "started"
+	HookStatusFinished HookStatus = "finished"
+)
+
 // HookSystemMessageContent represents hook-specific system message content
 type HookSystemMessageContent struct {
-	HookName string `json:"hook_name"`
-	Command  string `json:"command,omitempty"`
-	Status   string `json:"status,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Message  string `json:"message,omitempty"`
+	HookName string     `json:"hook_name"`
+	Command  string     `json:"command,omitempty"`
+	Status   HookStatus `json:"status,omitempty"`
+	Type     string     `json:"type,omitempty"`
+	Message  string     `json:"message,omitempty"`
 }
 
 // isSystemMessageContent implements SystemMessageContent interface

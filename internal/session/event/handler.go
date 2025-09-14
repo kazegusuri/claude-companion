@@ -12,6 +12,19 @@ import (
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
+// parseHookStatus converts string status to HookStatus enum
+func parseHookStatus(status string) internalevent.HookStatus {
+	switch status {
+	case "started":
+		return internalevent.HookStatusStarted
+	case "finished":
+		return internalevent.HookStatusFinished
+	default:
+		// Default to finished for unknown status
+		return internalevent.HookStatusFinished
+	}
+}
+
 // BufferInfo holds information about buffered events for a session
 type BufferInfo struct {
 	events        []Event
@@ -258,11 +271,12 @@ func (h *Handler) processEvent(event Event) {
 			Content: &internalevent.HookSystemMessageContent{
 				HookName: hookName,
 				Command:  e.HookCommand,
-				Status:   e.HookStatus,
+				Status:   parseHookStatus(e.HookStatus),
 				Type:     hookType,
 				Message:  e.Content,
 			},
-			Level: "info", // Default level for hook events
+			Level:     "info", // Default level for hook events
+			ToolUseID: e.ToolUseID,
 		}
 
 		h.sendEventToCentral(centralEvent)

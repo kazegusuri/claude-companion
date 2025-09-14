@@ -496,7 +496,7 @@ func createTestHookEvent(sessionName string, hookEventType string) *HookEvent {
 		Level:         "info",
 		HookEventType: hookEventType,
 		HookCommand:   "/test/script.sh",
-		HookStatus:    "completed successfully",
+		HookStatus:    "finished",
 	}
 	return event
 }
