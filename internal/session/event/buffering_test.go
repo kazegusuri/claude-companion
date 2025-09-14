@@ -62,14 +62,19 @@ func TestBufferingNormalStartup(t *testing.T) {
 	// Pre-register session with HandleWarmupEvent
 	// This simulates the session being created during warmup
 	parentUUID := "parent-uuid"
-	warmupEvent := &BaseEvent{
-		UUID:        "f1f4d2a9-9163-4531-989c-e519a2797cbe", // Same UUID as the first event
-		SessionID:   sessionID,
-		CWD:         "/test/workspace",
-		TypeString:  "warmup",
-		ParentUUID:  &parentUUID,
-		IsSidechain: false,
-		Session:     sessionFile,
+	// Use a SystemMessage as warmup event since it implements Event interface
+	warmupEvent := &SystemMessage{
+		BaseEvent: BaseEvent{
+			UUID:        "f1f4d2a9-9163-4531-989c-e519a2797cbe", // Same UUID as the first event
+			SessionID:   sessionID,
+			CWD:         "/test/workspace",
+			TypeString:  EventTypeSystem,
+			ParentUUID:  &parentUUID,
+			IsSidechain: false,
+			Session:     sessionFile,
+		},
+		Level:   "info",
+		Content: "warmup",
 	}
 	h.HandleWarmupEvent(warmupEvent)
 
@@ -218,38 +223,50 @@ func TestBufferingWithResume(t *testing.T) {
 	// Pre-register sessions with HandleWarmupEvent
 	// Session1: register with the first event's UUID
 	parentUUID := "parent-uuid"
-	warmupEvent1 := &BaseEvent{
-		UUID:        "fbe8aea6-88ec-4f4d-a14e-9adca5fb7759", // Same as hookEvent1
-		SessionID:   sessionID1,
-		CWD:         "/test/workspace",
-		TypeString:  "warmup",
-		ParentUUID:  &parentUUID,
-		IsSidechain: false,
-		Session:     sessionFile1,
+	warmupEvent1 := &SystemMessage{
+		BaseEvent: BaseEvent{
+			UUID:        "fbe8aea6-88ec-4f4d-a14e-9adca5fb7759", // Same as hookEvent1
+			SessionID:   sessionID1,
+			CWD:         "/test/workspace",
+			TypeString:  EventTypeSystem,
+			ParentUUID:  &parentUUID,
+			IsSidechain: false,
+			Session:     sessionFile1,
+		},
+		Level:   "info",
+		Content: "warmup",
 	}
 	h.HandleWarmupEvent(warmupEvent1)
 
 	// Session2: register with old UUID (will be resumed)
-	warmupEvent2 := &BaseEvent{
-		UUID:        "old-uuid-for-session2", // Different from hookEvent2
-		SessionID:   sessionID2,
-		CWD:         "/test/workspace",
-		TypeString:  "warmup",
-		ParentUUID:  &parentUUID,
-		IsSidechain: false,
-		Session:     sessionFile1, // Same SessionFile
+	warmupEvent2 := &SystemMessage{
+		BaseEvent: BaseEvent{
+			UUID:        "old-uuid-for-session2", // Different from hookEvent2
+			SessionID:   sessionID2,
+			CWD:         "/test/workspace",
+			TypeString:  EventTypeSystem,
+			ParentUUID:  &parentUUID,
+			IsSidechain: false,
+			Session:     sessionFile1, // Same SessionFile
+		},
+		Level:   "info",
+		Content: "warmup",
 	}
 	h.HandleWarmupEvent(warmupEvent2)
 
 	// Session3: register normally
-	warmupEvent3 := &BaseEvent{
-		UUID:        "old-uuid-for-session3",
-		SessionID:   sessionID3,
-		CWD:         "/test/workspace",
-		TypeString:  "warmup",
-		ParentUUID:  &parentUUID,
-		IsSidechain: false,
-		Session:     sessionFile1, // Same SessionFile
+	warmupEvent3 := &SystemMessage{
+		BaseEvent: BaseEvent{
+			UUID:        "old-uuid-for-session3",
+			SessionID:   sessionID3,
+			CWD:         "/test/workspace",
+			TypeString:  EventTypeSystem,
+			ParentUUID:  &parentUUID,
+			IsSidechain: false,
+			Session:     sessionFile1, // Same SessionFile
+		},
+		Level:   "info",
+		Content: "warmup",
 	}
 	h.HandleWarmupEvent(warmupEvent3)
 

@@ -630,6 +630,7 @@ func TestIntegration_BackgroundTaskFlow(t *testing.T) {
 		bgTaskID,
 		toolUseID,
 		"npm run dev",
+		"",
 	)
 
 	h.processEvent(event3)

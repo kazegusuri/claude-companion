@@ -139,7 +139,7 @@ func (h *Handler) SendEvent(event Event) {
 }
 
 // HandleWarmupEvent processes warmup events to initialize session state
-func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
+func (h *Handler) HandleWarmupEvent(event Event) {
 	// Set warmup mode to prevent sending events to central handler
 	previousWarmupState := h.isWarmup
 	h.isWarmup = true
@@ -147,17 +147,72 @@ func (h *Handler) HandleWarmupEvent(event *BaseEvent) {
 		h.isWarmup = previousWarmupState
 	}()
 
-	// Extract session information from the base event
-	if event.ParentUUID != nil && !event.IsSidechain && event.SessionID != "" && h.sessionManager != nil {
-		// Get or create session
-		_, exists := h.sessionManager.GetSession(event.SessionID)
-		if !exists {
-			h.sessionManager.CreateSession(event.SessionID, event.UUID, event.CWD, event.Session.TranscriptPath)
+	// Extract session information from the event
+	// Check common fields available in all event types
+	var sessionID, uuid, cwd, transcriptPath string
+	var parentUUID *string
+	var isSidechain bool
+
+	switch e := event.(type) {
+	case *UserMessage:
+		sessionID = e.SessionID
+		uuid = e.UUID
+		cwd = e.CWD
+		parentUUID = e.ParentUUID
+		isSidechain = e.IsSidechain
+		if e.Session != nil {
+			transcriptPath = e.Session.TranscriptPath
+		}
+	case *AssistantMessage:
+		sessionID = e.SessionID
+		uuid = e.UUID
+		cwd = e.CWD
+		parentUUID = e.ParentUUID
+		isSidechain = e.IsSidechain
+		if e.Session != nil {
+			transcriptPath = e.Session.TranscriptPath
+		}
+	case *SystemMessage:
+		sessionID = e.SessionID
+		uuid = e.UUID
+		cwd = e.CWD
+		parentUUID = e.ParentUUID
+		isSidechain = e.IsSidechain
+		if e.Session != nil {
+			transcriptPath = e.Session.TranscriptPath
+		}
+	case *HookEvent:
+		sessionID = e.SessionID
+		uuid = e.UUID
+		cwd = e.CWD
+		parentUUID = e.ParentUUID
+		isSidechain = e.IsSidechain
+		if e.Session != nil {
+			transcriptPath = e.Session.TranscriptPath
+		}
+	case *SummaryEvent:
+		sessionID = e.SessionID
+		uuid = e.UUID
+		cwd = e.CWD
+		parentUUID = e.ParentUUID
+		isSidechain = e.IsSidechain
+		if e.Session != nil {
+			transcriptPath = e.Session.TranscriptPath
 		}
 	}
 
-	// For warmup, we don't process the event through the normal pipeline
-	// This is just to initialize state
+	// Create session if needed
+	if parentUUID != nil && !isSidechain && sessionID != "" && h.sessionManager != nil {
+		// Get or create session
+		_, exists := h.sessionManager.GetSession(sessionID)
+		if !exists {
+			h.sessionManager.CreateSession(sessionID, uuid, cwd, transcriptPath)
+		}
+	}
+
+	// Process the event through the normal pipeline
+	// This ensures tools, tasks, and other state is properly initialized
+	h.processEvent(event)
 }
 
 // processEvent processes a single event based on its type

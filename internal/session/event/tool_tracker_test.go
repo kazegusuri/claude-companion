@@ -343,7 +343,7 @@ func TestToolTracker_BackgroundTask(t *testing.T) {
 	tracker.TrackToolCreated("tool-1", "Bash")
 
 	// Track a background task
-	tracker.TrackBackgroundTask("bg-123", "tool-1", "cd web && bun run dev --port 3001")
+	tracker.TrackBackgroundTask("bg-123", "tool-1", "cd web && bun run dev --port 3001", "")
 
 	// Verify background task was created
 	task, exists := tracker.GetBackgroundTask("bg-123")
@@ -377,7 +377,7 @@ func TestToolTracker_BackgroundTask(t *testing.T) {
 func TestToolTracker_TerminateBackgroundTask(t *testing.T) {
 	tracker := NewToolTracker()
 	tracker.TrackToolCreated("tool-1", "Bash")
-	tracker.TrackBackgroundTask("bg-456", "tool-1", "watch -n 1 ls")
+	tracker.TrackBackgroundTask("bg-456", "tool-1", "watch -n 1 ls", "")
 
 	// Verify task is active initially
 	task, _ := tracker.GetBackgroundTask("bg-456")
@@ -427,9 +427,9 @@ func TestToolTracker_GetActiveBackgroundTasks(t *testing.T) {
 	tracker.TrackToolCreated("tool-2", "Bash")
 	tracker.TrackToolCreated("tool-3", "Bash")
 
-	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1")
-	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2")
-	tracker.TrackBackgroundTask("bg-3", "tool-3", "command3")
+	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1", "")
+	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2", "")
+	tracker.TrackBackgroundTask("bg-3", "tool-3", "command3", "")
 
 	// All should be active
 	activeTasks = tracker.GetActiveBackgroundTasks()
@@ -465,8 +465,8 @@ func TestToolTracker_GetAllBackgroundTasks(t *testing.T) {
 	tracker.TrackToolCreated("tool-1", "Bash")
 	tracker.TrackToolCreated("tool-2", "Bash")
 
-	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1")
-	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2")
+	tracker.TrackBackgroundTask("bg-1", "tool-1", "command1", "")
+	tracker.TrackBackgroundTask("bg-2", "tool-2", "command2", "")
 
 	// Terminate one task
 	tracker.TerminateBackgroundTask("bg-1")
@@ -497,7 +497,7 @@ func TestToolTracker_GetAllBackgroundTasks(t *testing.T) {
 func TestToolTracker_RemoveBackgroundTask(t *testing.T) {
 	tracker := NewToolTracker()
 	tracker.TrackToolCreated("tool-1", "Bash")
-	tracker.TrackBackgroundTask("bg-remove", "tool-1", "test command")
+	tracker.TrackBackgroundTask("bg-remove", "tool-1", "test command", "")
 
 	// Verify task exists
 	_, exists := tracker.GetBackgroundTask("bg-remove")
@@ -539,7 +539,7 @@ func TestToolTracker_BackgroundTaskConcurrentAccess(t *testing.T) {
 	// Goroutine 1: Track background tasks
 	go func() {
 		for i := 0; i < 10; i++ {
-			tracker.TrackBackgroundTask(string(rune('1'+i)), string(rune('a'+i)), "command")
+			tracker.TrackBackgroundTask(string(rune('1'+i)), string(rune('a'+i)), "command", "")
 		}
 		done <- true
 	}()

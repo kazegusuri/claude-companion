@@ -159,14 +159,14 @@ func (w *SessionWatcher) processExistingLines(file *os.File) error {
 		lineCount++
 		line := scanner.Text()
 		if len(line) > 0 {
-			// Parse the line into a base event
-			baseEvent, err := w.parser.ParseBaseEvent(line)
+			// Parse the line into a full event
+			event, err := w.parser.Parse(line)
 			if err != nil {
 				logger.LogError("Error parsing warmup line %d: %v", lineCount, err)
 				continue
 			}
 			// Send to warmup handler
-			w.eventHandler.HandleWarmupEvent(baseEvent)
+			w.eventHandler.HandleWarmupEvent(event)
 		}
 	}
 

@@ -89,41 +89,43 @@ func TestCreateSessionFromEvents(t *testing.T) {
 				}
 				h := NewHandler(mockNarr, sessionManager, centralHandler, sessionFile)
 
-				parentUUID := "parent-uuid"
-				event := &BaseEvent{
-					UUID:        "test-uuid-3",
-					SessionID:   "session-3",
-					CWD:         "/test/dir3",
-					TypeString:  "warmup",
-					ParentUUID:  &parentUUID,
-					IsSidechain: false,
-					Session: &SessionFile{
-						TranscriptPath: "/test/transcript3.jsonl",
+				event := &HookEvent{
+					BaseEvent: BaseEvent{
+						UUID:        "test-uuid-3",
+						SessionID:   "session-3",
+						CWD:         "/test/dir3",
+						TypeString:  EventTypeSystem,
+						ParentUUID:  nil,
+						IsSidechain: false,
+						Session: &SessionFile{
+							TranscriptPath: "/test/transcript3.jsonl",
+						},
 					},
+					HookEventType: "SessionStart",
+					Level:         "info",
+					Content:       "SessionStart:warmup",
 				}
 
 				return h, event
 			},
 			validate: func(t *testing.T, h *Handler, event Event) {
-				e := event.(*BaseEvent)
-
 				// Call HandleWarmupEvent directly
-				h.HandleWarmupEvent(e)
+				h.HandleWarmupEvent(event)
 
 				// Check if session was created
-				session, exists := h.sessionManager.GetSession(e.SessionID)
+				session, exists := h.sessionManager.GetSession("session-3")
 				if !exists {
-					t.Errorf("Session %s was not created by HandleWarmupEvent", e.SessionID)
+					t.Errorf("Session session-3 was not created by HandleWarmupEvent")
 					return
 				}
-				if session.UUID != e.UUID {
-					t.Errorf("Session UUID mismatch: got %s, want %s", session.UUID, e.UUID)
+				if session.UUID != "test-uuid-3" {
+					t.Errorf("Session UUID mismatch: got %s, want test-uuid-3", session.UUID)
 				}
-				if session.CWD != e.CWD {
-					t.Errorf("Session CWD mismatch: got %s, want %s", session.CWD, e.CWD)
+				if session.CWD != "/test/dir3" {
+					t.Errorf("Session CWD mismatch: got %s, want /test/dir3", session.CWD)
 				}
-				if session.TranscriptPath != e.Session.TranscriptPath {
-					t.Errorf("Session TranscriptPath mismatch: got %s, want %s", session.TranscriptPath, e.Session.TranscriptPath)
+				if session.TranscriptPath != "/test/transcript3.jsonl" {
+					t.Errorf("Session TranscriptPath mismatch: got %s, want /test/transcript3.jsonl", session.TranscriptPath)
 				}
 			},
 		},
