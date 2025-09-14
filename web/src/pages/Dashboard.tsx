@@ -1,9 +1,12 @@
+import { Box } from "@mantine/core";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AgentList } from "../components/AgentList";
 import { ChatDisplay } from "../components/ChatDisplay";
 import { MainLayout } from "../components/Layout/MainLayout";
+import { AgentList } from "../components/AgentList";
+import { NotificationBar, NotificationPanel } from "../components/NotificationCenter";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
+import { useNotificationIntegration } from "../hooks/useNotificationIntegration";
 import type { Agent } from "../services/AgentService";
 import { messageRouter } from "../services/MessageRouter";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
@@ -186,6 +189,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
     };
   }, []); // 空の依存配列で一度だけ実行
 
+  // Integrate notification system
+  useNotificationIntegration(wsClient);
+
   // オーバーレイの位置に基づいて吹き出しの位置を決定（ドラッグ中も追従）
   const [overlayBubbleSide, setOverlayBubbleSide] = useState<"top" | "bottom" | "left" | "right">(
     "top",
@@ -298,24 +304,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ isAudioEnabled }) => {
 
       <MainLayout
         modelComponent={
-          <AgentList
-            onAgentClick={(agent) => {
-              // Toggle agent selection
-              if (selectedAgent?.pid === agent.pid) {
-                // Clear agent mode
-                setSelectedAgent(null);
-                messageRouter.clearMode();
-                wsClient?.clearAgentMode();
-              } else {
-                // Set agent mode
-                setSelectedAgent(agent);
-                messageRouter.setAgentMode(agent);
-                wsClient?.setAgentMode(agent.pid);
-              }
+          <Box
+            style={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "var(--mantine-color-dark-7)",
+              borderRight: "1px solid var(--mantine-color-gray-8)",
             }}
-            selectedAgentPID={selectedAgent?.pid ?? null}
-            wsClient={wsClient}
-          />
+          >
+            {/* Agent List - Takes remaining space */}
+            <Box style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <AgentList
+                onAgentClick={(agent) => {
+                  // Toggle agent selection
+                  if (selectedAgent?.pid === agent.pid) {
+                    // Clear agent mode
+                    setSelectedAgent(null);
+                    messageRouter.clearMode();
+                    wsClient?.clearAgentMode();
+                  } else {
+                    // Set agent mode
+                    setSelectedAgent(agent);
+                    messageRouter.setAgentMode(agent);
+                    wsClient?.setAgentMode(agent.pid);
+                  }
+                }}
+                selectedAgentPID={selectedAgent?.pid ?? null}
+                wsClient={wsClient}
+              />
+            </Box>
+
+            {/* Notification Panel - Expandable */}
+            <NotificationPanel />
+
+            {/* Notification Bar - Fixed at bottom */}
+            <NotificationBar />
+          </Box>
         }
         scheduleComponent={null}
         textComponent={null}

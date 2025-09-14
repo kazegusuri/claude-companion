@@ -40,7 +40,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           <Stack gap="md" h="100%" style={{ flex: 1, minHeight: 0 }}>
             <Box
               style={{
-                height: `${ModelHeight}`, // ヘッダー高さを引いた残りの高さ
+                height: `calc(${ModelHeight} + ${ScheduleHeight} + ${TextHeight} + 16px)`, // chatコンポーネントと同じ高さ
                 display: "flex",
                 flexDirection: "column",
               }}

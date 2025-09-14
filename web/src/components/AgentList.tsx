@@ -36,9 +36,9 @@ interface PermissionRequest {
 }
 
 interface AgentListProps {
-  onAgentClick?: (agent: Agent) => void;
-  selectedAgentPID?: number | null;
-  wsClient?: WebSocketAudioClient | null;
+  onAgentClick?: ((agent: Agent) => void) | undefined;
+  selectedAgentPID?: number | null | undefined;
+  wsClient?: WebSocketAudioClient | null | undefined;
 }
 
 export const AgentList: React.FC<AgentListProps> = ({
@@ -48,7 +48,6 @@ export const AgentList: React.FC<AgentListProps> = ({
 }) => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [permissionsByPID, setPermissionsByPID] = useState<Map<number, PermissionRequest[]>>(
     new Map(),
   );
@@ -176,7 +175,6 @@ export const AgentList: React.FC<AgentListProps> = ({
     try {
       const fetchedAgents = await agentService.getAgents();
       setAgents(fetchedAgents);
-      setLastUpdate(new Date());
 
       // Check if any unknown session permissions now match fetched agents
       setUnknownSessionPermissions((prev) => {
@@ -237,9 +235,16 @@ export const AgentList: React.FC<AgentListProps> = ({
   };
 
   return (
-    <Box style={{ height: "100%", display: "flex", flexDirection: "column", padding: "16px" }}>
+    <Box
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "transparent",
+      }}
+    >
       {/* ヘッダー */}
-      <Group justify="space-between" mb="md">
+      <Group justify="space-between" mb="md" px="md" pt="md">
         <Group gap="xs">
           <IconRobot size={24} stroke={1.5} />
           <Title order={4}>Active Agents</Title>
@@ -253,10 +258,18 @@ export const AgentList: React.FC<AgentListProps> = ({
       </Group>
 
       {/* エージェントリスト */}
-      <ScrollArea style={{ flex: 1 }}>
-        <Stack gap="sm">
+      <ScrollArea style={{ flex: 1 }} px="md">
+        <Stack gap="sm" pb="sm">
           {agents.length === 0 ? (
-            <Card padding="lg" radius="md" withBorder>
+            <Card
+              padding="lg"
+              radius="md"
+              withBorder
+              style={{
+                backgroundColor: "var(--mantine-color-dark-6)",
+                borderColor: "var(--mantine-color-dark-4)",
+              }}
+            >
               <Text ta="center" c="dimmed">
                 エージェントが見つかりません
               </Text>
@@ -278,10 +291,13 @@ export const AgentList: React.FC<AgentListProps> = ({
                     style={{
                       cursor: onAgentClick ? "pointer" : "default",
                       backgroundColor:
-                        selectedAgentPID === agent.pid ? "var(--mantine-color-blue-9)" : undefined,
+                        selectedAgentPID === agent.pid
+                          ? "var(--mantine-color-blue-9)"
+                          : "var(--mantine-color-dark-6)",
                       transition: "background-color 0.2s",
                       borderBottomLeftRadius: hasPermissions ? 0 : undefined,
                       borderBottomRightRadius: hasPermissions ? 0 : undefined,
+                      borderColor: "var(--mantine-color-dark-4)",
                     }}
                     onClick={() => onAgentClick?.(agent)}
                   >
@@ -472,13 +488,6 @@ export const AgentList: React.FC<AgentListProps> = ({
           )}
         </Stack>
       </ScrollArea>
-
-      {/* フッター（最終更新時刻） */}
-      <Box mt="md" pt="sm" style={{ borderTop: "1px solid var(--mantine-color-gray-7)" }}>
-        <Text size="xs" c="gray.5" ta="center">
-          最終更新: {lastUpdate.toLocaleTimeString("ja-JP")}
-        </Text>
-      </Box>
     </Box>
   );
 };
