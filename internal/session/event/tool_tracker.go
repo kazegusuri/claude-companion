@@ -9,10 +9,8 @@ import (
 type ToolStatus string
 
 const (
-	ToolStatusCreated         ToolStatus = "created"          // AssistantMessage でツール使用が提案された
-	ToolStatusWaitingApproval ToolStatus = "waiting_approval" // PreToolUse完了、承認待ち
-	ToolStatusRunning         ToolStatus = "running"          // PostToolUse:Running または実行中
-	ToolStatusFinished        ToolStatus = "finished"         // 完了（成功/失敗/拒否）
+	ToolStatusCreated  ToolStatus = "created"  // AssistantMessage でツール使用が提案された
+	ToolStatusFinished ToolStatus = "finished" // 完了（成功/失敗/拒否）- tool_resultで判定
 )
 
 // BackgroundTaskInfo stores information about a background task
@@ -28,29 +26,19 @@ type BackgroundTaskInfo struct {
 
 // ToolInfo stores information about a tool execution
 type ToolInfo struct {
-	ToolUseID        string
-	ToolName         string // Bash, Edit, etc.
-	Status           ToolStatus
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	IsError          bool   // エラーで終了したか
-	IsRejected       bool   // ユーザーに拒否されたか
-	BackgroundTaskID string // backgroundTaskId if this is a background task
+	ToolUseID          string
+	ToolName           string // Bash, Edit, etc.
+	Status             ToolStatus
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	IsError            bool   // エラーで終了したか
+	IsRejected         bool   // ユーザーに拒否されたか
+	BackgroundTaskID   string // backgroundTaskId if this is a background task
 }
 
 // IsWaitingApproval returns true if the tool is waiting for approval
+// Note: This state is now managed by Session, not ToolTracker
 func (t *ToolInfo) IsWaitingApproval() bool {
-	// If status is waiting_approval, always return true
-	if t.Status == ToolStatusWaitingApproval {
-		return true
-	}
-
-	// If status is created, check if more than 3 seconds have passed since creation
-	if t.Status == ToolStatusCreated {
-		return time.Since(t.CreatedAt) > 3*time.Second
-	}
-
-	// For other statuses (running, finished), return false
 	return false
 }
 
@@ -114,10 +102,8 @@ func (t *ToolTracker) UpdateToolStatus(toolUseID string, newStatus ToolStatus) b
 func (t *ToolTracker) isValidTransition(from, to ToolStatus) bool {
 	// Define valid transitions
 	validTransitions := map[ToolStatus][]ToolStatus{
-		ToolStatusCreated:         {ToolStatusWaitingApproval, ToolStatusRunning, ToolStatusFinished},
-		ToolStatusWaitingApproval: {ToolStatusRunning, ToolStatusFinished},
-		ToolStatusRunning:         {ToolStatusFinished},
-		ToolStatusFinished:        {}, // Cannot transition from finished
+		ToolStatusCreated:  {ToolStatusFinished},
+		ToolStatusFinished: {}, // Cannot transition from finished
 	}
 
 	allowed, exists := validTransitions[from]
@@ -162,6 +148,7 @@ func (t *ToolTracker) GetTool(toolUseID string) (*ToolInfo, bool) {
 	toolCopy := *tool
 	return &toolCopy, true
 }
+
 
 // FinishTool marks a tool as finished with optional error/rejection flags
 func (t *ToolTracker) FinishTool(toolUseID string, isError, isRejected bool) bool {

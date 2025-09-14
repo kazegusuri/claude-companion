@@ -300,7 +300,7 @@ export interface components {
          * @description Tool execution status
          * @enum {string}
          */
-        ToolStatus: "created" | "waiting_approval" | "running" | "finished";
+        ToolStatus: "created" | "finished";
         /** @description WebSocket connection state */
         WebSocketConnectionState: {
             /**

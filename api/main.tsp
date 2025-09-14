@@ -21,8 +21,6 @@ namespace ClaudeCompanion;
  */
 enum ToolStatus {
   created: "created",
-  waiting_approval: "waiting_approval",
-  running: "running",
   finished: "finished",
 }
 

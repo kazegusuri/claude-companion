@@ -315,24 +315,9 @@ func (h *Handler) processEvent(event Event) {
 
 		// Handle tool-related hooks
 		if e.ToolUseID != "" {
-			if strings.HasPrefix(e.HookEventType, "PreToolUse") {
-				// PreToolUse completed - move to waiting approval
-				h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusWaitingApproval)
-				h.syncToolInfoToSession()
-				logger.DebugInfo("Tool status updated: ID=%s, Status=waiting_approval", e.ToolUseID)
-			} else if strings.HasPrefix(e.HookEventType, "PostToolUse") {
-				if e.HookStatus == "started" {
-					// PostToolUse:Running - move to running
-					h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusRunning)
-					h.syncToolInfoToSession()
-					logger.DebugInfo("Tool status updated: ID=%s, Status=running", e.ToolUseID)
-				} else if e.HookStatus == "finished" {
-					// PostToolUse completed - finish the tool
-					h.toolTracker.FinishTool(e.ToolUseID, false, false)
-					h.syncToolInfoToSession()
-					logger.DebugInfo("Tool finished: ID=%s", e.ToolUseID)
-				}
-			}
+			// PreToolUse and PostToolUse are no longer used for tool status tracking
+			// Tool is created when tool_use appears in AssistantMessage
+			// Tool finishes when tool_result is received
 
 			// Update session's active tool
 			if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
@@ -401,6 +386,44 @@ func (h *Handler) processEvent(event Event) {
 		}
 		h.sendEventToCentral(centralEvent)
 		// SummaryEvent display is now handled by central handler's printer
+	case *NotificationEvent:
+		// Forward to central handler
+		// Note: We need to convert the simple Message string to NotificationMessageContent
+		var messageContent internalevent.NotificationMessageContent
+		if strings.Contains(e.Message, "request permission") {
+			// Extract tool name from message if possible
+			// Message format is typically: "request permission to use [tool_name]"
+			toolName := ""
+			if idx := strings.Index(e.Message, "use "); idx != -1 {
+				afterUse := e.Message[idx+4:]
+				if endIdx := strings.Index(afterUse, " "); endIdx != -1 {
+					toolName = afterUse[:endIdx]
+				} else {
+					toolName = strings.TrimSpace(afterUse)
+				}
+			}
+			messageContent = &internalevent.NotificationPermissionMessage{
+				ToolName: toolName,
+			}
+		} else {
+			messageContent = &internalevent.NotificationGeneralMessage{
+				Text: e.Message,
+			}
+		}
+
+		centralEvent := &internalevent.NotificationEvent{
+			Session: internalevent.Session{
+				SessionID:      e.SessionID,
+				TranscriptPath: e.TranscriptPath,
+			},
+			HookEventName:      e.HookEventName,
+			RawMessage:         e.Message,
+			Message:            messageContent,
+			Trigger:            e.Trigger,
+			CustomInstructions: e.CustomInstructions,
+			Source:             e.Source,
+		}
+		h.sendEventToCentral(centralEvent)
 	default:
 		logger.DebugWarning("Unknown event type: %T", event)
 	}
@@ -489,21 +512,40 @@ func (h *Handler) checkToolResultFromUser(msg *UserMessage) {
 						}
 					}
 
+					// tool_result means the tool has finished executing
 					if isRejected {
-						// User rejected - finish immediately
+						// User rejected - finish with rejection flag
 						h.toolTracker.FinishTool(toolUseID, true, true)
 						h.syncToolInfoToSession()
+						// Reset waiting approval state when tool finishes
+						if h.sessionManager != nil {
+							if session, exists := h.sessionManager.GetSession(h.session.SessionID); exists {
+								session.SetToolWaitingApproval(false)
+							}
+						}
 						logger.DebugInfo("Tool rejected by user: ID=%s", toolUseID)
-					} else if !isError {
-						// Tool executed successfully - move to running (waiting for PostToolUse)
-						h.toolTracker.UpdateToolStatus(toolUseID, ToolStatusRunning)
-						h.syncToolInfoToSession()
-						logger.DebugInfo("Tool executed: ID=%s, Status=running", toolUseID)
-					} else {
-						// Other error - finish with error
+					} else if isError {
+						// Tool finished with error
 						h.toolTracker.FinishTool(toolUseID, true, false)
 						h.syncToolInfoToSession()
-						logger.DebugInfo("Tool error: ID=%s", toolUseID)
+						// Reset waiting approval state when tool finishes
+						if h.sessionManager != nil {
+							if session, exists := h.sessionManager.GetSession(h.session.SessionID); exists {
+								session.SetToolWaitingApproval(false)
+							}
+						}
+						logger.DebugInfo("Tool finished with error: ID=%s", toolUseID)
+					} else {
+						// Tool finished successfully
+						h.toolTracker.FinishTool(toolUseID, false, false)
+						h.syncToolInfoToSession()
+						// Reset waiting approval state when tool finishes
+						if h.sessionManager != nil {
+							if session, exists := h.sessionManager.GetSession(h.session.SessionID); exists {
+								session.SetToolWaitingApproval(false)
+							}
+						}
+						logger.DebugInfo("Tool finished successfully: ID=%s", toolUseID)
 					}
 
 					// Update session's active tool

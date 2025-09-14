@@ -38,39 +38,19 @@ func TestToolTracker_UpdateToolStatus(t *testing.T) {
 	tracker := NewToolTracker()
 	tracker.TrackToolCreated("tool-1", "Edit")
 
-	// Valid transition: Created -> WaitingApproval
-	if !tracker.UpdateToolStatus("tool-1", ToolStatusWaitingApproval) {
-		t.Error("Should allow transition from Created to WaitingApproval")
+	// Valid transition: Created -> Finished
+	if !tracker.UpdateToolStatus("tool-1", ToolStatusFinished) {
+		t.Error("Should allow transition from Created to Finished")
 	}
 
 	tool, _ := tracker.GetTool("tool-1")
-	if tool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Expected status 'waiting_approval', got '%s'", tool.Status)
-	}
-
-	// Valid transition: WaitingApproval -> Running
-	if !tracker.UpdateToolStatus("tool-1", ToolStatusRunning) {
-		t.Error("Should allow transition from WaitingApproval to Running")
-	}
-
-	tool, _ = tracker.GetTool("tool-1")
-	if tool.Status != ToolStatusRunning {
-		t.Errorf("Expected status 'running', got '%s'", tool.Status)
-	}
-
-	// Valid transition: Running -> Finished
-	if !tracker.UpdateToolStatus("tool-1", ToolStatusFinished) {
-		t.Error("Should allow transition from Running to Finished")
-	}
-
-	tool, _ = tracker.GetTool("tool-1")
 	if tool.Status != ToolStatusFinished {
 		t.Errorf("Expected status 'finished', got '%s'", tool.Status)
 	}
 
-	// Invalid transition: Finished -> Running (cannot go backwards)
-	if tracker.UpdateToolStatus("tool-1", ToolStatusRunning) {
-		t.Error("Should not allow transition from Finished to Running")
+	// Invalid transition: Finished -> Created (cannot go backwards)
+	if tracker.UpdateToolStatus("tool-1", ToolStatusCreated) {
+		t.Error("Should not allow transition from Finished to Created")
 	}
 
 	// Status should remain Finished
@@ -84,23 +64,18 @@ func TestToolTracker_InvalidTransitions(t *testing.T) {
 	tracker := NewToolTracker()
 	tracker.TrackToolCreated("tool-1", "Write")
 
-	// Move to Running
-	tracker.UpdateToolStatus("tool-1", ToolStatusRunning)
+	// Move to Finished
+	tracker.UpdateToolStatus("tool-1", ToolStatusFinished)
 
-	// Invalid transition: Running -> Created (cannot go backwards)
+	// Invalid transition: Finished -> Created (cannot go backwards)
 	if tracker.UpdateToolStatus("tool-1", ToolStatusCreated) {
-		t.Error("Should not allow transition from Running to Created")
+		t.Error("Should not allow transition from Finished to Created")
 	}
 
-	// Invalid transition: Running -> WaitingApproval (cannot go backwards)
-	if tracker.UpdateToolStatus("tool-1", ToolStatusWaitingApproval) {
-		t.Error("Should not allow transition from Running to WaitingApproval")
-	}
-
-	// Status should remain Running
+	// Status should remain Finished
 	tool, _ := tracker.GetTool("tool-1")
-	if tool.Status != ToolStatusRunning {
-		t.Errorf("Status should remain 'running', got '%s'", tool.Status)
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Status should remain 'finished', got '%s'", tool.Status)
 	}
 }
 
@@ -153,10 +128,7 @@ func TestToolTracker_FinishTool(t *testing.T) {
 	tracker := NewToolTracker()
 	tracker.TrackToolCreated("tool-1", "Grep")
 
-	// Move to WaitingApproval
-	tracker.UpdateToolStatus("tool-1", ToolStatusWaitingApproval)
-
-	// Finish with rejection
+	// Finish with rejection directly from Created
 	if !tracker.FinishTool("tool-1", true, true) {
 		t.Error("Should be able to finish tool")
 	}
@@ -179,10 +151,7 @@ func TestToolTracker_RejectionFlow(t *testing.T) {
 	// Tool created
 	tracker.TrackToolCreated("tool-reject", "Bash")
 
-	// PreToolUse completed - waiting for approval
-	tracker.UpdateToolStatus("tool-reject", ToolStatusWaitingApproval)
-
-	// User rejects - finish immediately
+	// User rejects via tool_result - finish immediately
 	if !tracker.FinishTool("tool-reject", true, true) {
 		t.Error("Should be able to finish tool with rejection")
 	}
@@ -202,13 +171,7 @@ func TestToolTracker_ApprovalFlow(t *testing.T) {
 	// Tool created
 	tracker.TrackToolCreated("tool-approve", "Edit")
 
-	// PreToolUse completed - waiting for approval
-	tracker.UpdateToolStatus("tool-approve", ToolStatusWaitingApproval)
-
-	// Tool executed (approved) - running
-	tracker.UpdateToolStatus("tool-approve", ToolStatusRunning)
-
-	// PostToolUse completed - finished
+	// Tool executed - finished directly (tool_result received)
 	tracker.FinishTool("tool-approve", false, false)
 
 	tool, _ := tracker.GetTool("tool-approve")
@@ -281,7 +244,7 @@ func TestToolTracker_UpdatedTime(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Update status
-	tracker.UpdateToolStatus("tool-time", ToolStatusRunning)
+	tracker.UpdateToolStatus("tool-time", ToolStatusFinished)
 
 	tool, _ = tracker.GetTool("tool-time")
 	if !tool.UpdatedAt.After(firstUpdate) {
@@ -309,7 +272,7 @@ func TestToolTracker_ConcurrentAccess(t *testing.T) {
 	// Goroutine 2: Update status
 	go func() {
 		for i := 0; i < 100; i++ {
-			tracker.UpdateToolStatus(string(rune(i)), ToolStatusRunning)
+			tracker.UpdateToolStatus(string(rune(i)), ToolStatusFinished)
 		}
 		done <- true
 	}()

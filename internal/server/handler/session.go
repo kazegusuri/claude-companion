@@ -139,6 +139,15 @@ func (s *Session) UpdateActiveTool(tool *ToolInfo) {
 	s.activeTool = tool
 }
 
+// SetToolWaitingApproval sets the waiting approval state for the active tool
+func (s *Session) SetToolWaitingApproval(waiting bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeTool != nil {
+		s.activeTool.IsWaitingApproval = waiting
+	}
+}
+
 // GetActiveTool returns the active tool information
 func (s *Session) GetActiveTool() *ToolInfo {
 	s.mu.RLock()

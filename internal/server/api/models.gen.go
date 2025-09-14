@@ -24,10 +24,8 @@ const (
 
 // Defines values for ToolStatus.
 const (
-	Created         ToolStatus = "created"
-	Finished        ToolStatus = "finished"
-	Running         ToolStatus = "running"
-	WaitingApproval ToolStatus = "waiting_approval"
+	Created  ToolStatus = "created"
+	Finished ToolStatus = "finished"
 )
 
 // Agent Agent information representing a Claude agent process

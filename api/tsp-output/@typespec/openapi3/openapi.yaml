@@ -444,8 +444,6 @@ components:
       type: string
       enum:
         - created
-        - waiting_approval
-        - running
         - finished
       description: Tool execution status
     WebSocketConnectionState:

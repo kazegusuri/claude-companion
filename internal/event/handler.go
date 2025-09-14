@@ -165,6 +165,12 @@ func (h *Handler) handleNotificationEvent(event *NotificationEvent) {
 			// Tool permission request
 			narrationText, _ = h.narrator.NarrateToolUsePermission(msg.ToolName)
 
+			// Set waiting approval state on the session's active tool
+			if session, exists := h.sessionManager.GetSession(event.Session.SessionID); exists {
+				session.SetToolWaitingApproval(true)
+				logger.DebugInfo("Tool permission requested for session %s, setting waiting approval state", event.Session.SessionID)
+			}
+
 			// Send tool permission to WebSocket
 			if msg.ToolName != "" && h.emitter != nil {
 				confirmMsg := &handler.ChatMessage{

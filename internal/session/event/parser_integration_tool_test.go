@@ -96,10 +96,10 @@ func TestIntegration_ToolTracking_AcceptFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Check tool status after PreToolUse
+	// Check tool status after PreToolUse - should still be created (PreToolUse no longer changes status)
 	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Tool status should be 'waiting_approval' after PreToolUse, got '%s'", activeTool.Status)
+	if activeTool.Status != ToolStatusCreated {
+		t.Errorf("Tool status should still be 'created' after PreToolUse, got '%s'", activeTool.Status)
 	}
 
 	// Line 6: Tool result (approved)
@@ -112,10 +112,13 @@ func TestIntegration_ToolTracking_AcceptFlow(t *testing.T) {
 	event6.(*UserMessage).Session = sessionFile
 	h.processEvent(event6)
 
-	// Check tool status after approval
-	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusRunning {
-		t.Errorf("Tool status should be 'running' after tool result, got '%s'", activeTool.Status)
+	// Check tool status after tool_result - should be finished
+	tool, exists := h.toolTracker.GetTool("toolu_01TEPTEYgcdsUB6NirmKdh1i")
+	if !exists {
+		t.Fatal("Tool should exist")
+	}
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Tool status should be 'finished' after tool result, got '%s'", tool.Status)
 	}
 
 	// Line 7: PostToolUse Running
@@ -135,10 +138,10 @@ func TestIntegration_ToolTracking_AcceptFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Status should still be running
-	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusRunning {
-		t.Errorf("Tool status should still be 'running', got '%s'", activeTool.Status)
+	// Status should be finished (PostToolUse no longer changes status)
+	tool, _ = h.toolTracker.GetTool("toolu_01TEPTEYgcdsUB6NirmKdh1i")
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Tool status should still be 'finished', got '%s'", tool.Status)
 	}
 
 	// Line 8: PostToolUse Completed
@@ -158,13 +161,10 @@ func TestIntegration_ToolTracking_AcceptFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Check tool is finished
-	tool, exists := h.toolTracker.GetTool("toolu_01TEPTEYgcdsUB6NirmKdh1i")
-	if !exists {
-		t.Fatal("Tool should still exist")
-	}
+	// Check tool is still finished (PostToolUse doesn't affect status anymore)
+	tool, _ = h.toolTracker.GetTool("toolu_01TEPTEYgcdsUB6NirmKdh1i")
 	if tool.Status != ToolStatusFinished {
-		t.Errorf("Tool status should be 'finished', got '%s'", tool.Status)
+		t.Errorf("Tool status should still be 'finished', got '%s'", tool.Status)
 	}
 	if tool.IsError {
 		t.Error("Tool should not have error")
@@ -272,10 +272,10 @@ func TestIntegration_ToolTracking_DenyFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Check tool status after PreToolUse
+	// Check tool status after PreToolUse - should still be created (PreToolUse no longer changes status)
 	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Tool status should be 'waiting_approval' after PreToolUse, got '%s'", activeTool.Status)
+	if activeTool.Status != ToolStatusCreated {
+		t.Errorf("Tool status should still be 'created' after PreToolUse, got '%s'", activeTool.Status)
 	}
 
 	// Line 6: Tool result (rejected)
@@ -397,18 +397,26 @@ func TestIntegration_ToolTracking_MultipleTools(t *testing.T) {
 		t.Errorf("Tool 2 should be 'Write', got '%s'", tool2.ToolName)
 	}
 
-	// Complete first tool
-	hook1 := &HookEvent{
+	// Complete first tool with tool_result
+	userResult := &UserMessage{
 		BaseEvent: BaseEvent{
-			UUID:      "hook-1",
+			UUID:      "user-result-1",
 			SessionID: "test-session",
 			Session:   sessionFile,
 		},
-		HookEventType: "PostToolUse:Edit",
-		HookStatus:    "finished",
-		ToolUseID:     "tool-1",
+		Message: UserMessageContent{
+			Role: "user",
+			Content: []interface{}{
+				map[string]interface{}{
+					"type":        "tool_result",
+					"tool_use_id": "tool-1",
+					"content":     "Success",
+					"is_error":    false,
+				},
+			},
+		},
 	}
-	h.processEvent(hook1)
+	h.processEvent(userResult)
 
 	// First tool should be finished, second still active
 	tool1, _ = h.toolTracker.GetTool("tool-1")
@@ -499,19 +507,19 @@ func TestIntegration_ToolTracking_StateTransitionOrder(t *testing.T) {
 	h.processEvent(hook1)
 
 	tool, _ := h.toolTracker.GetTool("tool-2")
-	if tool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Tool should be waiting_approval, got '%s'", tool.Status)
+	if tool.Status != ToolStatusCreated {
+		t.Errorf("Tool should still be created (PreToolUse no longer changes status), got '%s'", tool.Status)
 	}
 
-	// Try to go back to Created (should fail)
-	if h.toolTracker.UpdateToolStatus("tool-2", ToolStatusCreated) {
-		t.Error("Should not allow going back to Created from WaitingApproval")
+	// Try to finish directly from Created (should succeed)
+	if !h.toolTracker.UpdateToolStatus("tool-2", ToolStatusFinished) {
+		t.Error("Should allow going from Created to Finished")
 	}
 
-	// Tool status should remain unchanged
+	// Tool status should be finished
 	tool, _ = h.toolTracker.GetTool("tool-2")
-	if tool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Tool should still be waiting_approval, got '%s'", tool.Status)
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Tool should be finished, got '%s'", tool.Status)
 	}
 }
 
@@ -569,10 +577,10 @@ func TestIntegration_BackgroundTaskFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Check tool status after PreToolUse
+	// Check tool status after PreToolUse - should still be created (PreToolUse no longer changes status)
 	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusWaitingApproval {
-		t.Errorf("Tool status should be 'waiting_approval' after PreToolUse, got '%s'", activeTool.Status)
+	if activeTool.Status != ToolStatusCreated {
+		t.Errorf("Tool status should still be 'created' after PreToolUse, got '%s'", activeTool.Status)
 	}
 
 	// Line 3: Tool result with backgroundTaskId
@@ -635,10 +643,13 @@ func TestIntegration_BackgroundTaskFlow(t *testing.T) {
 
 	h.processEvent(event3)
 
-	// Check tool status after approval
-	activeTool, _ = h.toolTracker.GetActiveTool()
-	if activeTool.Status != ToolStatusRunning {
-		t.Errorf("Tool status should be 'running' after tool result, got '%s'", activeTool.Status)
+	// Check tool status after tool_result - should be finished
+	tool, exists := h.toolTracker.GetTool("toolu_bg_001")
+	if !exists {
+		t.Fatal("Tool should exist")
+	}
+	if tool.Status != ToolStatusFinished {
+		t.Errorf("Tool status should be 'finished' after tool result, got '%s'", tool.Status)
 	}
 
 	// Check background task was tracked
@@ -691,13 +702,13 @@ func TestIntegration_BackgroundTaskFlow(t *testing.T) {
 		h.processEvent(sysMsg)
 	}
 
-	// Check tool is finished
-	tool, exists := h.toolTracker.GetTool("toolu_bg_001")
-	if !exists {
+	// Check tool is finished (tool was already finished when tool_result was received)
+	tool2, exists2 := h.toolTracker.GetTool("toolu_bg_001")
+	if !exists2 {
 		t.Fatal("Tool should still exist")
 	}
-	if tool.Status != ToolStatusFinished {
-		t.Errorf("Tool status should be 'finished', got '%s'", tool.Status)
+	if tool2.Status != ToolStatusFinished {
+		t.Errorf("Tool status should be 'finished', got '%s'", tool2.Status)
 	}
 
 	// Background task should still be active after tool finishes
