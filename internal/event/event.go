@@ -48,15 +48,39 @@ type SessionMessageBase struct {
 	IsMeta      bool      `json:"is_meta"`
 }
 
+// NotificationMessageContent represents the content of a notification message
+type NotificationMessageContent interface {
+	isNotificationMessageContent()
+}
+
+// NotificationPermissionMessage represents a tool permission request notification
+type NotificationPermissionMessage struct {
+	ToolName  string `json:"tool_name"`
+	MCPServer string `json:"mcp_server,omitempty"` // For MCP tools
+	Operation string `json:"operation,omitempty"`  // For MCP operations
+}
+
+// isNotificationMessageContent implements NotificationMessageContent interface
+func (n *NotificationPermissionMessage) isNotificationMessageContent() {}
+
+// NotificationGeneralMessage represents a general notification message
+type NotificationGeneralMessage struct {
+	Text string `json:"text"`
+}
+
+// isNotificationMessageContent implements NotificationMessageContent interface
+func (n *NotificationGeneralMessage) isNotificationMessageContent() {}
+
 // NotificationEvent represents a notification event from the hook log
 type NotificationEvent struct {
-	Session            Session           `json:"session"`
-	HookEventName      string            `json:"hook_event_name"`
-	Message            string            `json:"message"`
-	Trigger            string            `json:"trigger"`
-	CustomInstructions string            `json:"custom_instructions"`
-	Source             string            `json:"source"` // For SessionStart events: startup, clear, resume
-	Narration          *NarrationMessage `json:"narration,omitempty"`
+	Session            Session                    `json:"session"`
+	HookEventName      string                     `json:"hook_event_name"`
+	RawMessage         string                     `json:"raw_message"`       // Original message string
+	Message            NotificationMessageContent `json:"message,omitempty"` // Parsed message content
+	Trigger            string                     `json:"trigger"`
+	CustomInstructions string                     `json:"custom_instructions"`
+	Source             string                     `json:"source"` // For SessionStart events: startup, clear, resume
+	Narration          *NarrationMessage          `json:"narration,omitempty"`
 }
 
 // Type returns the event type

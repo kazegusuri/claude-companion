@@ -44,7 +44,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-123",
 					},
 					HookEventName: "PreCompact",
-					Message:       "Compacting conversation...",
+					RawMessage:    "Compacting conversation...",
 					Narration: &event.NarrationMessage{
 						Text: "会話を圧縮しています",
 					},
@@ -61,7 +61,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-123456789abc",
 					},
 					HookEventName: "PreCompact",
-					Message:       "Compacting conversation...",
+					RawMessage:    "Compacting conversation...",
 					Narration: &event.NarrationMessage{
 						Text: "会話を圧縮しています",
 					},
@@ -78,7 +78,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-123",
 					},
 					HookEventName: "PreCompact",
-					Message:       "Compacting conversation...",
+					RawMessage:    "Compacting conversation...",
 				},
 				wantOutput:  "[15:30:45] 🗜️ PreCompact\n",
 				description: "PreCompact event without narration should only show header",
@@ -94,7 +94,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 					HookEventName: "SessionStart",
 					Source:        "startup",
-					Message:       "Session started",
+					RawMessage:    "Session started",
 					Narration: &event.NarrationMessage{
 						Text: "新しいセッションを開始しました",
 					},
@@ -112,7 +112,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 					HookEventName: "SessionStart",
 					Source:        "clear",
-					Message:       "Session cleared",
+					RawMessage:    "Session cleared",
 					Narration: &event.NarrationMessage{
 						Text: "セッションをクリアしました",
 					},
@@ -130,7 +130,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 					HookEventName: "SessionStart",
 					Source:        "resume",
-					Message:       "Session resumed",
+					RawMessage:    "Session resumed",
 					Narration: &event.NarrationMessage{
 						Text: "セッションを再開しました",
 					},
@@ -147,7 +147,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-456",
 					},
 					HookEventName: "SessionStart",
-					Message:       "Session started",
+					RawMessage:    "Session started",
 					Narration: &event.NarrationMessage{
 						Text: "セッションを開始しました",
 					},
@@ -165,7 +165,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 					},
 					HookEventName: "SessionStart",
 					Source:        "startup",
-					Message:       "Session started",
+					RawMessage:    "Session started",
 					Narration: &event.NarrationMessage{
 						Text: "新しいセッションを開始しました",
 					},
@@ -184,7 +184,7 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Something happened",
+					RawMessage:    "Something happened",
 					Narration: &event.NarrationMessage{
 						Text: "何か起きました",
 					},
@@ -201,14 +201,17 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Claude will use WebSearch: approve",
+					RawMessage:    "Claude needs your permission to use WebSearch",
+					Message: &event.NotificationPermissionMessage{
+						ToolName: "WebSearch",
+					},
 					Narration: &event.NarrationMessage{
 						Text: "WebSearchツールを使用します",
 					},
 				},
-				wantOutput: "[15:30:45] ✅ Notification\n" +
+				wantOutput: "[15:30:45] 🔑 Notification\n" +
 					"  💬 WebSearchツールを使用します\n",
-				description: "Permission approve should show ✅ emoji",
+				description: "Permission request should show 🔑 emoji",
 			},
 			{
 				name:      "notification_permission_deny",
@@ -218,14 +221,17 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Claude will use Bash: deny",
+					RawMessage:    "Claude needs your permission to use Bash",
+					Message: &event.NotificationPermissionMessage{
+						ToolName: "Bash",
+					},
 					Narration: &event.NarrationMessage{
 						Text: "Bashツールの使用を拒否しました",
 					},
 				},
-				wantOutput: "[15:30:45] ❌ Notification\n" +
+				wantOutput: "[15:30:45] 🔑 Notification\n" +
 					"  💬 Bashツールの使用を拒否しました\n",
-				description: "Permission deny should show ❌ emoji",
+				description: "Permission request should show 🔑 emoji",
 			},
 			{
 				name:      "notification_permission_mcp",
@@ -235,28 +241,36 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Claude will use mcp__playwright__browser_click: approve",
+					RawMessage:    "Claude needs your permission to use playwright - browser_click (MCP)",
+					Message: &event.NotificationPermissionMessage{
+						ToolName:  "playwright",
+						MCPServer: "playwright",
+						Operation: "browser_click",
+					},
 					Narration: &event.NarrationMessage{
 						Text: "MCPツールを使用します",
 					},
 				},
-				wantOutput: "[15:30:45] ✅ Notification\n" +
+				wantOutput: "[15:30:45] 🔑 Notification\n" +
 					"  💬 MCPツールを使用します\n",
-				description: "MCP permission should parse MCP tool name",
+				description: "MCP permission should show 🔑 emoji",
 			},
 			{
-				name:      "notification_contains_permission",
+				name:      "notification_general_message",
 				debugMode: false,
 				event: &event.NotificationEvent{
 					Session: event.Session{
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Permission required for this action",
+					RawMessage:    "Permission required for this action",
+					Message: &event.NotificationGeneralMessage{
+						Text: "Permission required for this action",
+					},
 				},
-				wantOutput: "[15:30:45] 🔑 Notification\n" +
+				wantOutput: "[15:30:45] 🔔 Notification\n" +
 					"  Permission required for this action\n",
-				description: "Message containing 'Permission' should show 🔑 emoji",
+				description: "General message (not matching permission pattern) should show 🔔 emoji",
 			},
 			{
 				name:      "notification_no_narration",
@@ -266,7 +280,10 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789",
 					},
 					HookEventName: "Notification",
-					Message:       "Simple notification",
+					RawMessage:    "Simple notification",
+					Message: &event.NotificationGeneralMessage{
+						Text: "Simple notification",
+					},
 				},
 				wantOutput: "[15:30:45] 🔔 Notification\n" +
 					"  Simple notification\n",
@@ -280,7 +297,10 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-789012345abc",
 					},
 					HookEventName: "Notification",
-					Message:       "Debug notification",
+					RawMessage:    "Debug notification",
+					Message: &event.NotificationGeneralMessage{
+						Text: "Debug notification",
+					},
 				},
 				wantOutput: "[15:30:45] 🔔 Notification [Session: session-]\n" +
 					"  Debug notification\n",
@@ -296,7 +316,10 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						SessionID: "session-unknown",
 					},
 					HookEventName: "UnknownEvent",
-					Message:       "Unknown event type",
+					RawMessage:    "Unknown event type",
+					Message: &event.NotificationGeneralMessage{
+						Text: "Unknown event type",
+					},
 				},
 				wantOutput:  "",
 				description: "Unknown hook event type should return empty string",
@@ -481,7 +504,6 @@ func TestNotificationPrinter_Print(t *testing.T) {
 						Command:  "/usr/local/bin/hook.sh",
 						Status:   "completed",
 						Type:     "PreCompact",
-						Message:  "Hook executed successfully",
 					},
 					RawContent: "Hook executed successfully",
 					Level:      "info",

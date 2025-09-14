@@ -136,16 +136,20 @@ func (p *NotificationPrinter) formatSessionStartEvent(event *event.NotificationE
 }
 
 // formatGeneralNotificationEvent formats general Notification events
-func (p *NotificationPrinter) formatGeneralNotificationEvent(event *event.NotificationEvent) string {
+func (p *NotificationPrinter) formatGeneralNotificationEvent(e *event.NotificationEvent) string {
 	var output strings.Builder
 
-	// Parse permission messages for emoji and formatting
-	emoji, formattedMessage, displayToolName := p.parseNotificationMessage(event.Message)
+	// Determine emoji based on message type
+	emoji := "🔔"
+	switch e.Message.(type) {
+	case *event.NotificationPermissionMessage:
+		emoji = "🔑"
+	}
 
 	// Build header with optional debug info
-	header := fmt.Sprintf("[%s] %s %s", p.timeFunc().Format("15:04:05"), emoji, event.HookEventName)
-	if logger.IsDebugMode() && len(event.Session.SessionID) > 0 {
-		sessionPrefix := event.Session.SessionID
+	header := fmt.Sprintf("[%s] %s %s", p.timeFunc().Format("15:04:05"), emoji, e.HookEventName)
+	if logger.IsDebugMode() && len(e.Session.SessionID) > 0 {
+		sessionPrefix := e.Session.SessionID
 		if len(sessionPrefix) > 8 {
 			sessionPrefix = sessionPrefix[:8]
 		}
@@ -153,61 +157,29 @@ func (p *NotificationPrinter) formatGeneralNotificationEvent(event *event.Notifi
 	}
 	output.WriteString(header + "\n")
 
-	// Display narration if available, otherwise display message
-	if event.Narration != nil && event.Narration.Text != "" {
-		output.WriteString(fmt.Sprintf("  💬 %s\n", event.Narration.Text))
+	// Display narration if available, otherwise display message based on type
+	if e.Narration != nil && e.Narration.Text != "" {
+		output.WriteString(fmt.Sprintf("  💬 %s\n", e.Narration.Text))
 	} else {
-		// Only show message if no narration
-		if displayToolName != "" {
-			output.WriteString(fmt.Sprintf("  %s: %s\n", formattedMessage, displayToolName))
-		} else {
-			output.WriteString(fmt.Sprintf("  %s\n", event.Message))
+		// Display based on message type
+		switch msg := e.Message.(type) {
+		case *event.NotificationPermissionMessage:
+			if msg.MCPServer != "" && msg.Operation != "" {
+				output.WriteString(fmt.Sprintf("  🔑 Permission: %s - %s (MCP)\n", msg.MCPServer, msg.Operation))
+			} else if msg.ToolName != "" {
+				output.WriteString(fmt.Sprintf("  🔑 Permission: %s\n", msg.ToolName))
+			}
+		case *event.NotificationGeneralMessage:
+			output.WriteString(fmt.Sprintf("  %s\n", msg.Text))
+		default:
+			// Fallback to raw message
+			if e.RawMessage != "" {
+				output.WriteString(fmt.Sprintf("  %s\n", e.RawMessage))
+			}
 		}
 	}
 
 	return output.String()
-}
-
-// parseNotificationMessage determines emoji and formatting for notification messages
-func (p *NotificationPrinter) parseNotificationMessage(message string) (emoji string, formattedMessage string, displayToolName string) {
-	emoji = "🔔"
-	formattedMessage = message
-
-	// Check for permission messages
-	if idx := strings.Index(message, "Claude will use "); idx == 0 {
-		remaining := message[16:] // Skip "Claude will use "
-		if colonIdx := strings.Index(remaining, ": "); colonIdx > 0 {
-			toolNamePart := remaining[:colonIdx]
-			operation := strings.ToLower(remaining[colonIdx+2:])
-
-			if operation == "approve" {
-				emoji = "✅"
-			} else {
-				emoji = "❌"
-			}
-			formattedMessage = fmt.Sprintf("Permission %s", operation)
-
-			// Check if it's an MCP tool
-			if strings.HasPrefix(toolNamePart, "mcp__") {
-				parts := strings.SplitN(toolNamePart, "__", 3)
-				if len(parts) >= 3 {
-					displayToolName = fmt.Sprintf("%s (MCP: %s)", parts[2], parts[1])
-				} else {
-					displayToolName = toolNamePart
-				}
-			} else {
-				displayToolName = toolNamePart
-			}
-			return
-		}
-	}
-
-	// Check for other permission-related messages
-	if strings.Contains(message, "Permission") {
-		emoji = "🔑"
-	}
-
-	return emoji, formattedMessage, ""
 }
 
 // formatSystemMessage formats a system message event
@@ -295,8 +267,8 @@ func (p *NotificationPrinter) formatHookSystemMessage(msg *event.SystemMessage, 
 	if hookContent.Status != "" {
 		output.WriteString(fmt.Sprintf("  ✅ Status: %s\n", hookContent.Status))
 	}
-	if hookContent.Message != "" {
-		output.WriteString(fmt.Sprintf("  💬 Message: %s\n", hookContent.Message))
+	if msg.RawContent != "" {
+		output.WriteString(fmt.Sprintf("  💬 Message: %s\n", msg.RawContent))
 	}
 
 	// Add debug info

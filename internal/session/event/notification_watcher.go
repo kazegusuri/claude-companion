@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -258,6 +259,12 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 		return
 	}
 
+	// Parse the message content
+	var messageContent internalevent.NotificationMessageContent
+	if notificationEvent.HookEventName == "Notification" && notificationEvent.Message != "" {
+		messageContent = w.parseNotificationMessage(notificationEvent.Message)
+	}
+
 	// Convert to internal/event.NotificationEvent and send directly to central handler
 	centralEvent := &internalevent.NotificationEvent{
 		Session: internalevent.Session{
@@ -265,7 +272,8 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 			TranscriptPath: notificationEvent.TranscriptPath,
 		},
 		HookEventName:      notificationEvent.HookEventName,
-		Message:            notificationEvent.Message,
+		RawMessage:         notificationEvent.Message,
+		Message:            messageContent,
 		Trigger:            notificationEvent.Trigger,
 		CustomInstructions: notificationEvent.CustomInstructions,
 		Source:             notificationEvent.Source,
@@ -273,5 +281,42 @@ func (w *NotificationWatcher) processNotificationLine(line string) {
 
 	if w.centralHandler != nil {
 		w.centralHandler.SendEvent(centralEvent)
+	}
+}
+
+// parseNotificationMessage parses a notification message and returns appropriate type
+func (w *NotificationWatcher) parseNotificationMessage(message string) internalevent.NotificationMessageContent {
+	const permissionPrefix = "Claude needs your permission to use "
+
+	if !strings.HasPrefix(message, permissionPrefix) {
+		// General notification message
+		return &internalevent.NotificationGeneralMessage{
+			Text: message,
+		}
+	}
+
+	// Extract the tool/MCP part after the prefix
+	toolPart := strings.TrimPrefix(message, permissionPrefix)
+
+	// Check if it's an MCP operation (ends with "(MCP)")
+	if strings.HasSuffix(toolPart, " (MCP)") {
+		// Remove the " (MCP)" suffix
+		toolPart = strings.TrimSuffix(toolPart, " (MCP)")
+
+		// Split by " - " to get MCP name and operation
+		parts := strings.SplitN(toolPart, " - ", 2)
+		if len(parts) == 2 {
+			// MCP permission message
+			return &internalevent.NotificationPermissionMessage{
+				ToolName:  parts[0],
+				MCPServer: parts[0],
+				Operation: parts[1],
+			}
+		}
+	}
+
+	// Regular tool permission message
+	return &internalevent.NotificationPermissionMessage{
+		ToolName: toolPart,
 	}
 }
