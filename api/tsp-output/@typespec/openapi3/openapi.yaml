@@ -88,6 +88,10 @@ components:
           type: string
           format: date-time
           description: Timestamp when the agent was last updated
+        session:
+          allOf:
+            - $ref: '#/components/schemas/Session'
+          description: Session details
       description: Agent information representing a Claude agent process
     AgentListResponse:
       type: object
@@ -100,6 +104,40 @@ components:
             $ref: '#/components/schemas/Agent'
           description: List of active agents
       description: Response containing a list of agents
+    BackgroundTaskInfo:
+      type: object
+      required:
+        - backgroundTaskId
+        - toolUseId
+        - command
+        - description
+        - isTerminated
+        - createdAt
+      properties:
+        backgroundTaskId:
+          type: string
+          description: Background task ID
+        toolUseId:
+          type: string
+          description: Tool use ID associated with this task
+        command:
+          type: string
+          description: Command being executed
+        description:
+          type: string
+          description: Description of the task
+        isTerminated:
+          type: boolean
+          description: Whether the task has been terminated
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was created
+        terminatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was terminated
+      description: Background task information
     ChatMessage:
       type: object
       required:
@@ -283,6 +321,85 @@ components:
         - content_block
         - error
       description: WebSocket message types
+    Session:
+      type: object
+      required:
+        - sessionId
+        - uuid
+        - cwd
+        - transcriptPath
+        - startTime
+      properties:
+        sessionId:
+          type: string
+          description: Session ID
+        uuid:
+          type: string
+          description: UUID of the event that created this session
+        cwd:
+          type: string
+          description: Current working directory
+        transcriptPath:
+          type: string
+          description: Path to the transcript file
+        startTime:
+          type: string
+          format: date-time
+          description: Timestamp when the session started
+        activeTool:
+          allOf:
+            - $ref: '#/components/schemas/ToolInfo'
+          description: Active tool information
+        backgroundTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BackgroundTaskInfo'
+          description: Background tasks
+      description: Session information
+    ToolInfo:
+      type: object
+      required:
+        - toolUseId
+        - toolName
+        - status
+        - createdAt
+        - updatedAt
+        - isError
+        - isRejected
+      properties:
+        toolUseId:
+          type: string
+          description: Tool use ID
+        toolName:
+          type: string
+          description: Tool name
+        status:
+          allOf:
+            - $ref: '#/components/schemas/ToolStatus'
+          description: Tool status
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the tool was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the tool was last updated
+        isError:
+          type: boolean
+          description: Whether the tool resulted in an error
+        isRejected:
+          type: boolean
+          description: Whether the tool was rejected
+      description: Tool information
+    ToolStatus:
+      type: string
+      enum:
+        - created
+        - waiting_approval
+        - running
+        - finished
+      description: Tool execution status
     WebSocketConnectionState:
       type: object
       required:

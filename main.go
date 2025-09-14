@@ -146,10 +146,10 @@ func main() {
 		// Create Echo server with API routes and WebSocket if enabled
 		var echoServer *echo.Echo
 		if wsServer != nil {
-			echoServer = api.SetupEchoServerWithWebSocket(database, wsServer)
+			echoServer = api.SetupEchoServerWithWebSocket(database, sessionManager, wsServer)
 			logger.LogInfo("WebSocket endpoint: ws://localhost%s/ws/audio", serverPort)
 		} else {
-			echoServer = api.SetupEchoServer(database)
+			echoServer = api.SetupEchoServer(database, sessionManager)
 		}
 
 		// Start HTTP server with Echo handling all routes

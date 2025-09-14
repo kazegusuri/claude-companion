@@ -69,11 +69,36 @@ export interface components {
              * @description Timestamp when the agent was last updated
              */
             updatedAt: string;
+            /** @description Session details */
+            session?: components["schemas"]["Session"];
         };
         /** @description Response containing a list of agents */
         AgentListResponse: {
             /** @description List of active agents */
             agents: components["schemas"]["Agent"][];
+        };
+        /** @description Background task information */
+        BackgroundTaskInfo: {
+            /** @description Background task ID */
+            backgroundTaskId: string;
+            /** @description Tool use ID associated with this task */
+            toolUseId: string;
+            /** @description Command being executed */
+            command: string;
+            /** @description Description of the task */
+            description: string;
+            /** @description Whether the task has been terminated */
+            isTerminated: boolean;
+            /**
+             * Format: date-time
+             * @description Timestamp when the task was created
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Timestamp when the task was terminated
+             */
+            terminatedAt?: string;
         };
         /** @description Chat message sent via WebSocket */
         ChatMessage: {
@@ -198,6 +223,54 @@ export interface components {
          * @enum {string}
          */
         MessageType: "user" | "assistant" | "system" | "notification" | "audio" | "text" | "ping" | "pong" | "user_message" | "confirm_response" | "update_state" | "tool_use" | "tool_result" | "content_block" | "error";
+        /** @description Session information */
+        Session: {
+            /** @description Session ID */
+            sessionId: string;
+            /** @description UUID of the event that created this session */
+            uuid: string;
+            /** @description Current working directory */
+            cwd: string;
+            /** @description Path to the transcript file */
+            transcriptPath: string;
+            /**
+             * Format: date-time
+             * @description Timestamp when the session started
+             */
+            startTime: string;
+            /** @description Active tool information */
+            activeTool?: components["schemas"]["ToolInfo"];
+            /** @description Background tasks */
+            backgroundTasks?: components["schemas"]["BackgroundTaskInfo"][];
+        };
+        /** @description Tool information */
+        ToolInfo: {
+            /** @description Tool use ID */
+            toolUseId: string;
+            /** @description Tool name */
+            toolName: string;
+            /** @description Tool status */
+            status: components["schemas"]["ToolStatus"];
+            /**
+             * Format: date-time
+             * @description Timestamp when the tool was created
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Timestamp when the tool was last updated
+             */
+            updatedAt: string;
+            /** @description Whether the tool resulted in an error */
+            isError: boolean;
+            /** @description Whether the tool was rejected */
+            isRejected: boolean;
+        };
+        /**
+         * @description Tool execution status
+         * @enum {string}
+         */
+        ToolStatus: "created" | "waiting_approval" | "running" | "finished";
         /** @description WebSocket connection state */
         WebSocketConnectionState: {
             /**

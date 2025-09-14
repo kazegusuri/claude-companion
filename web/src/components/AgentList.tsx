@@ -9,6 +9,7 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconCheck,
@@ -18,6 +19,8 @@ import {
   IconRefresh,
   IconRobot,
   IconShieldCheck,
+  IconTerminal,
+  IconTool,
   IconX,
 } from "@tabler/icons-react";
 import type React from "react";
@@ -234,6 +237,29 @@ export const AgentList: React.FC<AgentListProps> = ({
     return `${diffSec}秒前`;
   };
 
+  // ツールステータスの表示用情報を取得
+  const getToolStatusInfo = (tool: { status: string; isError?: boolean; isRejected?: boolean }) => {
+    if (tool.status === "running") {
+      return { color: "blue", label: "実行中" };
+    }
+    if (tool.status === "waiting_approval") {
+      return { color: "yellow", label: "承認待ち" };
+    }
+    if (tool.status === "finished") {
+      if (tool.isError) {
+        return { color: "red", label: "エラー" };
+      }
+      if (tool.isRejected) {
+        return { color: "orange", label: "拒否" };
+      }
+      return { color: "green", label: "完了" };
+    }
+    if (tool.status === "created") {
+      return { color: "gray", label: "作成済み" };
+    }
+    return { color: "gray", label: tool.status };
+  };
+
   return (
     <Box
       style={{
@@ -337,6 +363,59 @@ export const AgentList: React.FC<AgentListProps> = ({
                           </Text>
                         </Group>
                       </Group>
+
+                      {/* Session情報: アクティブツール */}
+                      {agent.session?.activeTool &&
+                        (() => {
+                          const statusInfo = getToolStatusInfo(agent.session.activeTool);
+                          return (
+                            <Group gap="xs">
+                              <IconTool size={14} stroke={1.5} style={{ opacity: 0.8 }} />
+                              <Text size="xs" c="dimmed">
+                                Active:
+                              </Text>
+                              <Badge size="xs" variant="light" color={statusInfo.color}>
+                                {agent.session.activeTool.toolName} ({statusInfo.label})
+                              </Badge>
+                            </Group>
+                          );
+                        })()}
+
+                      {/* Session情報: バックグラウンドタスク */}
+                      {agent.session?.backgroundTasks &&
+                        agent.session.backgroundTasks.length > 0 && (
+                          <Group gap="xs">
+                            <IconTerminal size={14} stroke={1.5} style={{ opacity: 0.8 }} />
+                            <Text size="xs" c="dimmed">
+                              Background:
+                            </Text>
+                            <Group gap={4}>
+                              {agent.session.backgroundTasks
+                                .filter((task) => !task.isTerminated)
+                                .slice(0, 3)
+                                .map((task, index) => (
+                                  <Tooltip
+                                    key={task.backgroundTaskId}
+                                    label={task.command || "Unknown command"}
+                                    position="top"
+                                  >
+                                    <Badge size="xs" variant="dot" color="blue">
+                                      Task {index + 1}
+                                    </Badge>
+                                  </Tooltip>
+                                ))}
+                              {agent.session.backgroundTasks.filter((task) => !task.isTerminated)
+                                .length > 3 && (
+                                <Badge size="xs" variant="light" color="gray">
+                                  +
+                                  {agent.session.backgroundTasks.filter(
+                                    (task) => !task.isTerminated,
+                                  ).length - 3}
+                                </Badge>
+                              )}
+                            </Group>
+                          </Group>
+                        )}
                     </Stack>
                   </Card>
 

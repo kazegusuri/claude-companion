@@ -7,17 +7,20 @@ import (
 
 	"github.com/kazegusuri/claude-companion/internal/logger"
 	"github.com/kazegusuri/claude-companion/internal/server/db"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
 // APIHandler manages HTTP API endpoints
 type APIHandler struct {
-	database *db.DB
+	database       *db.DB
+	sessionManager handler.SessionGetter
 }
 
 // NewHandler creates a new API handler
-func NewHandler(database *db.DB) *APIHandler {
+func NewHandler(database *db.DB, sessionManager handler.SessionGetter) *APIHandler {
 	return &APIHandler{
-		database: database,
+		database:       database,
+		sessionManager: sessionManager,
 	}
 }
 
@@ -39,7 +42,7 @@ func (h *APIHandler) AgentsList(ctx context.Context, request AgentsListRequestOb
 	}
 
 	for _, agent := range agents {
-		response.Agents = append(response.Agents, Agent{
+		agentResponse := Agent{
 			Id:          agent.ID,
 			Pid:         int32(agent.PID),
 			SessionId:   agent.SessionID,
@@ -48,7 +51,9 @@ func (h *APIHandler) AgentsList(ctx context.Context, request AgentsListRequestOb
 			AgentType:   agent.AgentType,
 			CreatedAt:   agent.CreatedAt,
 			UpdatedAt:   agent.UpdatedAt,
-		})
+			Session:     h.convertSessionToAPI(agent.SessionID),
+		}
+		response.Agents = append(response.Agents, agentResponse)
 	}
 
 	return AgentsList200JSONResponse(response), nil
@@ -78,12 +83,13 @@ func (h *APIHandler) AgentsRead(ctx context.Context, request AgentsReadRequestOb
 		AgentType:   agent.AgentType,
 		CreatedAt:   agent.CreatedAt,
 		UpdatedAt:   agent.UpdatedAt,
+		Session:     h.convertSessionToAPI(agent.SessionID),
 	}, nil
 }
 
 // CreateEchoStrictHandler creates a new echo handler with strict type checking
-func CreateEchoStrictHandler(database *db.DB) ServerInterface {
-	handler := NewHandler(database)
+func CreateEchoStrictHandler(database *db.DB, sessionManager handler.SessionGetter) ServerInterface {
+	handler := NewHandler(database, sessionManager)
 	return NewStrictHandler(handler, nil)
 }
 
@@ -101,4 +107,63 @@ func extractProjectName(projectDir string) string {
 	}
 
 	return baseName
+}
+
+// convertSessionToAPI converts internal Session to API Session model
+func (h *APIHandler) convertSessionToAPI(sessionID string) *Session {
+	if h.sessionManager == nil {
+		return nil
+	}
+
+	session, exists := h.sessionManager.GetSession(sessionID)
+	if !exists {
+		return nil
+	}
+
+	// Convert active tool
+	var activeTool *ToolInfo
+	if tool := session.GetActiveTool(); tool != nil {
+		activeTool = &ToolInfo{
+			ToolUseId:  tool.ToolUseID,
+			ToolName:   tool.ToolName,
+			Status:     ToolStatus(tool.Status),
+			CreatedAt:  tool.CreatedAt,
+			UpdatedAt:  tool.UpdatedAt,
+			IsError:    tool.IsError,
+			IsRejected: tool.IsRejected,
+		}
+	}
+
+	// Convert background tasks
+	var backgroundTasks []BackgroundTaskInfo
+	for _, bgTask := range session.GetBackgroundTasks() {
+		apiTask := BackgroundTaskInfo{
+			BackgroundTaskId: bgTask.BackgroundTaskID,
+			ToolUseId:        bgTask.ToolUseID,
+			Command:          bgTask.Command,
+			IsTerminated:     bgTask.IsTerminated,
+			CreatedAt:        bgTask.CreatedAt,
+		}
+		if bgTask.TerminatedAt != nil {
+			terminatedAt := *bgTask.TerminatedAt
+			apiTask.TerminatedAt = &terminatedAt
+		}
+		backgroundTasks = append(backgroundTasks, apiTask)
+	}
+
+	// Convert to API Session
+	apiSession := &Session{
+		SessionId:      session.SessionID,
+		Uuid:           session.UUID,
+		Cwd:            session.CWD,
+		TranscriptPath: session.TranscriptPath,
+		StartTime:      session.StartTime,
+		ActiveTool:     activeTool,
+	}
+
+	if len(backgroundTasks) > 0 {
+		apiSession.BackgroundTasks = &backgroundTasks
+	}
+
+	return apiSession
 }

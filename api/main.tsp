@@ -17,6 +17,141 @@ using TypeSpec.OpenAPI;
 namespace ClaudeCompanion;
 
 /**
+ * Tool execution status
+ */
+enum ToolStatus {
+  created: "created",
+  waiting_approval: "waiting_approval",
+  running: "running",
+  finished: "finished",
+}
+
+/**
+ * Tool information
+ */
+model ToolInfo {
+  /**
+   * Tool use ID
+   */
+  toolUseId: string;
+
+  /**
+   * Tool name
+   */
+  toolName: string;
+
+  /**
+   * Tool status
+   */
+  status: ToolStatus;
+
+  /**
+   * Timestamp when the tool was created
+   */
+  @format("date-time")
+  createdAt: string;
+
+  /**
+   * Timestamp when the tool was last updated
+   */
+  @format("date-time")
+  updatedAt: string;
+
+  /**
+   * Whether the tool resulted in an error
+   */
+  isError: boolean;
+
+  /**
+   * Whether the tool was rejected
+   */
+  isRejected: boolean;
+}
+
+/**
+ * Background task information
+ */
+model BackgroundTaskInfo {
+  /**
+   * Background task ID
+   */
+  backgroundTaskId: string;
+
+  /**
+   * Tool use ID associated with this task
+   */
+  toolUseId: string;
+
+  /**
+   * Command being executed
+   */
+  command: string;
+
+  /**
+   * Description of the task
+   */
+  description: string;
+
+  /**
+   * Whether the task has been terminated
+   */
+  isTerminated: boolean;
+
+  /**
+   * Timestamp when the task was created
+   */
+  @format("date-time")
+  createdAt: string;
+
+  /**
+   * Timestamp when the task was terminated
+   */
+  @format("date-time")
+  terminatedAt?: string;
+}
+
+/**
+ * Session information
+ */
+model Session {
+  /**
+   * Session ID
+   */
+  sessionId: string;
+
+  /**
+   * UUID of the event that created this session
+   */
+  uuid: string;
+
+  /**
+   * Current working directory
+   */
+  cwd: string;
+
+  /**
+   * Path to the transcript file
+   */
+  transcriptPath: string;
+
+  /**
+   * Timestamp when the session started
+   */
+  @format("date-time")
+  startTime: string;
+
+  /**
+   * Active tool information
+   */
+  activeTool?: ToolInfo;
+
+  /**
+   * Background tasks
+   */
+  backgroundTasks?: BackgroundTaskInfo[];
+}
+
+/**
  * Agent information representing a Claude agent process
  */
 model Agent {
@@ -61,6 +196,11 @@ model Agent {
    */
   @format("date-time")
   updatedAt: string;
+
+  /**
+   * Session details
+   */
+  session?: Session;
 }
 
 /**

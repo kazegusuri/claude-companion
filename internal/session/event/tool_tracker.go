@@ -20,6 +20,7 @@ type BackgroundTaskInfo struct {
 	BackgroundTaskID string // backgroundTaskId from tool_result
 	ToolUseID        string // Associated tool_use_id
 	Command          string // The command being executed
+	Description      string // The description from the Bash tool
 	IsTerminated     bool   // Whether the task has been terminated
 	CreatedAt        time.Time
 	TerminatedAt     *time.Time
@@ -39,16 +40,18 @@ type ToolInfo struct {
 
 // ToolTracker tracks tool executions by their tool_use_id
 type ToolTracker struct {
-	tools           map[string]*ToolInfo
-	backgroundTasks map[string]*BackgroundTaskInfo // key: backgroundTaskID
-	mu              sync.RWMutex
+	tools            map[string]*ToolInfo
+	backgroundTasks  map[string]*BackgroundTaskInfo // key: backgroundTaskID
+	toolDescriptions map[string]string              // temporary storage for tool descriptions (key: tool_use_id)
+	mu               sync.RWMutex
 }
 
 // NewToolTracker creates a new ToolTracker
 func NewToolTracker() *ToolTracker {
 	return &ToolTracker{
-		tools:           make(map[string]*ToolInfo),
-		backgroundTasks: make(map[string]*BackgroundTaskInfo),
+		tools:            make(map[string]*ToolInfo),
+		backgroundTasks:  make(map[string]*BackgroundTaskInfo),
+		toolDescriptions: make(map[string]string),
 	}
 }
 
@@ -187,7 +190,7 @@ func (t *ToolTracker) GetAllTools() map[string]ToolInfo {
 }
 
 // TrackBackgroundTask tracks a new background task
-func (t *ToolTracker) TrackBackgroundTask(backgroundTaskID, toolUseID, command string) {
+func (t *ToolTracker) TrackBackgroundTask(backgroundTaskID, toolUseID, command, description string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -196,6 +199,7 @@ func (t *ToolTracker) TrackBackgroundTask(backgroundTaskID, toolUseID, command s
 		BackgroundTaskID: backgroundTaskID,
 		ToolUseID:        toolUseID,
 		Command:          command,
+		Description:      description,
 		IsTerminated:     false,
 		CreatedAt:        now,
 		TerminatedAt:     nil,
@@ -205,6 +209,40 @@ func (t *ToolTracker) TrackBackgroundTask(backgroundTaskID, toolUseID, command s
 	if tool, exists := t.tools[toolUseID]; exists {
 		tool.BackgroundTaskID = backgroundTaskID
 	}
+}
+
+// UpdateBackgroundTaskCommand updates the command and optionally description of an existing background task
+func (t *ToolTracker) UpdateBackgroundTaskCommand(backgroundTaskID string, command string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	task, exists := t.backgroundTasks[backgroundTaskID]
+	if !exists {
+		return false
+	}
+
+	// Update command if it was empty or different
+	if task.Command == "" || task.Command != command {
+		task.Command = command
+	}
+	return true
+}
+
+// UpdateBackgroundTaskDescription updates the description of an existing background task
+func (t *ToolTracker) UpdateBackgroundTaskDescription(backgroundTaskID string, description string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	task, exists := t.backgroundTasks[backgroundTaskID]
+	if !exists {
+		return false
+	}
+
+	// Update description if it was empty
+	if task.Description == "" && description != "" {
+		task.Description = description
+	}
+	return true
 }
 
 // TerminateBackgroundTask marks a background task as terminated
@@ -293,4 +331,24 @@ func (t *ToolTracker) RemoveBackgroundTask(backgroundTaskID string) {
 	}
 
 	delete(t.backgroundTasks, backgroundTaskID)
+}
+
+// StoreToolDescription temporarily stores a tool description by tool_use_id
+// This is used when we get the description from AssistantMessage before the backgroundTaskId
+func (t *ToolTracker) StoreToolDescription(toolUseID, description string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.toolDescriptions[toolUseID] = description
+}
+
+// GetToolDescription retrieves and removes a stored tool description
+func (t *ToolTracker) GetToolDescription(toolUseID string) (string, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	desc, exists := t.toolDescriptions[toolUseID]
+	if exists {
+		delete(t.toolDescriptions, toolUseID)
+	}
+	return desc, exists
 }

@@ -4,13 +4,14 @@ import (
 	"net/http"
 
 	"github.com/kazegusuri/claude-companion/internal/server/db"
+	"github.com/kazegusuri/claude-companion/internal/server/handler"
 	ws "github.com/kazegusuri/claude-companion/internal/server/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 // SetupEchoServer creates and configures an Echo server with API routes
-func SetupEchoServer(database *db.DB) *echo.Echo {
+func SetupEchoServer(database *db.DB, sessionManager handler.SessionGetter) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -19,7 +20,7 @@ func SetupEchoServer(database *db.DB) *echo.Echo {
 	e.Use(middleware.CORS())
 
 	// Create the API handler
-	apiHandler := CreateEchoStrictHandler(database)
+	apiHandler := CreateEchoStrictHandler(database, sessionManager)
 
 	// Register API routes
 	RegisterHandlers(e, apiHandler)
@@ -28,7 +29,7 @@ func SetupEchoServer(database *db.DB) *echo.Echo {
 }
 
 // SetupEchoServerWithWebSocket creates and configures an Echo server with API routes and WebSocket
-func SetupEchoServerWithWebSocket(database *db.DB, wsServer *ws.Server) *echo.Echo {
+func SetupEchoServerWithWebSocket(database *db.DB, sessionManager handler.SessionGetter, wsServer *ws.Server) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -37,7 +38,7 @@ func SetupEchoServerWithWebSocket(database *db.DB, wsServer *ws.Server) *echo.Ec
 	e.Use(middleware.CORS())
 
 	// Create the API handler
-	apiHandler := CreateEchoStrictHandler(database)
+	apiHandler := CreateEchoStrictHandler(database, sessionManager)
 
 	// Register API routes
 	RegisterHandlers(e, apiHandler)
@@ -51,7 +52,7 @@ func SetupEchoServerWithWebSocket(database *db.DB, wsServer *ws.Server) *echo.Ec
 }
 
 // CreateHTTPHandler creates an http.Handler from Echo server
-func CreateHTTPHandler(database *db.DB) http.Handler {
-	e := SetupEchoServer(database)
+func CreateHTTPHandler(database *db.DB, sessionManager handler.SessionGetter) http.Handler {
+	e := SetupEchoServer(database, sessionManager)
 	return e
 }

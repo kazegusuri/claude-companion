@@ -186,6 +186,10 @@ func (h *Handler) processEvent(event Event) {
 	case *UserMessage:
 		// Check for tool results and update tool status
 		h.checkToolResultFromUser(e)
+		// Check for background task tracking from tool results
+		h.trackBackgroundTaskFromToolResult(e)
+		// Check for background task termination from KillShell
+		h.terminateBackgroundTaskFromKillShell(e)
 
 		// Check if this is a Task result and create TaskCompletionMessage
 		if taskCompletion := h.checkTaskResultFromUser(e); taskCompletion != nil {
@@ -259,15 +263,18 @@ func (h *Handler) processEvent(event Event) {
 			if strings.HasPrefix(e.HookEventType, "PreToolUse") {
 				// PreToolUse completed - move to waiting approval
 				h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusWaitingApproval)
+				h.syncToolInfoToSession()
 				logger.DebugInfo("Tool status updated: ID=%s, Status=waiting_approval", e.ToolUseID)
 			} else if strings.HasPrefix(e.HookEventType, "PostToolUse") {
 				if e.HookStatus == "started" {
 					// PostToolUse:Running - move to running
 					h.toolTracker.UpdateToolStatus(e.ToolUseID, ToolStatusRunning)
+					h.syncToolInfoToSession()
 					logger.DebugInfo("Tool status updated: ID=%s, Status=running", e.ToolUseID)
 				} else if e.HookStatus == "finished" {
 					// PostToolUse completed - finish the tool
 					h.toolTracker.FinishTool(e.ToolUseID, false, false)
+					h.syncToolInfoToSession()
 					logger.DebugInfo("Tool finished: ID=%s", e.ToolUseID)
 				}
 			}
@@ -350,10 +357,26 @@ func (h *Handler) trackTaskToolUses(msg *AssistantMessage) {
 		if content.Type == "tool_use" {
 			// Track all tools
 			h.toolTracker.TrackToolCreated(content.ID, content.Name)
+			h.syncToolInfoToSession()
 
 			// Update session's active tool
 			if activeTool, exists := h.toolTracker.GetActiveTool(); exists {
 				h.session.ActiveToolUse = activeTool
+			}
+
+			// Special handling for Bash tool with background execution
+			if content.Name == "Bash" {
+				if inputMap, ok := content.Input.(map[string]interface{}); ok {
+					// Check if it's a background task
+					if runInBg, ok := inputMap["run_in_background"].(bool); ok && runInBg {
+						// Store the tool_use_id and description temporarily
+						// The description will be associated with the background task when we receive the result
+						if desc, ok := inputMap["description"].(string); ok && desc != "" {
+							// Store temporarily - will be used when we get the backgroundTaskId
+							h.toolTracker.StoreToolDescription(content.ID, desc)
+						}
+					}
+				}
 			}
 
 			// Special handling for Task tool
@@ -414,14 +437,17 @@ func (h *Handler) checkToolResultFromUser(msg *UserMessage) {
 					if isRejected {
 						// User rejected - finish immediately
 						h.toolTracker.FinishTool(toolUseID, true, true)
+						h.syncToolInfoToSession()
 						logger.DebugInfo("Tool rejected by user: ID=%s", toolUseID)
 					} else if !isError {
 						// Tool executed successfully - move to running (waiting for PostToolUse)
 						h.toolTracker.UpdateToolStatus(toolUseID, ToolStatusRunning)
+						h.syncToolInfoToSession()
 						logger.DebugInfo("Tool executed: ID=%s, Status=running", toolUseID)
 					} else {
 						// Other error - finish with error
 						h.toolTracker.FinishTool(toolUseID, true, false)
+						h.syncToolInfoToSession()
 						logger.DebugInfo("Tool error: ID=%s", toolUseID)
 					}
 

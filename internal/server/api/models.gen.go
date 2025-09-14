@@ -15,6 +15,14 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
+// Defines values for ToolStatus.
+const (
+	Created         ToolStatus = "created"
+	Finished        ToolStatus = "finished"
+	Running         ToolStatus = "running"
+	WaitingApproval ToolStatus = "waiting_approval"
+)
+
 // Agent Agent information representing a Claude agent process
 type Agent struct {
 	// AgentType Type of the agent (e.g., "Claude Code")
@@ -35,6 +43,9 @@ type Agent struct {
 	// ProjectName Project name (extracted from projectDir)
 	ProjectName string `json:"projectName"`
 
+	// Session Session details
+	Session *Session `json:"session,omitempty"`
+
 	// SessionId Session ID of the Claude session
 	SessionId string `json:"sessionId"`
 
@@ -48,11 +59,83 @@ type AgentListResponse struct {
 	Agents []Agent `json:"agents"`
 }
 
+// BackgroundTaskInfo Background task information
+type BackgroundTaskInfo struct {
+	// BackgroundTaskId Background task ID
+	BackgroundTaskId string `json:"backgroundTaskId"`
+
+	// Command Command being executed
+	Command string `json:"command"`
+
+	// CreatedAt Timestamp when the task was created
+	CreatedAt time.Time `json:"createdAt"`
+
+	// IsTerminated Whether the task has been terminated
+	IsTerminated bool `json:"isTerminated"`
+
+	// TerminatedAt Timestamp when the task was terminated
+	TerminatedAt *time.Time `json:"terminatedAt,omitempty"`
+
+	// ToolUseId Tool use ID associated with this task
+	ToolUseId string `json:"toolUseId"`
+}
+
 // ErrorResponse Error response
 type ErrorResponse struct {
 	// Message Error message
 	Message string `json:"message"`
 }
+
+// Session Session information
+type Session struct {
+	// ActiveTool Active tool information
+	ActiveTool *ToolInfo `json:"activeTool,omitempty"`
+
+	// BackgroundTasks Background tasks
+	BackgroundTasks *[]BackgroundTaskInfo `json:"backgroundTasks,omitempty"`
+
+	// Cwd Current working directory
+	Cwd string `json:"cwd"`
+
+	// SessionId Session ID
+	SessionId string `json:"sessionId"`
+
+	// StartTime Timestamp when the session started
+	StartTime time.Time `json:"startTime"`
+
+	// TranscriptPath Path to the transcript file
+	TranscriptPath string `json:"transcriptPath"`
+
+	// Uuid UUID of the event that created this session
+	Uuid string `json:"uuid"`
+}
+
+// ToolInfo Tool information
+type ToolInfo struct {
+	// CreatedAt Timestamp when the tool was created
+	CreatedAt time.Time `json:"createdAt"`
+
+	// IsError Whether the tool resulted in an error
+	IsError bool `json:"isError"`
+
+	// IsRejected Whether the tool was rejected
+	IsRejected bool `json:"isRejected"`
+
+	// Status Tool status
+	Status ToolStatus `json:"status"`
+
+	// ToolName Tool name
+	ToolName string `json:"toolName"`
+
+	// ToolUseId Tool use ID
+	ToolUseId string `json:"toolUseId"`
+
+	// UpdatedAt Timestamp when the tool was last updated
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ToolStatus Tool execution status
+type ToolStatus string
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
