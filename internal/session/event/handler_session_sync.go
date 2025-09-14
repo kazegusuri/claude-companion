@@ -1,6 +1,8 @@
 package event
 
 import (
+	"time"
+
 	"github.com/kazegusuri/claude-companion/internal/server/handler"
 )
 
@@ -122,6 +124,41 @@ func (h *Handler) terminateBackgroundTaskFromKillShell(userMsg *UserMessage) {
 			if h.toolTracker.TerminateBackgroundTask(shellID) {
 				h.syncToolInfoToSession()
 			}
+		}
+	}
+}
+
+// syncTaskInfoToSession synchronizes task information from TaskTracker to SessionManager
+func (h *Handler) syncTaskInfoToSession() {
+	if h.sessionManager == nil || h.session == nil {
+		return
+	}
+
+	session, exists := h.sessionManager.GetSession(h.session.SessionID)
+	if !exists {
+		return
+	}
+
+	// Sync all active tasks
+	allTasks := h.taskTracker.GetAllTasks()
+	for taskID, task := range allTasks {
+		taskInfo := &handler.TaskInfo{
+			TaskID:      taskID,
+			ToolUseID:   task.ToolUseID,
+			TaskName:    task.SubagentType,
+			Description: task.Description,
+			Status:      "in_progress", // Tasks are always in progress until removed
+			CreatedAt:   time.Now(),    // Use current time as TaskInfo doesn't have timestamps
+			UpdatedAt:   time.Now(),
+		}
+		session.AddActiveTask(taskInfo)
+	}
+
+	// Remove tasks that no longer exist in TaskTracker
+	sessionTasks := session.GetActiveTasks()
+	for taskID := range sessionTasks {
+		if _, exists := allTasks[taskID]; !exists {
+			session.RemoveActiveTask(taskID)
 		}
 	}
 }

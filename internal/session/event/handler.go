@@ -473,6 +473,7 @@ func (h *Handler) trackTaskToolUses(msg *AssistantMessage) {
 
 					// Track the Task execution
 					h.taskTracker.TrackTask(content.ID, description, subagentType)
+					h.syncTaskInfoToSession() // Sync task info to session
 
 					logger.DebugInfo("Tracking Task: ID=%s, Description=%s, Agent=%s",
 						content.ID, description, subagentType)
@@ -576,6 +577,7 @@ func (h *Handler) checkTaskResultFromUser(msg *UserMessage) *TaskCompletionMessa
 					if taskInfo, exists := h.taskTracker.GetTask(toolUseID); exists {
 						// This is a Task result
 						h.taskTracker.RemoveTask(toolUseID)
+						h.syncTaskInfoToSession() // Sync task info to session after removal
 
 						// Create TaskCompletionMessage
 						taskCompletion := &TaskCompletionMessage{
