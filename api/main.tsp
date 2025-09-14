@@ -27,7 +27,7 @@ enum ToolStatus {
 }
 
 /**
- * Tool information
+ * Tool execution information
  */
 model ToolInfo {
   /**
@@ -116,6 +116,48 @@ model BackgroundTaskInfo {
 }
 
 /**
+ * Task information
+ */
+model TaskInfo {
+  /**
+   * Task ID
+   */
+  taskId: string;
+
+  /**
+   * Tool use ID associated with this task
+   */
+  toolUseId: string;
+
+  /**
+   * Task name
+   */
+  taskName: string;
+
+  /**
+   * Description of the task
+   */
+  description: string;
+
+  /**
+   * Task status
+   */
+  status: "pending" | "in_progress" | "completed";
+
+  /**
+   * Timestamp when the task was created
+   */
+  @format("date-time")
+  createdAt: string;
+
+  /**
+   * Timestamp when the task was last updated
+   */
+  @format("date-time")
+  updatedAt: string;
+}
+
+/**
  * Session information
  */
 model Session {
@@ -154,6 +196,11 @@ model Session {
    * Background tasks
    */
   backgroundTasks?: BackgroundTaskInfo[];
+
+  /**
+   * Active tasks
+   */
+  activeTasks?: TaskInfo[];
 }
 
 /**

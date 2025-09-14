@@ -242,8 +242,36 @@ export interface components {
             activeTool?: components["schemas"]["ToolInfo"];
             /** @description Background tasks */
             backgroundTasks?: components["schemas"]["BackgroundTaskInfo"][];
+            /** @description Active tasks */
+            activeTasks?: components["schemas"]["TaskInfo"][];
         };
-        /** @description Tool information */
+        /** @description Task information */
+        TaskInfo: {
+            /** @description Task ID */
+            taskId: string;
+            /** @description Tool use ID associated with this task */
+            toolUseId: string;
+            /** @description Task name */
+            taskName: string;
+            /** @description Description of the task */
+            description: string;
+            /**
+             * @description Task status
+             * @enum {string}
+             */
+            status: "pending" | "in_progress" | "completed";
+            /**
+             * Format: date-time
+             * @description Timestamp when the task was created
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Timestamp when the task was last updated
+             */
+            updatedAt: string;
+        };
+        /** @description Tool execution information */
         ToolInfo: {
             /** @description Tool use ID */
             toolUseId: string;

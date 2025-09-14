@@ -15,6 +15,13 @@ import (
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
 
+// Defines values for TaskInfoStatus.
+const (
+	Completed  TaskInfoStatus = "completed"
+	InProgress TaskInfoStatus = "in_progress"
+	Pending    TaskInfoStatus = "pending"
+)
+
 // Defines values for ToolStatus.
 const (
 	Created         ToolStatus = "created"
@@ -91,6 +98,9 @@ type ErrorResponse struct {
 
 // Session Session information
 type Session struct {
+	// ActiveTasks Active tasks
+	ActiveTasks *[]TaskInfo `json:"activeTasks,omitempty"`
+
 	// ActiveTool Active tool information
 	ActiveTool *ToolInfo `json:"activeTool,omitempty"`
 
@@ -113,7 +123,34 @@ type Session struct {
 	Uuid string `json:"uuid"`
 }
 
-// ToolInfo Tool information
+// TaskInfo Task information
+type TaskInfo struct {
+	// CreatedAt Timestamp when the task was created
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Description Description of the task
+	Description string `json:"description"`
+
+	// Status Task status
+	Status TaskInfoStatus `json:"status"`
+
+	// TaskId Task ID
+	TaskId string `json:"taskId"`
+
+	// TaskName Task name
+	TaskName string `json:"taskName"`
+
+	// ToolUseId Tool use ID associated with this task
+	ToolUseId string `json:"toolUseId"`
+
+	// UpdatedAt Timestamp when the task was last updated
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// TaskInfoStatus Task status
+type TaskInfoStatus string
+
+// ToolInfo Tool execution information
 type ToolInfo struct {
 	// CreatedAt Timestamp when the tool was created
 	CreatedAt time.Time `json:"createdAt"`

@@ -13,6 +13,7 @@ import {
 } from "@mantine/core";
 import {
   IconCheck,
+  IconCheckbox,
   IconClock,
   IconFolder,
   IconHash,
@@ -263,6 +264,60 @@ export const AgentList: React.FC<AgentListProps> = ({
                             </Group>
                           );
                         })()}
+
+                      {/* Session情報: アクティブタスク */}
+                      {agent.session?.activeTasks && agent.session.activeTasks.length > 0 && (
+                        <Group gap="xs">
+                          <IconCheckbox size={14} stroke={1.5} style={{ opacity: 0.8 }} />
+                          <Text size="xs" c="dimmed">
+                            Tasks:
+                          </Text>
+                          <Group gap={4}>
+                            {agent.session.activeTasks.slice(0, 3).map((task) => {
+                              const getTaskColor = () => {
+                                switch (task.status) {
+                                  case "completed":
+                                    return "green";
+                                  case "in_progress":
+                                    return "blue";
+                                  case "pending":
+                                    return "gray";
+                                  default:
+                                    return "gray";
+                                }
+                              };
+                              const getTaskIcon = () => {
+                                switch (task.status) {
+                                  case "completed":
+                                    return "✓";
+                                  case "in_progress":
+                                    return "▶";
+                                  case "pending":
+                                    return "○";
+                                  default:
+                                    return "";
+                                }
+                              };
+                              return (
+                                <Tooltip
+                                  key={task.taskId}
+                                  label={`${task.taskName}: ${task.description}`}
+                                  position="top"
+                                >
+                                  <Badge size="xs" variant="light" color={getTaskColor()}>
+                                    {getTaskIcon()} {task.taskName}
+                                  </Badge>
+                                </Tooltip>
+                              );
+                            })}
+                            {agent.session.activeTasks.length > 3 && (
+                              <Badge size="xs" variant="light" color="gray">
+                                +{agent.session.activeTasks.length - 3}
+                              </Badge>
+                            )}
+                          </Group>
+                        </Group>
+                      )}
 
                       {/* Session情報: バックグラウンドタスク */}
                       {agent.session?.backgroundTasks &&

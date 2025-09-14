@@ -30,6 +30,17 @@ type BackgroundTaskInfo struct {
 	TerminatedAt     *time.Time `json:"terminatedAt,omitempty"`
 }
 
+// TaskInfo represents information about a task
+type TaskInfo struct {
+	TaskID      string    `json:"taskId"`
+	ToolUseID   string    `json:"toolUseId"`
+	TaskName    string    `json:"taskName"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"` // pending, in_progress, completed
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
 // SessionGetter is an interface for getting session information
 type SessionGetter interface {
 	GetSession(sessionID string) (*Session, bool)
@@ -43,9 +54,10 @@ type Session struct {
 	TranscriptPath string    `json:"transcriptPath"` // Path to the transcript file
 	StartTime      time.Time `json:"startTime"`      // When the session started
 
-	// Tool and background task information
+	// Tool and task information
 	activeTool      *ToolInfo                      `json:"activeTool,omitempty"`
 	backgroundTasks map[string]*BackgroundTaskInfo `json:"backgroundTasks,omitempty"`
+	activeTasks     map[string]*TaskInfo           `json:"activeTasks,omitempty"`
 
 	// Mutex for thread-safe updates
 	mu sync.RWMutex
@@ -76,6 +88,7 @@ func (sm *SessionManager) CreateSession(sessionID, uuid, cwd, transcriptPath str
 		TranscriptPath:  transcriptPath,
 		StartTime:       time.Now(),
 		backgroundTasks: make(map[string]*BackgroundTaskInfo),
+		activeTasks:     make(map[string]*TaskInfo),
 	}
 
 	sm.sessions[sessionID] = session
@@ -198,4 +211,61 @@ func (s *Session) GetActiveBackgroundTasks() map[string]*BackgroundTaskInfo {
 		}
 	}
 	return activeTasks
+}
+
+// AddActiveTask adds or updates an active task
+func (s *Session) AddActiveTask(task *TaskInfo) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeTasks == nil {
+		s.activeTasks = make(map[string]*TaskInfo)
+	}
+	task.UpdatedAt = time.Now()
+	s.activeTasks[task.TaskID] = task
+}
+
+// UpdateActiveTask updates an existing active task's status
+func (s *Session) UpdateActiveTask(taskID string, status string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if task, exists := s.activeTasks[taskID]; exists {
+		task.Status = status
+		task.UpdatedAt = time.Now()
+	}
+}
+
+// RemoveActiveTask removes an active task by ID
+func (s *Session) RemoveActiveTask(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.activeTasks, taskID)
+}
+
+// GetActiveTasks returns a copy of all active tasks
+func (s *Session) GetActiveTasks() map[string]*TaskInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Create a copy to avoid race conditions
+	copy := make(map[string]*TaskInfo)
+	for k, v := range s.activeTasks {
+		taskCopy := *v
+		copy[k] = &taskCopy
+	}
+	return copy
+}
+
+// GetActiveTasksByStatus returns active tasks filtered by status
+func (s *Session) GetActiveTasksByStatus(status string) []*TaskInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var tasks []*TaskInfo
+	for _, v := range s.activeTasks {
+		if v.Status == status {
+			taskCopy := *v
+			tasks = append(tasks, &taskCopy)
+		}
+	}
+	return tasks
 }

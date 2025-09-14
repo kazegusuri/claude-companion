@@ -153,6 +153,21 @@ func (h *APIHandler) convertSessionToAPI(sessionID string) *Session {
 		backgroundTasks = append(backgroundTasks, apiTask)
 	}
 
+	// Convert active tasks
+	var activeTasks []TaskInfo
+	for _, task := range session.GetActiveTasks() {
+		apiTask := TaskInfo{
+			TaskId:      task.TaskID,
+			ToolUseId:   task.ToolUseID,
+			TaskName:    task.TaskName,
+			Description: task.Description,
+			Status:      TaskInfoStatus(task.Status),
+			CreatedAt:   task.CreatedAt,
+			UpdatedAt:   task.UpdatedAt,
+		}
+		activeTasks = append(activeTasks, apiTask)
+	}
+
 	// Convert to API Session
 	apiSession := &Session{
 		SessionId:      session.SessionID,
@@ -165,6 +180,10 @@ func (h *APIHandler) convertSessionToAPI(sessionID string) *Session {
 
 	if len(backgroundTasks) > 0 {
 		apiSession.BackgroundTasks = &backgroundTasks
+	}
+
+	if len(activeTasks) > 0 {
+		apiSession.ActiveTasks = &activeTasks
 	}
 
 	return apiSession

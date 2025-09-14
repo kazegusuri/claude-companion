@@ -355,7 +355,51 @@ components:
           items:
             $ref: '#/components/schemas/BackgroundTaskInfo'
           description: Background tasks
+        activeTasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskInfo'
+          description: Active tasks
       description: Session information
+    TaskInfo:
+      type: object
+      required:
+        - taskId
+        - toolUseId
+        - taskName
+        - description
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        taskId:
+          type: string
+          description: Task ID
+        toolUseId:
+          type: string
+          description: Tool use ID associated with this task
+        taskName:
+          type: string
+          description: Task name
+        description:
+          type: string
+          description: Description of the task
+        status:
+          type: string
+          enum:
+            - pending
+            - in_progress
+            - completed
+          description: Task status
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the task was last updated
+      description: Task information
     ToolInfo:
       type: object
       required:
@@ -395,7 +439,7 @@ components:
         isWaitingApproval:
           type: boolean
           description: Whether the tool is waiting for approval
-      description: Tool information
+      description: Tool execution information
     ToolStatus:
       type: string
       enum:
