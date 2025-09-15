@@ -1,12 +1,177 @@
-import { Box } from "@mantine/core";
+import { Badge, Box, Group, Paper, Text } from "@mantine/core";
+import { IconRobot, IconTerminal } from "@tabler/icons-react";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ChatDisplay } from "../components/ChatDisplay";
 import { Live2DModelViewer } from "../components/Live2DModelViewer";
+import type { Agent } from "../services/AgentService";
+import { AgentService } from "../services/AgentService";
+import { messageRouter } from "../services/MessageRouter";
 import type { ChatMessage, ConnectionStatus } from "../services/WebSocketClient";
 import { WebSocketAudioClient } from "../services/WebSocketClient";
 import styles from "./MobileDashboard.module.css";
+
+// パルスアニメーション用のスタイル
+const pulseKeyframes = `
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
+  }
+`;
+
+// モバイル用のコンパクトなAgentListコンポーネント
+interface MobileAgentListProps {
+  onAgentClick?: (agent: Agent) => void;
+  selectedAgentPID?: number | null;
+  wsClient?: WebSocketAudioClient | null;
+  maxAgents?: number;
+}
+
+const MobileAgentList: React.FC<MobileAgentListProps> = ({
+  onAgentClick,
+  selectedAgentPID,
+  wsClient,
+  maxAgents = 2,
+}) => {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const agentService = useMemo(() => new AgentService(), []);
+
+  // エージェント一覧を取得
+  const fetchAgents = useCallback(async () => {
+    try {
+      const data = await agentService.getAgents();
+      // 最大表示数に制限
+      const limitedAgents = data.slice(0, maxAgents);
+      setAgents(limitedAgents);
+    } catch (error) {
+      console.error("Failed to fetch agents:", error);
+    }
+  }, [agentService, maxAgents]);
+
+  // 初回取得と定期更新
+  useEffect(() => {
+    fetchAgents();
+
+    // 3秒ごとに更新（モバイルは更新頻度を少し高めに）
+    const interval = setInterval(fetchAgents, 3000);
+
+    return () => clearInterval(interval);
+  }, [fetchAgents]);
+
+  // WebSocketメッセージを監視してエージェントリストを即座に更新
+  useEffect(() => {
+    if (!wsClient) return;
+
+    const handleMessage = (message: ChatMessage) => {
+      // エージェント関連のイベントで即座に更新
+      if (
+        message.metadata?.eventType === "tool_permission" ||
+        message.metadata?.agentPid ||
+        message.type === "notification"
+      ) {
+        fetchAgents();
+      }
+    };
+
+    const cleanup = wsClient.addMessageListener(handleMessage);
+    return cleanup;
+  }, [wsClient, fetchAgents]);
+
+  return (
+    <>
+      <style>{pulseKeyframes}</style>
+      <Box style={{ width: "100%" }}>
+        {/* ヘッダー */}
+        <Group gap="xs" mb={4}>
+          <Text size="sm" fw={600} c="white">
+            Agents
+          </Text>
+        </Group>
+
+        {/* エージェントリスト（1行1エージェント、最大2行） */}
+        <Box style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {agents.map((agent) => (
+            <Paper
+              key={agent.pid}
+              p="4px 8px"
+              style={{
+                backgroundColor: agent.session?.activeTool?.isWaitingApproval
+                  ? "rgba(255, 193, 7, 0.15)" // 黄色の背景（許可待ち）
+                  : selectedAgentPID === agent.pid
+                    ? "rgba(139, 92, 246, 0.2)"
+                    : "rgba(255, 255, 255, 0.05)",
+                border: agent.session?.activeTool?.isWaitingApproval
+                  ? "1px solid rgba(255, 193, 7, 0.5)" // 黄色の枠線（許可待ち）
+                  : selectedAgentPID === agent.pid
+                    ? "1px solid rgba(139, 92, 246, 0.5)"
+                    : "1px solid rgba(255, 255, 255, 0.1)",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                width: "100%",
+                animation: agent.session?.activeTool?.isWaitingApproval
+                  ? "pulse 2s infinite"
+                  : "none",
+              }}
+              onClick={() => onAgentClick?.(agent)}
+            >
+              <IconTerminal size={16} style={{ flexShrink: 0 }} />
+              <Box
+                style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <Text size="xs" truncate style={{ flex: 1 }}>
+                  {agent.projectName || "claude-companion"}
+                </Text>
+                <Group gap={4} style={{ flexShrink: 0 }}>
+                  <Badge size="xs" color="gray" variant="filled">
+                    PID: {agent.pid}
+                  </Badge>
+                  {agent.session?.activeTool?.isWaitingApproval && (
+                    <Badge size="xs" color="yellow" variant="filled">
+                      🔐 許可待ち
+                    </Badge>
+                  )}
+                  {agent.session?.activeTool && !agent.session?.activeTool?.isWaitingApproval && (
+                    <Badge size="xs" color="blue" variant="light">
+                      {agent.session.activeTool.toolName}
+                    </Badge>
+                  )}
+                </Group>
+              </Box>
+            </Paper>
+          ))}
+          {agents.length === 0 && (
+            <Paper
+              p="4px 8px"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+              }}
+            >
+              <Text size="xs" c="dimmed">
+                No agents running
+              </Text>
+            </Paper>
+          )}
+        </Box>
+      </Box>
+    </>
+  );
+};
 
 export const MobileDashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +181,7 @@ export const MobileDashboard: React.FC = () => {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [isAudioEnabled, setIsAudioEnabled] = useState(false); // 初期状態では無効（ユーザーインタラクションが必要）
   const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
-  const [audioInitialized, setAudioInitialized] = useState(false); // AudioContext初期化状態
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null); // Track selected agent
 
   // URLパラメータから指定された幅と高さを取得（デフォルトは400x1280）
   const specifiedDimensions = useMemo(() => {
@@ -110,8 +275,7 @@ export const MobileDashboard: React.FC = () => {
     // 音声データがある場合はキューに追加
     // Check for assistant messages with audio subtype or legacy audio type
     if (
-      (message.type === "audio" ||
-        (message.type === "assistant" && message.subType === "audio")) &&
+      (message.type === "audio" || (message.type === "assistant" && message.subType === "audio")) &&
       message.audioData &&
       isAudioEnabledRef.current // refを使用
     ) {
@@ -132,23 +296,8 @@ export const MobileDashboard: React.FC = () => {
     }
   }, []); // 空の依存配列で一度だけ作成
 
-  // 音声初期化（ユーザーインタラクションが必要）
-  const initializeAudio = useCallback(() => {
-    if (!audioInitialized) {
-      // AudioContextを初期化（Live2DModelViewer内で処理される）
-      setAudioInitialized(true);
-      setIsAudioEnabled(true);
-    }
-  }, [audioInitialized]);
-
   // 音声出力のトグル
   const handleAudioToggle = useCallback(() => {
-    // 初期化されていない場合は初期化を実行
-    if (!audioInitialized) {
-      initializeAudio();
-      return;
-    }
-
     setIsAudioEnabled((prev) => {
       const newState = !prev;
 
@@ -162,7 +311,7 @@ export const MobileDashboard: React.FC = () => {
 
       return newState;
     });
-  }, [audioInitialized, initializeAudio]);
+  }, []);
 
   // メッセージハンドラーのrefを作成
   const messageHandlerRef = useRef<(message: ChatMessage) => void>();
@@ -288,56 +437,75 @@ export const MobileDashboard: React.FC = () => {
           useCard={false}
           bubbleMaxWidth={360}
           specifiedWidth={specifiedDimensions.width}
+          bubbleOffsetY={-30}
           {...(currentAudioData
             ? { audioData: currentAudioData, audioMessageId: currentMessageId }
             : {})}
           onAudioEnd={handleAudioEnd}
         />
-        {/* 音声初期化ボタン（未初期化時のみ表示） */}
-        {!audioInitialized && (
-          <button
-            onClick={initializeAudio}
-            style={{
-              position: "absolute",
-              bottom: "20px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "12px 24px",
-              fontSize: "16px",
-              fontWeight: "bold",
-              backgroundColor: "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
-              zIndex: 100,
-            }}
-            type="button"
-          >
-            🔊 音声を有効にする
-          </button>
-        )}
       </Box>
 
-      {/* 下段: Chat Component (高さ512px = 40%) */}
+      {/* 下段: Agent List (最大2つ) と Chat Component */}
       <Box
         className={styles.chatSection || ""}
         style={{
           borderTop: "1px solid rgba(255, 255, 255, 0.1)",
           boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          gap: "4px",
         }}
       >
-        <ChatDisplay
-          wsClient={wsClient.current}
-          connectionStatus={connectionStatus}
-          currentPlayingMessageId={currentMessageId}
-          variant="mobile"
-          maxDisplayMessages={3}
-          showInput={false}
-          onAudioToggle={handleAudioToggle}
-          isAudioEnabled={isAudioEnabled}
-        />
+        {/* Agent List - コンパクト表示（最大2つ） */}
+        <Box
+          style={{
+            flex: "0 0 auto",
+            padding: "4px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <MobileAgentList
+            onAgentClick={(agent) => {
+              // Toggle agent selection
+              if (selectedAgent?.pid === agent.pid) {
+                // Clear agent mode
+                setSelectedAgent(null);
+                messageRouter.clearMode();
+                wsClient.current?.clearAgentMode();
+              } else {
+                // Set agent mode
+                setSelectedAgent(agent);
+                messageRouter.setAgentMode(agent);
+                wsClient.current?.setAgentMode(agent.pid);
+              }
+            }}
+            selectedAgentPID={selectedAgent?.pid ?? null}
+            wsClient={wsClient.current}
+            maxAgents={2}
+          />
+        </Box>
+
+        {/* Chat Display */}
+        <Box
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "hidden",
+          }}
+        >
+          <ChatDisplay
+            wsClient={wsClient.current}
+            connectionStatus={connectionStatus}
+            currentPlayingMessageId={currentMessageId}
+            variant="mobile"
+            maxDisplayMessages={3}
+            showInput={false}
+            onAudioToggle={handleAudioToggle}
+            isAudioEnabled={isAudioEnabled}
+            agentPID={selectedAgent?.pid ?? null}
+            onAgentDisconnect={() => setSelectedAgent(null)}
+          />
+        </Box>
       </Box>
     </Box>
   );

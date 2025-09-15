@@ -14,6 +14,7 @@ interface SpeechBubbleProps {
   maxWidth?: number;
   isMobile?: boolean;
   specifiedWidth?: number;
+  offsetY?: number; // Y軸のオフセット
 }
 
 export function SpeechBubble({
@@ -27,6 +28,7 @@ export function SpeechBubble({
   maxWidth,
   isMobile = false,
   specifiedWidth,
+  offsetY = 0,
 }: SpeechBubbleProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
@@ -99,7 +101,7 @@ export function SpeechBubble({
         // 実際の画面サイズに基づいて位置を計算
         // チャット欄開始位置（768px）より上、Live2Dエリアの下部に配置
         // 1280pxの画面で768pxは60%、その少し上（50-55%あたり）に配置
-        const bubbleTop = Math.min(680, viewportHeight * 0.53); // 画面高さの53%（約680px）
+        const bubbleTop = Math.min(680, viewportHeight * 0.53) + offsetY; // 画面高さの53%（約680px） + オフセット
 
         // 横幅の中央配置を計算（指定幅または実際の表示幅を基準に）
         // 指定幅がある場合は、その幅の中央に配置
@@ -139,19 +141,19 @@ export function SpeechBubble({
         positions = {
           right: {
             left: rect.right + gap, // アンカーの右端から右へ
-            top: rect.top + rect.height * 0.2, // 上から20%の位置
+            top: rect.top + rect.height * 0.2 + offsetY, // 上から20%の位置 + オフセット
           },
           left: {
             left: rect.left - bubbleWidth - gap,
-            top: rect.top + rect.height * 0.2,
+            top: rect.top + rect.height * 0.2 + offsetY,
           },
           top: {
             left: rect.left + (rect.width - bubbleWidth) / 2,
-            top: rect.top - 150,
+            top: rect.top - 150 + offsetY,
           },
           bottom: {
             left: rect.left + (rect.width - bubbleWidth) / 2,
-            top: rect.bottom + gap,
+            top: rect.bottom + gap + offsetY,
           },
         };
       }
@@ -235,7 +237,7 @@ export function SpeechBubble({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition);
     };
-  }, [anchorSelector, side, isMobile, maxWidth, specifiedWidth, visible]);
+  }, [anchorSelector, side, isMobile, maxWidth, specifiedWidth, visible, offsetY]);
 
   // モバイルビューの判定
   const isInMobileView = window.location.pathname === "/mobile" || isMobile;

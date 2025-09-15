@@ -119,6 +119,7 @@ interface Live2DModelViewerProps {
   stageType?: StageType;
   bubbleMaxWidth?: number;
   specifiedWidth?: number;
+  bubbleOffsetY?: number; // 吹き出しのY軸オフセット
   onModelLoaded?: (model: Live2DModel) => void;
   onModelInfoUpdate?: (info: {
     parameters: ModelParameter[];
@@ -142,6 +143,7 @@ export function Live2DModelViewer({
   stageType = "gold-card",
   bubbleMaxWidth,
   specifiedWidth,
+  bubbleOffsetY,
   onModelLoaded,
   onModelInfoUpdate,
   audioData,
@@ -799,6 +801,7 @@ export function Live2DModelViewer({
           maxWidth={bubbleMaxWidth || 600}
           isMobile={window.location.pathname === "/mobile"}
           {...(specifiedWidth !== undefined && { specifiedWidth })}
+          {...(bubbleOffsetY !== undefined && { offsetY: bubbleOffsetY })}
           style={{
             zIndex: 1000,
           }}
@@ -820,6 +823,7 @@ export function Live2DModelViewer({
         maxWidth={bubbleMaxWidth || 600}
         isMobile={window.location.pathname === "/mobile"}
         {...(specifiedWidth !== undefined && { specifiedWidth })}
+        {...(bubbleOffsetY !== undefined && { offsetY: bubbleOffsetY })}
       />
     </Box>
   );
