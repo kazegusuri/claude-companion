@@ -182,6 +182,9 @@ export const MobileDashboard: React.FC = () => {
   const [isAudioEnabled, setIsAudioEnabled] = useState(false); // 初期状態では無効（ユーザーインタラクションが必要）
   const [currentAudioData, setCurrentAudioData] = useState<string | undefined>(undefined);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null); // Track selected agent
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false); // 音声再生状態
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false); // 吹き出し表示状態
+  const speechBubbleTimerRef = useRef<NodeJS.Timeout | null>(null); // 吹き出し非表示タイマー
 
   // URLパラメータから指定された幅と高さを取得（デフォルトは400x1280）
   const specifiedDimensions = useMemo(() => {
@@ -238,6 +241,16 @@ export const MobileDashboard: React.FC = () => {
       // メッセージIDと音声データを設定
       setCurrentMessageId(messageId || null);
       setCurrentAudioData(audioData);
+
+      // 音声再生開始時に吹き出しを表示
+      setIsPlayingAudio(true);
+      setShowSpeechBubble(true);
+
+      // タイマーがあればクリア
+      if (speechBubbleTimerRef.current) {
+        clearTimeout(speechBubbleTimerRef.current);
+        speechBubbleTimerRef.current = null;
+      }
     } else {
       audioQueue.current.shift();
       // 次のメッセージを処理
@@ -258,6 +271,16 @@ export const MobileDashboard: React.FC = () => {
     setCurrentMessageId(null);
     setCurrentAudioData(undefined);
     isProcessingQueue.current = false;
+    setIsPlayingAudio(false);
+
+    // 2秒後に吹き出しを非表示にする
+    if (speechBubbleTimerRef.current) {
+      clearTimeout(speechBubbleTimerRef.current);
+    }
+    speechBubbleTimerRef.current = setTimeout(() => {
+      setShowSpeechBubble(false);
+      speechBubbleTimerRef.current = null;
+    }, 2000);
 
     // 次のアイテムを処理
     if (audioQueue.current.length > 0) {
@@ -378,6 +401,16 @@ export const MobileDashboard: React.FC = () => {
     return () => window.removeEventListener("resize", updateScale);
   }, []);
 
+  // コンポーネントのアンマウント時にタイマーをクリア
+  useEffect(() => {
+    return () => {
+      if (speechBubbleTimerRef.current) {
+        clearTimeout(speechBubbleTimerRef.current);
+        speechBubbleTimerRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <Box
       className={styles.mobileContainer || ""}
@@ -432,7 +465,7 @@ export const MobileDashboard: React.FC = () => {
           width={380}
           height={700}
           speechText={speechText}
-          isSpeaking={true}
+          isSpeaking={showSpeechBubble}
           bubbleSide="bottom"
           useCard={false}
           bubbleMaxWidth={360}
